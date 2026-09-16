@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Pressable, RefreshControl, ScrollView, View, Text, StyleSheet, useWindowDimensions } from 'react-native'
 import { colors, shadows } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
+import { buildDetailedFuelPredictions } from '../services/fuelData'
 import { defaultFavoriteCities, loadFavoriteCities } from '../services/favoriteCities'
 import { defaultAlerts, evaluateCustomAlerts, loadCustomAlerts } from '../services/customAlerts'
 
@@ -98,6 +99,13 @@ export default function AnaSayfa() {
   const marketSignal = data.marketSignal
   const trendSeries = data.homeTrendSeries
   const chartWidth = Math.max(210, Math.min(width - 92, 330))
+
+  const fuelPredictionsList = useMemo(() => {
+    if (marketSignal?.fuelPredictions && Array.isArray(marketSignal.fuelPredictions) && marketSignal.fuelPredictions.length > 0) {
+      return marketSignal.fuelPredictions
+    }
+    return buildDetailedFuelPredictions(marketSignal?.direction ?? 'increase', marketSignal?.score ?? 65, marketSignal?.confidence ?? 'medium')
+  }, [marketSignal])
 
   useEffect(() => {
     loadFavoriteCities().then(setFavCities)
@@ -204,8 +212,8 @@ export default function AnaSayfa() {
               <MaterialCommunityIcons name="bell-ring" size={20} color="#FFD700" />
             </View>
             <View style={styles.triggeredBannerCopy}>
-              <Text style={styles.triggeredBannerTitle}>Fiyat Alarmı Tetiklendi!</Text>
-              <Text style={styles.triggeredBannerText}>{triggeredAlerts[0].message}</Text>
+              <Text style={styles.triggeredBannerTitle}>Piyasa Zam/İndirim Sinyali Tetiklendi!</Text>
+              <Text style={styles.triggeredBannerText}>Akaryakıt piyasasında hareketlilik var. Aşağıdaki kartlardan yakıt bazlı tahmin detaylarını görün.</Text>
             </View>
           </View>
         ) : null}
@@ -257,7 +265,7 @@ export default function AnaSayfa() {
 
           {/* 3 AYRI YAKIT TÜRÜ TAHMİN KARTI (Benzin, Motorin, LPG) */}
           <View style={styles.predCardGrid}>
-            {(marketSignal.fuelPredictions ?? []).map((pred) => {
+            {fuelPredictionsList.map((pred) => {
               return (
                 <View key={pred.key} style={[styles.predFuelCard, { borderColor: pred.badgeBorder, backgroundColor: pred.badgeBg }]}>
                   <View style={styles.predFuelTop}>
