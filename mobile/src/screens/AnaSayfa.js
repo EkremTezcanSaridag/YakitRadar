@@ -235,109 +235,78 @@ export default function AnaSayfa() {
           </View>
         ))}
 
-        <View style={styles.signalCard}>
-          <View style={styles.signalHeader}>
-            <View style={styles.signalTitleGroup}>
-              <View style={[styles.signalIcon, { backgroundColor: marketSignal.softColor }]}>
-                <MaterialCommunityIcons name={marketSignal.icon} size={18} color={marketSignal.color} />
+        {/* YENİLEŞTİRİLMİŞ AKARYAKIT TAHMİN DASHBOARD'U */}
+        <View style={styles.predictionDashboard}>
+          <View style={styles.predHeader}>
+            <View style={styles.predHeaderLeft}>
+              <View style={[styles.predRadarIconBox, { backgroundColor: marketSignal.softColor }]}>
+                <MaterialCommunityIcons name="radar" size={20} color={marketSignal.color} />
               </View>
-              <View style={styles.signalTitleText}>
-                <Text style={styles.signalEyebrow}>Piyasa Sinyali</Text>
-                <Text style={styles.signalTitle}>{marketSignal.title}</Text>
+              <View style={styles.predHeaderCopy}>
+                <Text style={styles.predTitle}>Beklenen Akaryakıt Değişimleri</Text>
+                <Text style={styles.predSubtitle}>Yapay Zeka Piyasa & Zam Tahmin Sinyali</Text>
               </View>
             </View>
-
-            <View style={[styles.signalPill, { borderColor: marketSignal.color }]}>
-              <Text style={[styles.signalPillText, { color: marketSignal.color }]}>
-                {marketSignal.confidenceLabel}
+            <View style={[styles.predConfidenceBadge, { borderColor: marketSignal.color }]}>
+              <View style={[styles.predDot, { backgroundColor: marketSignal.color }]} />
+              <Text style={[styles.predConfidenceText, { color: marketSignal.color }]}>
+                {marketSignal.confidenceLabel} Güven
               </Text>
             </View>
           </View>
 
-          <Text style={styles.signalSummary}>{marketSignal.summary}</Text>
+          {/* 3 AYRI YAKIT TÜRÜ TAHMİN KARTI (Benzin, Motorin, LPG) */}
+          <View style={styles.predCardGrid}>
+            {(marketSignal.fuelPredictions ?? []).map((pred) => {
+              return (
+                <View key={pred.key} style={[styles.predFuelCard, { borderColor: pred.badgeBorder, backgroundColor: pred.badgeBg }]}>
+                  <View style={styles.predFuelTop}>
+                    <View style={styles.predFuelBadge}>
+                      <MaterialCommunityIcons name={pred.icon} size={16} color={colors.white} />
+                      <Text style={styles.predFuelName}>{pred.fuelName}</Text>
+                    </View>
+                    <View style={[styles.predStatusPill, { borderColor: pred.badgeBorder }]}>
+                      <Text style={[styles.predStatusText, { color: pred.textColor }]}>
+                        {pred.statusText}
+                      </Text>
+                    </View>
+                  </View>
 
-          <View style={styles.signalMetricRow}>
-            {marketSignal.metrics.map((metric) => (
-              <View key={metric.label} style={styles.signalMetric}>
-                <Text style={styles.signalMetricLabel}>{metric.label}</Text>
-                <Text style={styles.signalMetricValue}>{metric.value}</Text>
-              </View>
-            ))}
+                  <View style={styles.predAmountBox}>
+                    <Text style={[styles.predAmountText, { color: pred.textColor }]}>
+                      {pred.amountText}
+                    </Text>
+                    <Text style={styles.predUnitText}>/ litre beklenti</Text>
+                  </View>
+
+                  <View style={styles.predBottomRow}>
+                    <View style={styles.predTransitionPill}>
+                      <Text style={styles.predTransitionText}>
+                        {pred.currentPrice} ➔ <Text style={{ color: pred.textColor, fontWeight: 'bold' }}>{pred.expectedPrice}</Text>
+                      </Text>
+                    </View>
+                    <View style={styles.predDateChip}>
+                      <MaterialCommunityIcons name="calendar-clock" size={12} color={colors.mutedSoft} />
+                      <Text style={styles.predDateText}>{pred.targetDate}</Text>
+                    </View>
+                  </View>
+                </View>
+              )
+            })}
           </View>
 
-          {marketSignal.analysisFactors.length > 0 ? (
-            <View style={styles.analysisList}>
-              {marketSignal.analysisFactors.map((factor) => (
-                <View key={factor.label} style={styles.analysisRow}>
-                  <View
-                    style={[
-                      styles.analysisIcon,
-                      { backgroundColor: factor.tone === 'increase' ? colors.dangerDark : factor.tone === 'decrease' ? colors.accentDark : '#26364F' },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name={signalToneIcons[factor.tone] ?? signalToneIcons.neutral}
-                      size={12}
-                      color={factor.tone === 'increase' ? colors.danger : factor.tone === 'decrease' ? colors.accent : colors.mutedSoft}
-                    />
-                  </View>
-                  <View style={styles.analysisTextGroup}>
-                    <View style={styles.analysisTopLine}>
-                      <Text style={styles.analysisLabel}>{factor.label}</Text>
-                      <Text style={styles.analysisValue}>{factor.value}</Text>
-                    </View>
-                    <Text style={styles.analysisDetail} numberOfLines={2}>
-                      {factor.detail}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : null}
-
-          {marketSignal.newsItems.length > 0 ? (
-            <View style={styles.newsList}>
-              <Text style={styles.newsTitle}>Haber Etkisi</Text>
-              {marketSignal.newsItems.map((item) => (
-                <View key={`${item.source}-${item.title}`} style={styles.newsRow}>
-                  <MaterialCommunityIcons name="newspaper-variant-outline" size={13} color={colors.mutedSoft} />
-                  <Text style={styles.newsText} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                  {item.priceMentions?.length ? (
-                    <View style={styles.newsPriceList}>
-                      {item.priceMentions.map((price) => (
-                        <View key={`${item.title}-${price}`} style={styles.newsPriceChip}>
-                          <Text style={styles.newsPriceText}>{price}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  ) : null}
-                </View>
-              ))}
-            </View>
-          ) : null}
-
-          <View style={styles.fuelSignalList}>
-            {marketSignal.fuels.map((fuelSignal) => (
-              <View key={fuelSignal.fuel} style={styles.fuelSignalRow}>
-                <View style={styles.fuelSignalName}>
-                  <MaterialCommunityIcons
-                    name={fuelSignalIcons[fuelSignal.fuel] ?? 'fuel'}
-                    size={15}
-                    color={colors.mutedSoft}
-                  />
-                  <Text style={styles.fuelSignalFuel}>{fuelSignal.fuel}</Text>
-                </View>
-                <Text style={styles.fuelSignalValue} numberOfLines={1}>
-                  {fuelSignal.label}
-                </Text>
+          {/* SİNYAL METRİKLERİ HIZLI ÇİP BARI */}
+          <View style={styles.predMetricsBar}>
+            {marketSignal.metrics.map((metric) => (
+              <View key={metric.label} style={styles.predMetricChip}>
+                <Text style={styles.predMetricChipLabel}>{metric.label}:</Text>
+                <Text style={styles.predMetricChipVal}>{metric.value}</Text>
               </View>
             ))}
           </View>
 
           <Text style={styles.signalDisclaimer}>
-            Son hesaplama: {marketSignal.updatedAt} · Tahmini sinyaldir, kesin fiyat değişikliği değildir.
+            Son hesaplama: {marketSignal.updatedAt} · Tahmini sinyaldir, resmi pompa kararı değildir.
           </Text>
         </View>
 
@@ -1279,5 +1248,165 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     marginTop: 2,
+  },
+  predictionDashboard: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    marginBottom: 16,
+    ...shadows.soft,
+  },
+  predHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  predHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  predRadarIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  predHeaderCopy: {
+    gap: 1,
+  },
+  predTitle: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  predSubtitle: {
+    color: colors.mutedSoft,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  predConfidenceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    backgroundColor: colors.surfaceAlt,
+  },
+  predDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  predConfidenceText: {
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  predCardGrid: {
+    gap: 10,
+    marginBottom: 12,
+  },
+  predFuelCard: {
+    borderRadius: 10,
+    borderWidth: 1.5,
+    padding: 12,
+    gap: 8,
+  },
+  predFuelTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  predFuelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  predFuelName: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  predStatusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    backgroundColor: colors.surface,
+  },
+  predStatusText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  predAmountBox: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+  },
+  predAmountText: {
+    fontSize: 26,
+    fontWeight: '900',
+  },
+  predUnitText: {
+    color: colors.mutedSoft,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  predBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  predTransitionPill: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  predTransitionText: {
+    color: colors.mutedSoft,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  predDateChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  predDateText: {
+    color: colors.mutedSoft,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  predMetricsBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 8,
+  },
+  predMetricChip: {
+    flexDirection: 'row',
+    gap: 4,
+    alignItems: 'center',
+  },
+  predMetricChipLabel: {
+    color: colors.mutedSoft,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  predMetricChipVal: {
+    color: colors.accent,
+    fontSize: 10,
+    fontWeight: '900',
   },
 })

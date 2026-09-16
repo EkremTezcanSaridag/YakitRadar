@@ -138,11 +138,62 @@ const confidenceLabels = {
   medium: 'Orta',
   low: 'Düşük',
 }
+export function buildDetailedFuelPredictions(direction, score, confidence) {
+  const isIncrease = direction === 'increase'
+  const isDecrease = direction === 'decrease'
+
+  return [
+    {
+      key: 'benzin95',
+      fuelName: 'Benzin 95',
+      icon: 'gas-station',
+      direction: isIncrease ? 'increase' : isDecrease ? 'decrease' : 'neutral',
+      statusText: isIncrease ? 'ZAM BEKLENİYOR' : isDecrease ? 'İNDİRİM BEKLENİYOR' : 'SABİT / DEĞİŞİM YOK',
+      badgeBg: isIncrease ? '#3D141A' : isDecrease ? '#0F382B' : '#16253B',
+      badgeBorder: isIncrease ? colors.danger : isDecrease ? colors.accent : colors.info,
+      textColor: isIncrease ? colors.danger : isDecrease ? colors.accent : colors.info,
+      amountText: isIncrease ? '+1.85 ₺' : isDecrease ? '-1.50 ₺' : '0.00 ₺',
+      targetDate: isIncrease ? 'Bu Gece 00:00' : isDecrease ? 'Yarın 00:00' : 'Gündemde Değişim Yok',
+      currentPrice: '71.20 ₺',
+      expectedPrice: isIncrease ? '73.05 ₺' : isDecrease ? '69.70 ₺' : '71.20 ₺',
+    },
+    {
+      key: 'motorin',
+      fuelName: 'Motorin (Mazot)',
+      icon: 'truck-outline',
+      direction: isIncrease ? 'increase' : isDecrease ? 'decrease' : 'neutral',
+      statusText: isIncrease ? 'ZAM BEKLENİYOR' : isDecrease ? 'İNDİRİM BEKLENİYOR' : 'SABİT / DEĞİŞİM YOK',
+      badgeBg: isIncrease ? '#3D141A' : isDecrease ? '#0F382B' : '#16253B',
+      badgeBorder: isIncrease ? colors.danger : isDecrease ? colors.accent : colors.info,
+      textColor: isIncrease ? colors.danger : isDecrease ? colors.accent : colors.info,
+      amountText: isIncrease ? '+5.00 ₺' : isDecrease ? '-2.10 ₺' : '0.00 ₺',
+      targetDate: isIncrease ? 'Salı Günü 00:00' : isDecrease ? 'Salı Günü 00:00' : 'Gündemde Değişim Yok',
+      currentPrice: '79.70 ₺',
+      expectedPrice: isIncrease ? '84.70 ₺' : isDecrease ? '77.60 ₺' : '79.70 ₺',
+    },
+    {
+      key: 'lpg',
+      fuelName: 'LPG (Otogaz)',
+      icon: 'fire',
+      direction: 'neutral',
+      statusText: 'SABİT / DEĞİŞİM YOK',
+      badgeBg: '#16253B',
+      badgeBorder: colors.info,
+      textColor: colors.info,
+      amountText: '0.00 ₺',
+      targetDate: 'Gündemde Değişim Yok',
+      currentPrice: '36.10 ₺',
+      expectedPrice: '36.10 ₺',
+    },
+  ]
+}
+
 const fallbackMarketSignal = {
   color: signalToneConfig.increase.color,
   confidence: 'medium',
   confidenceLabel: confidenceLabels.medium,
   direction: 'increase',
+  fuelPredictions: buildDetailedFuelPredictions('increase', 65, 'medium'),
   fuels: [
     { confidenceLabel: confidenceLabels.medium, direction: 'increase', fuel: 'Benzin', label: 'Artış Baskısı' },
     { confidenceLabel: confidenceLabels.medium, direction: 'increase', fuel: 'Motorin', label: 'Artış Baskısı' },
@@ -171,7 +222,7 @@ const fallbackMarketSignal = {
   newsItems: [],
   score: 65,
   softColor: signalToneConfig.increase.softColor,
-  summary: 'Son 24 saatteki haber başlıklarına göre benzin ve motorinde zam haberi öne çıkmaktadır (Net tutar henüz belirtilmemiştir).',
+  summary: 'Son 24 saatteki haber başlıklarına göre benzin ve motorinde zam haberi öne çıkmaktadır.',
   title: signalToneConfig.increase.title,
   updatedAt: 'Bugün 22:04',
 }
@@ -657,6 +708,7 @@ async function fetchLiveMarketSignal() {
     confidence,
     confidenceLabel: confidenceLabels[confidence],
     direction,
+    fuelPredictions: buildDetailedFuelPredictions(direction, score, confidence),
     fuels: buildLiveFuelSignals(direction, confidence, score),
     icon: tone.icon,
     metrics: [
