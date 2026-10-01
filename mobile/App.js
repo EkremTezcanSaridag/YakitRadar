@@ -18,6 +18,7 @@ import {
   subscribeToNotificationEvents,
   syncExistingNotificationPermission,
 } from './src/services/notifications'
+import { initAds, trackAdInteraction } from './src/services/adManager'
 import { colors } from './src/theme'
 
 import { Platform, StyleSheet, View } from 'react-native'
@@ -50,6 +51,7 @@ const startupNotificationMeta = {
 
 export default function App() {
   useEffect(() => {
+    initAds().catch(() => {})
     setupNotificationChannels().catch(() => {})
     const unsubscribe = subscribeToNotificationEvents()
 
@@ -69,6 +71,11 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <NavigationContainer>
         <Tab.Navigator
+          screenListeners={{
+            tabPress: () => {
+              trackAdInteraction()
+            },
+          }}
           screenOptions={({ route }) => ({
             headerShown: false,
             tabBarShowLabel: true,
