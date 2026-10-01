@@ -150,9 +150,6 @@ export default function Gecmis() {
 
           <View style={styles.chartBox}>
             <View style={[styles.chartPlot, { width: chartWidth, height: chartHeight }]}>
-              <View style={styles.chartBackdropTop} />
-              <View style={styles.chartBackdropBottom} />
-
               {chartLabels.map((label, index) => (
                 <View
                   key={`${label}-${index}-guide`}
@@ -433,9 +430,9 @@ const styles = StyleSheet.create({
   },
   chartBox: {
     alignItems: 'center',
-    backgroundColor: '#071527',
-    borderColor: '#223752',
-    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 12,
     borderWidth: 1,
     overflow: 'hidden',
     paddingHorizontal: 12,
