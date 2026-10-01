@@ -296,34 +296,6 @@ export default function Bildirimler() {
           </View>
         )}
 
-        <View style={styles.actionRow}>
-          <Pressable
-            disabled={permissionBusy}
-            onPress={ensureNotificationAccess}
-            style={({ pressed }) => [styles.actionButton, pressed && styles.pressed, permissionBusy && styles.disabled]}
-          >
-            {permissionBusy ? (
-              <ActivityIndicator color={colors.bg} size="small" />
-            ) : (
-              <MaterialCommunityIcons name="shield-check" size={18} color={colors.bg} />
-            )}
-            <Text style={styles.actionButtonText}>İzni Kontrol Et</Text>
-          </Pressable>
-
-          <Pressable
-            disabled={testBusy}
-            onPress={handleTestNotification}
-            style={({ pressed }) => [styles.ghostButton, pressed && styles.pressed, testBusy && styles.disabled]}
-          >
-            {testBusy ? (
-              <ActivityIndicator color={colors.accent} size="small" />
-            ) : (
-              <MaterialCommunityIcons name="send-check-outline" size={18} color={colors.accent} />
-            )}
-            <Text style={styles.ghostButtonText}>Test Gönder</Text>
-          </Pressable>
-        </View>
-
         {/* Kişisel Fiyat Alarmları Paneli */}
         <View style={styles.panel}>
           <View style={styles.panelHeaderRow}>

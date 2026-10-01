@@ -12,6 +12,7 @@ import Bildirimler from './src/screens/Bildirimler'
 import {
   defaultNotificationSettings,
   configureNotificationHandler,
+  setupNotificationChannels,
   loadNotificationSettings,
   subscribeToNotificationEvents,
   syncExistingNotificationPermission,
@@ -46,6 +47,7 @@ const startupNotificationMeta = {
 
 export default function App() {
   useEffect(() => {
+    setupNotificationChannels().catch(() => {})
     const unsubscribe = subscribeToNotificationEvents()
 
     loadNotificationSettings()

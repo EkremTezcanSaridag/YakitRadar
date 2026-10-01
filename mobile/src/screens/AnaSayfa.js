@@ -343,7 +343,7 @@ export default function AnaSayfa() {
           </View>
 
           <Text style={styles.signalDisclaimer}>
-            Son hesaplama: {marketSignal.updatedAt} · Tahmini sinyaldir, resmi pompa kararı değildir.
+            Son hesaplama: {marketSignal.updatedAt}
           </Text>
         </View>
 
@@ -1421,9 +1421,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   predHeaderLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginRight: 8,
   },
   predRadarIconBox: {
     width: 32,
@@ -1433,12 +1435,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   predHeaderCopy: {
+    flex: 1,
     gap: 1,
   },
   predTitle: {
     color: colors.white,
-    fontSize: 14,
-    fontWeight: '900',
+    fontSize: 13,
+    fontWeight: '800',
   },
   predSubtitle: {
     color: colors.mutedSoft,
