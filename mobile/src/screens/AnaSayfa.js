@@ -178,31 +178,41 @@ export default function AnaSayfa() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <View style={styles.headerMark}>
-            <MaterialCommunityIcons name="fuel" size={18} color={colors.accent} />
+        {/* MODERN GLASS HERO HEADER */}
+        <View style={styles.heroHeader}>
+          <View style={styles.heroHeaderLeft}>
+            <View style={styles.heroPulseBox}>
+              <View style={styles.heroPulseDot} />
+              <MaterialCommunityIcons name="radar" size={20} color={colors.accent} />
+            </View>
+            <View>
+              <Text style={styles.heroBrandTitle}>YAKIT RADAR</Text>
+              <View style={styles.heroLiveTag}>
+                <Text style={styles.heroLiveTagText}>• CANLI PİYASA AKIŞI</Text>
+              </View>
+            </View>
           </View>
-          <Text style={styles.brand}>Yakıt Radar</Text>
-          <View style={styles.headerActions}>
+
+          <View style={styles.heroHeaderRight}>
             <Pressable
               accessibilityLabel="Fiyatları yenile"
               onPress={refresh}
-              style={({ pressed }) => [styles.refreshButton, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.heroRefreshBtn, pressed && styles.pressed]}
             >
               <MaterialCommunityIcons
                 name="refresh"
-                size={17}
+                size={18}
                 color={refreshing ? colors.mutedSoft : colors.accent}
               />
             </Pressable>
           </View>
         </View>
 
-        <View style={styles.metaRow}>
-          <Text style={styles.metaText}>{data.currentDateLabel}</Text>
-          <View style={styles.updatePill}>
+        <View style={styles.heroMetaBar}>
+          <Text style={styles.heroDateText}>{data.currentDateLabel}</Text>
+          <View style={styles.heroUpdatePill}>
             <MaterialCommunityIcons name="clock-outline" size={12} color={colors.accent} />
-            <Text style={styles.updateText}>{getUpdateLabel(data, refreshing)}</Text>
+            <Text style={styles.heroUpdateText}>{getUpdateLabel(data, refreshing)}</Text>
           </View>
         </View>
 
@@ -218,30 +228,47 @@ export default function AnaSayfa() {
           </View>
         ) : null}
 
-        {fuels.map((fuel) => (
-          <View key={fuel.name} style={styles.card}>
-            <View style={styles.cardTop}>
-              <View style={[styles.badge, { backgroundColor: fuel.badgeColor }]}>
-                <Text style={styles.badgeText}>{fuel.name}</Text>
-              </View>
-              <MaterialCommunityIcons name="information-outline" size={16} color={colors.mutedSoft} />
-            </View>
-
-            <View style={styles.cardBody}>
-              <Text style={styles.price} numberOfLines={1}>
-                {fuel.price}
-              </Text>
-              <View style={[styles.changePill, styles[fuel.tone]]}>
-                <MaterialCommunityIcons
-                  name={fuel.tone === 'bad' ? 'arrow-up-bold' : fuel.tone === 'good' ? 'arrow-down-bold' : 'minus'}
-                  size={12}
-                  color={fuel.tone === 'flat' ? colors.mutedSoft : colors.white}
-                />
-                <Text style={[styles.changeText, styles[`${fuel.tone}Text`]]}>{fuel.change}</Text>
-              </View>
-            </View>
+        {/* 3'LÜ YAKIT FİYATLARI HERO HORIZONTAL SCROLL CAROUSEL */}
+        <View style={styles.fuelHeroSection}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeaderTitle}>Anlık Pompa Fiyatları</Text>
+            <Text style={styles.sectionHeaderSub}>81 İl Ortalama</Text>
           </View>
-        ))}
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.fuelCarouselScroll}>
+            {fuels.map((fuel, index) => {
+              const borderColors = [colors.accent, colors.warning, colors.purpleGlow]
+              const accentColor = borderColors[index % borderColors.length]
+              return (
+                <View key={fuel.name} style={[styles.heroFuelTile, { borderColor: accentColor }]}>
+                  <View style={styles.heroFuelTop}>
+                    <View style={[styles.heroFuelBadge, { backgroundColor: fuel.badgeColor }]}>
+                      <Text style={styles.heroFuelBadgeText}>{fuel.name}</Text>
+                    </View>
+                    <MaterialCommunityIcons name="gas-station-outline" size={18} color={accentColor} />
+                  </View>
+
+                  <View style={styles.heroFuelBody}>
+                    <Text style={styles.heroFuelPrice}>{fuel.price}</Text>
+                    <Text style={styles.heroFuelUnit}>₺ / Litre</Text>
+                  </View>
+
+                  <View style={styles.heroFuelFooter}>
+                    <View style={[styles.changePill, styles[fuel.tone]]}>
+                      <MaterialCommunityIcons
+                        name={fuel.tone === 'bad' ? 'arrow-up-bold' : fuel.tone === 'good' ? 'arrow-down-bold' : 'minus'}
+                        size={12}
+                        color={fuel.tone === 'flat' ? colors.mutedSoft : colors.white}
+                      />
+                      <Text style={[styles.changeText, styles[`${fuel.tone}Text`]]}>{fuel.change}</Text>
+                    </View>
+                    <Text style={styles.heroFuelDetailText}>Canlı</Text>
+                  </View>
+                </View>
+              )
+            })}
+          </ScrollView>
+        </View>
 
         {/* YENİLEŞTİRİLMİŞ AKARYAKIT TAHMİN DASHBOARD'U */}
         <View style={styles.predictionDashboard}>
@@ -455,46 +482,165 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 24,
   },
-  header: {
-    alignItems: 'center',
-    backgroundColor: colors.bg,
+  heroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginHorizontal: -16,
-    marginTop: -8,
-    marginBottom: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerMark: {
     alignItems: 'center',
-    backgroundColor: colors.bgSoft,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    height: 34,
-    justifyContent: 'center',
-    width: 34,
+    marginBottom: 10,
+    marginTop: 4,
   },
-  brand: {
+  heroHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  heroPulseBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.borderLight,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  heroPulseDot: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accent,
+  },
+  heroBrandTitle: {
+    color: colors.white,
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  heroLiveTag: {
+    marginTop: 1,
+  },
+  heroLiveTagText: {
     color: colors.accent,
-    fontSize: 18,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  heroHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroRefreshBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderColor: colors.borderLight,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.soft,
+  },
+  heroMetaBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 16,
+    borderColor: colors.border,
+    borderWidth: 1,
+  },
+  heroDateText: {
+    color: colors.mutedSoft,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  heroUpdatePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  heroUpdateText: {
+    color: colors.accent,
+    fontSize: 10,
     fontWeight: '900',
   },
-  headerActions: {
-    alignItems: 'center',
-    flexDirection: 'row',
+  fuelHeroSection: {
+    marginBottom: 16,
   },
-  refreshButton: {
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.bgSoft,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    height: 34,
-    justifyContent: 'center',
-    marginRight: 10,
-    width: 34,
+    marginBottom: 10,
+  },
+  sectionHeaderTitle: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  sectionHeaderSub: {
+    color: colors.mutedSoft,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  fuelCarouselScroll: {
+    gap: 12,
+    paddingRight: 16,
+  },
+  heroFuelTile: {
+    width: 155,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 12,
+    gap: 10,
+    ...shadows.card,
+  },
+  heroFuelTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  heroFuelBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  heroFuelBadgeText: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  heroFuelBody: {
+    gap: 2,
+  },
+  heroFuelPrice: {
+    color: colors.white,
+    fontSize: 26,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  heroFuelUnit: {
+    color: colors.mutedSoft,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  heroFuelFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  heroFuelDetailText: {
+    color: colors.accent,
+    fontSize: 10,
+    fontWeight: '800',
   },
   pressed: {
     opacity: 0.72,
