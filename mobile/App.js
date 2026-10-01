@@ -65,8 +65,8 @@ export default function App() {
               <MaterialCommunityIcons name={tabIcons[route.name]} color={color} size={size ?? 22} />
             ),
             tabBarLabelStyle: {
-              fontSize: 10,
-              fontWeight: '700',
+              fontSize: 11,
+              fontWeight: '800',
               marginBottom: 2,
             },
             tabBarItemStyle: {
@@ -74,12 +74,13 @@ export default function App() {
               paddingBottom: 2,
             },
             tabBarStyle: {
-              backgroundColor: colors.bg,
-              borderTopColor: colors.border,
-              borderTopWidth: 1,
-              height: 70,
+              backgroundColor: colors.surface,
+              borderTopColor: colors.borderLight,
+              borderTopWidth: 1.5,
+              height: 72,
               paddingTop: 8,
               paddingBottom: 10,
+              elevation: 12,
             },
             tabBarActiveTintColor: colors.accent,
             tabBarInactiveTintColor: colors.muted,
