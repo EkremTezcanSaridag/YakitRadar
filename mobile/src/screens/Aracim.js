@@ -302,31 +302,37 @@ export default function Aracim() {
         </Pressable>
 
         <View style={styles.expenseHeading}>
-          <View>
-            <Text style={styles.expenseTitle}>Aylık maliyet</Text>
+          <View style={styles.expenseTitleGroup}>
+            <Text style={styles.expenseTitle}>Aylık Maliyet</Text>
             <Text style={styles.expenseSubtitle}>Son 6 ayda kaydedilen yakıt harcamaları</Text>
           </View>
           <View style={styles.monthTotal}>
-            <Text style={styles.monthTotalLabel}>Bu ay</Text>
+            <Text style={styles.monthTotalLabel}>Bu Ay</Text>
             <Text style={styles.monthTotalValue}>{formatCurrency(currentMonthExpense)}</Text>
           </View>
         </View>
 
         <View style={styles.expenseChartCard}>
           <View style={styles.expenseChartTop}>
-            <MaterialCommunityIcons name="chart-bar" size={18} color={colors.accent} />
-            <Text style={styles.expenseChartTitle}>Yakıt gideri</Text>
+            <View style={styles.expenseChartTitleRow}>
+              <MaterialCommunityIcons name="chart-bar" size={18} color={colors.accent} />
+              <Text style={styles.expenseChartTitle}>Yakıt Gideri Trendi</Text>
+            </View>
+            <Text style={styles.expenseChartSubText}>Son 6 Ay</Text>
           </View>
           <View style={styles.barChart}>
-            {monthlyExpenses.map((month) => (
-              <View key={month.key} style={styles.barColumn}>
-                <View style={styles.barTrack}>
-                  <View style={[styles.barFill, { height: `${Math.max((month.total / monthlyMaximum) * 100, month.total > 0 ? 7 : 0)}%` }]} />
+            {monthlyExpenses.map((month) => {
+              const heightPct = Math.max((month.total / monthlyMaximum) * 100, month.total > 0 ? 8 : 4)
+              return (
+                <View key={month.key} style={styles.barColumn}>
+                  <View style={styles.barTrack}>
+                    <View style={[styles.barFill, { height: `${heightPct}%` }]} />
+                  </View>
+                  <Text style={styles.barLabel}>{month.label}</Text>
+                  <Text style={styles.barValue}>{month.total > 0 ? `${formatNumber(month.total)} TL` : '-'}</Text>
                 </View>
-                <Text style={styles.barLabel}>{month.label}</Text>
-                <Text style={styles.barValue}>{month.total > 0 ? `${formatNumber(month.total)} TL` : '-'}</Text>
-              </View>
-            ))}
+              )
+            })}
           </View>
         </View>
 
@@ -529,7 +535,7 @@ export default function Aracim() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 28 },
+  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerMark: { width: 38, height: 38, borderRadius: 8, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   headerText: { flex: 1, marginLeft: 10 }, brand: { color: colors.text, fontSize: 20, fontWeight: '800' }, subtitle: { color: colors.muted, fontSize: 12, marginTop: 2 },
@@ -544,18 +550,24 @@ const styles = StyleSheet.create({
   cityButton: { height: 48, backgroundColor: colors.bgSoft, borderRadius: 7, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 17 }, cityButtonStart: { flexDirection: 'row', alignItems: 'center', gap: 8 }, cityButtonText: { color: colors.text, fontSize: 14, fontWeight: '700' },
   inputRow: { flexDirection: 'row', gap: 10 }, inputGroup: { flex: 1 }, inputShell: { minHeight: 47, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgSoft, paddingLeft: 11, paddingRight: 10, flexDirection: 'row', alignItems: 'center', marginBottom: 17 }, input: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '700', paddingVertical: 9 }, unit: { color: colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'right' },
   saveButton: { minHeight: 46, borderRadius: 8, marginTop: 12, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }, saveButtonText: { color: colors.text, fontSize: 14, fontWeight: '800' },
-  expenseHeading: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between', marginTop: 24, marginBottom: 10 },
-  expenseTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
-  expenseSubtitle: { color: colors.muted, fontSize: 11, fontWeight: '700', marginTop: -7 },
-  monthTotal: { alignItems: 'flex-end' }, monthTotalLabel: { color: colors.muted, fontSize: 10, fontWeight: '800' }, monthTotalValue: { color: colors.accent, fontSize: 13, fontWeight: '900', marginTop: 2 },
-  expenseChartCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 8, borderWidth: 1, padding: 14, ...shadows.soft },
-  expenseChartTop: { alignItems: 'center', flexDirection: 'row', gap: 7 }, expenseChartTitle: { color: colors.text, fontSize: 13, fontWeight: '800' },
-  barChart: { alignItems: 'flex-end', flexDirection: 'row', height: 166, justifyContent: 'space-between', marginTop: 14 },
-  barColumn: { alignItems: 'center', flex: 1, height: '100%', justifyContent: 'flex-end' },
-  barTrack: { backgroundColor: colors.bgSoft, borderRadius: 5, height: 92, justifyContent: 'flex-end', overflow: 'hidden', width: 18 },
-  barFill: { backgroundColor: colors.accent, borderRadius: 5, minHeight: 0, width: '100%' },
-  barLabel: { color: colors.mutedSoft, fontSize: 10, fontWeight: '800', marginTop: 8, textTransform: 'capitalize' },
-  barValue: { color: colors.muted, fontSize: 9, fontWeight: '700', marginTop: 3 },
+  expenseHeading: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginTop: 24, marginBottom: 12 },
+  expenseTitleGroup: { flex: 1, paddingRight: 10 },
+  expenseTitle: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  expenseSubtitle: { color: colors.mutedSoft, fontSize: 12, fontWeight: '600', marginTop: 3 },
+  monthTotal: { alignItems: 'flex-end', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  monthTotalLabel: { color: colors.mutedSoft, fontSize: 10, fontWeight: '700' },
+  monthTotalValue: { color: colors.accent, fontSize: 13, fontWeight: '900', marginTop: 1 },
+  expenseChartCard: { backgroundColor: colors.surface, borderColor: colors.borderLight, borderRadius: 12, borderWidth: 1.5, padding: 16, ...shadows.soft },
+  expenseChartTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
+  expenseChartTitleRow: { alignItems: 'center', flexDirection: 'row', gap: 7 },
+  expenseChartTitle: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  expenseChartSubText: { color: colors.muted, fontSize: 11, fontWeight: '700' },
+  barChart: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between', paddingTop: 10 },
+  barColumn: { alignItems: 'center', flex: 1, justifyContent: 'flex-end' },
+  barTrack: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 6, height: 100, justifyContent: 'flex-end', overflow: 'hidden', width: 16 },
+  barFill: { backgroundColor: colors.accent, borderRadius: 6, minHeight: 0, width: '100%' },
+  barLabel: { color: colors.mutedSoft, fontSize: 11, fontWeight: '700', marginTop: 8, textTransform: 'capitalize' },
+  barValue: { color: colors.muted, fontSize: 10, fontWeight: '600', marginTop: 3 },
   historyTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginTop: 24, marginBottom: 10 },
   historyCount: { color: colors.muted, fontSize: 11, fontWeight: '800' },
   historyCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 8, borderWidth: 1, paddingHorizontal: 14, ...shadows.soft },

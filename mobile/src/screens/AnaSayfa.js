@@ -188,10 +188,6 @@ export default function AnaSayfa() {
             </View>
             <View>
               <Text style={styles.heroBrandTitle}>Yakıt Radar</Text>
-              <View style={styles.heroLiveTag}>
-                <View style={styles.heroPulseDot} />
-                <Text style={styles.heroLiveTagText}>Canlı Akış</Text>
-              </View>
             </View>
           </View>
 
@@ -266,7 +262,6 @@ export default function AnaSayfa() {
                       />
                       <Text style={[styles.changeText, styles[`${fuel.tone}Text`]]}>{fuel.change}</Text>
                     </View>
-                    <Text style={styles.heroFuelDetailText}>Canlı</Text>
                   </View>
                 </View>
               )

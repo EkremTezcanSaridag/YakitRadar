@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 
 export const fuelTabs = [
   { key: 'benzin95', label: 'Benzin', title: 'Benzin 95', icon: 'gas-station' },
-  { key: 'motorin', label: 'Mazot', title: 'Mazot', icon: 'truck-outline' },
+  { key: 'motorin', label: 'Motorin', title: 'Motorin', icon: 'truck-outline' },
   { key: 'lpg', label: 'LPG', title: 'LPG', icon: 'fire' },
 ]
 
@@ -166,7 +166,7 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
     },
     {
       key: 'motorin',
-      fuelName: 'Motorin (Mazot)',
+      fuelName: 'Motorin',
       icon: 'truck-outline',
       direction: isIncrease ? 'increase' : isDecrease ? 'decrease' : 'neutral',
       statusText: isIncrease ? 'ZAM BEKLENİYOR' : isDecrease ? 'İNDİRİM BEKLENİYOR' : 'SABİT / DEĞİŞİM YOK',
