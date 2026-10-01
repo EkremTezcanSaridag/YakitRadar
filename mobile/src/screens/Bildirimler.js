@@ -317,20 +317,29 @@ export default function Bildirimler() {
 
           {customAlerts.map((alertItem, idx) => {
             const condMeta = alertConditions.find((c) => c.id === alertItem.condition) ?? alertConditions[0]
+            const isMotorin = alertItem.fuelKey === 'motorin'
+            const isLpg = alertItem.fuelKey === 'lpg'
+            const fuelIcon = isMotorin ? 'truck-outline' : isLpg ? 'fire' : 'gas-station'
+            const fuelColor = isMotorin ? colors.warning : isLpg ? colors.purpleGlow : colors.accent
+            const fuelBg = isMotorin ? '#2D1F08' : isLpg ? '#261438' : '#0C2A4A'
+
             return (
               <View key={alertItem.id} style={[styles.customAlertRow, idx === 0 && styles.rowFirst]}>
-                <View style={styles.customAlertIconBox}>
-                  <MaterialCommunityIcons name={condMeta.icon} size={18} color={colors.accent} />
+                <View style={[styles.customAlertIconBox, { backgroundColor: fuelBg }]}>
+                  <MaterialCommunityIcons name={fuelIcon} size={18} color={fuelColor} />
                 </View>
                 <View style={styles.customAlertInfo}>
                   <Text style={styles.customAlertTitle}>{alertItem.city} · {alertItem.fuelTitle}</Text>
-                  <Text style={styles.customAlertDesc}>
-                    {alertItem.condition === 'news_hike'
-                      ? 'Groq AI zam haberi taptığında uyar'
-                      : alertItem.condition === 'below_price'
-                      ? `Fiyat ${alertItem.targetValue} TL altına düşünce uyar`
-                      : `Fiyat ${alertItem.targetValue} TL aşınca uyar`}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                    <MaterialCommunityIcons name={condMeta.icon} size={13} color={fuelColor} />
+                    <Text style={styles.customAlertDesc}>
+                      {alertItem.condition === 'news_hike'
+                        ? 'Groq AI zam haberi tespit edince uyar'
+                        : alertItem.condition === 'below_price'
+                        ? `Fiyat ${alertItem.targetValue} TL altına düşünce uyar`
+                        : `Fiyat ${alertItem.targetValue} TL aşınca uyar`}
+                    </Text>
+                  </View>
                 </View>
                 <View style={styles.customAlertActions}>
                   <Switch
@@ -491,7 +500,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 24,
+    paddingBottom: 96,
   },
   header: {
     alignItems: 'center',

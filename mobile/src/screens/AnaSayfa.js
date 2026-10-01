@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 24,
+    paddingBottom: 96,
   },
   heroHeader: {
     flexDirection: 'row',

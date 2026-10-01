@@ -3,9 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 const storageKey = '@yakit-radar/custom-price-alerts'
 
 export const alertConditions = [
-  { id: 'below_price', label: 'Fiyat Düşünce', icon: 'arrow-down-bold', desc: 'Litre fiyatı belirtilen tutarın altına inince' },
-  { id: 'above_price', label: 'Fiyat Yükselince', icon: 'arrow-up-bold', desc: 'Litre fiyatı belirtilen tutarı aşınca' },
-  { id: 'news_hike', label: 'Zam Haberi Çıkınca', icon: 'newspaper-variant-outline', desc: 'Groq AI zam haberi tespit edince' },
+  { id: 'below_price', label: 'Fiyat Düşünce', icon: 'trending-down', desc: 'Litre fiyatı belirtilen tutarın altına inince' },
+  { id: 'above_price', label: 'Fiyat Yükselince', icon: 'trending-up', desc: 'Litre fiyatı belirtilen tutarı aşınca' },
+  { id: 'news_hike', label: 'Zam Haberi Çıkınca', icon: 'bullhorn-outline', desc: 'Groq AI zam haberi tespit edince' },
 ]
 
 export const defaultAlerts = [

@@ -535,7 +535,7 @@ export default function Aracim() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28 },
+  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 96 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerMark: { width: 38, height: 38, borderRadius: 8, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   headerText: { flex: 1, marginLeft: 10 }, brand: { color: colors.text, fontSize: 20, fontWeight: '800' }, subtitle: { color: colors.muted, fontSize: 12, marginTop: 2 },

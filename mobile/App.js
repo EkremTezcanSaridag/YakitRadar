@@ -20,6 +20,8 @@ import {
 } from './src/services/notifications'
 import { colors } from './src/theme'
 
+import { Platform, StyleSheet, View } from 'react-native'
+
 enableScreens()
 configureNotificationHandler()
 
@@ -34,11 +36,11 @@ const tabs = {
 }
 
 const tabIcons = {
-  [tabs.home]: 'home',
-  [tabs.cities]: 'map-marker',
-  [tabs.history]: 'history',
-  [tabs.vehicle]: 'car-outline',
-  [tabs.alerts]: 'bell-outline',
+  [tabs.home]: { active: 'home', inactive: 'home-outline' },
+  [tabs.cities]: { active: 'map-marker', inactive: 'map-marker-outline' },
+  [tabs.history]: { active: 'chart-timeline-variant', inactive: 'chart-timeline-variant' },
+  [tabs.vehicle]: { active: 'car', inactive: 'car-outline' },
+  [tabs.alerts]: { active: 'bell', inactive: 'bell-outline' },
 }
 
 const startupNotificationMeta = {
@@ -69,26 +71,47 @@ export default function App() {
         <Tab.Navigator
           screenOptions={({ route }) => ({
             headerShown: false,
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name={tabIcons[route.name]} color={color} size={size ?? 22} />
-            ),
+            tabBarShowLabel: true,
+            tabBarIcon: ({ focused }) => {
+              const iconMeta = tabIcons[route.name] ?? { active: 'circle', inactive: 'circle-outline' }
+              return (
+                <View style={[styles.tabIconWrap, focused && styles.tabIconWrapActive]}>
+                  <MaterialCommunityIcons
+                    name={focused ? iconMeta.active : iconMeta.inactive}
+                    color={focused ? colors.accent : colors.muted}
+                    size={20}
+                  />
+                </View>
+              )
+            },
             tabBarLabelStyle: {
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: '800',
-              marginBottom: 2,
+              marginTop: 1,
             },
             tabBarItemStyle: {
-              paddingTop: 4,
-              paddingBottom: 2,
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: 2,
             },
             tabBarStyle: {
-              backgroundColor: colors.surface,
-              borderTopColor: colors.borderLight,
-              borderTopWidth: 1.5,
-              height: 72,
-              paddingTop: 8,
-              paddingBottom: 10,
-              elevation: 12,
+              position: 'absolute',
+              bottom: Platform.OS === 'ios' ? 24 : 12,
+              left: 14,
+              right: 14,
+              height: 64,
+              backgroundColor: '#111827',
+              borderRadius: 22,
+              borderWidth: 1.5,
+              borderColor: '#243352',
+              paddingHorizontal: 6,
+              paddingTop: 6,
+              paddingBottom: 6,
+              shadowColor: '#000000',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.45,
+              shadowRadius: 16,
+              elevation: 16,
             },
             tabBarActiveTintColor: colors.accent,
             tabBarInactiveTintColor: colors.muted,
@@ -107,3 +130,16 @@ export default function App() {
     </GestureHandlerRootView>
   )
 }
+
+const styles = StyleSheet.create({
+  tabIconWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 38,
+    height: 28,
+    borderRadius: 14,
+  },
+  tabIconWrapActive: {
+    backgroundColor: 'rgba(56, 189, 248, 0.14)',
+  },
+})
