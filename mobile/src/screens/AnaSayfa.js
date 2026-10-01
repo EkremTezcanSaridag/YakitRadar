@@ -182,13 +182,13 @@ export default function AnaSayfa() {
         <View style={styles.heroHeader}>
           <View style={styles.heroHeaderLeft}>
             <View style={styles.heroPulseBox}>
-              <View style={styles.heroPulseDot} />
               <MaterialCommunityIcons name="radar" size={20} color={colors.accent} />
             </View>
             <View>
-              <Text style={styles.heroBrandTitle}>YAKIT RADAR</Text>
+              <Text style={styles.heroBrandTitle}>Yakıt Radar</Text>
               <View style={styles.heroLiveTag}>
-                <Text style={styles.heroLiveTagText}>• CANLI PİYASA AKIŞI</Text>
+                <View style={styles.heroPulseDot} />
+                <Text style={styles.heroLiveTagText}>Canlı Akış</Text>
               </View>
             </View>
           </View>
@@ -219,11 +219,11 @@ export default function AnaSayfa() {
         {triggeredAlerts.length > 0 ? (
           <View style={styles.triggeredBanner}>
             <View style={styles.triggeredBannerIcon}>
-              <MaterialCommunityIcons name="bell-ring" size={20} color="#FFD700" />
+              <MaterialCommunityIcons name="bell-ring-outline" size={18} color="#FBBF24" />
             </View>
             <View style={styles.triggeredBannerCopy}>
-              <Text style={styles.triggeredBannerTitle}>Piyasa Zam/İndirim Sinyali Tetiklendi!</Text>
-              <Text style={styles.triggeredBannerText}>Akaryakıt piyasasında hareketlilik var. Aşağıdaki kartlardan yakıt bazlı tahmin detaylarını görün.</Text>
+              <Text style={styles.triggeredBannerTitle}>Piyasa Zam/İndirim Sinyali</Text>
+              <Text style={styles.triggeredBannerText}>Akaryakıt haberlerinde hareketlilik var. Aşağıdaki kartlardan tahmin detaylarını görün.</Text>
             </View>
           </View>
         ) : null}
@@ -237,15 +237,17 @@ export default function AnaSayfa() {
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.fuelCarouselScroll}>
             {fuels.map((fuel, index) => {
-              const borderColors = [colors.accent, colors.warning, colors.purpleGlow]
-              const accentColor = borderColors[index % borderColors.length]
+              const badgeBgs = [colors.accentDark, colors.warningDark, colors.purpleDark]
+              const textColors = [colors.accent, colors.warning, colors.purpleGlow]
+              const badgeBg = badgeBgs[index % badgeBgs.length]
+              const textColor = textColors[index % textColors.length]
               return (
-                <View key={fuel.name} style={[styles.heroFuelTile, { borderColor: accentColor }]}>
+                <View key={fuel.name} style={styles.heroFuelTile}>
                   <View style={styles.heroFuelTop}>
-                    <View style={[styles.heroFuelBadge, { backgroundColor: fuel.badgeColor }]}>
-                      <Text style={styles.heroFuelBadgeText}>{fuel.name}</Text>
+                    <View style={[styles.heroFuelBadge, { backgroundColor: badgeBg }]}>
+                      <Text style={[styles.heroFuelBadgeText, { color: textColor }]}>{fuel.name}</Text>
                     </View>
-                    <MaterialCommunityIcons name="gas-station-outline" size={18} color={accentColor} />
+                    <MaterialCommunityIcons name="gas-station-outline" size={16} color={colors.mutedSoft} />
                   </View>
 
                   <View style={styles.heroFuelBody}>
@@ -257,7 +259,7 @@ export default function AnaSayfa() {
                     <View style={[styles.changePill, styles[fuel.tone]]}>
                       <MaterialCommunityIcons
                         name={fuel.tone === 'bad' ? 'arrow-up-bold' : fuel.tone === 'good' ? 'arrow-down-bold' : 'minus'}
-                        size={12}
+                        size={11}
                         color={fuel.tone === 'flat' ? colors.mutedSoft : colors.white}
                       />
                       <Text style={[styles.changeText, styles[`${fuel.tone}Text`]]}>{fuel.change}</Text>
@@ -495,51 +497,49 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   heroPulseBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceAlt,
-    borderColor: colors.borderLight,
-    borderWidth: 1.5,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   },
   heroPulseDot: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: colors.accent,
+    marginRight: 4,
   },
   heroBrandTitle: {
     color: colors.white,
-    fontSize: 20,
-    fontWeight: '900',
-    letterSpacing: 1,
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   heroLiveTag: {
     marginTop: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   heroLiveTagText: {
     color: colors.accent,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontSize: 10,
+    fontWeight: '700',
   },
   heroHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   heroRefreshBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: colors.surface,
-    borderColor: colors.borderLight,
-    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.soft,
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
   heroDateText: {
     color: colors.mutedSoft,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   heroUpdatePill: {
     flexDirection: 'row',
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
   heroUpdateText: {
     color: colors.accent,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   fuelHeroSection: {
     marginBottom: 16,
@@ -583,12 +583,12 @@ const styles = StyleSheet.create({
   sectionHeaderTitle: {
     color: colors.white,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   sectionHeaderSub: {
     color: colors.mutedSoft,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   fuelCarouselScroll: {
     gap: 12,
@@ -598,10 +598,11 @@ const styles = StyleSheet.create({
     width: 155,
     backgroundColor: colors.surface,
     borderRadius: 14,
-    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderWidth: 1,
     padding: 12,
     gap: 10,
-    ...shadows.card,
+    ...shadows.soft,
   },
   heroFuelTop: {
     flexDirection: 'row',
@@ -614,9 +615,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   heroFuelBadgeText: {
-    color: colors.white,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   heroFuelBody: {
     gap: 2,
@@ -624,13 +624,13 @@ const styles = StyleSheet.create({
   heroFuelPrice: {
     color: colors.white,
     fontSize: 26,
-    fontWeight: '900',
+    fontWeight: '800',
     letterSpacing: -0.5,
   },
   heroFuelUnit: {
     color: colors.mutedSoft,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   heroFuelFooter: {
     flexDirection: 'row',
@@ -640,7 +640,7 @@ const styles = StyleSheet.create({
   heroFuelDetailText: {
     color: colors.accent,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   pressed: {
     opacity: 0.72,
@@ -1374,19 +1374,19 @@ const styles = StyleSheet.create({
   triggeredBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#382A00',
-    borderColor: '#FFD700',
+    backgroundColor: '#1E1B18',
+    borderColor: '#451A03',
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 12,
     marginBottom: 14,
     ...shadows.soft,
   },
   triggeredBannerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: '#523E00',
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#381C04',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -1395,14 +1395,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   triggeredBannerTitle: {
-    color: '#FFD700',
+    color: '#FBBF24',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   triggeredBannerText: {
-    color: '#FFF5C2',
+    color: '#FDE68A',
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '500',
     marginTop: 2,
   },
   predictionDashboard: {
