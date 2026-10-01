@@ -100,13 +100,13 @@ const highlightedCities = {
 }
 
 const fallbackHistory = [
-  { date: '2026-02-13', benzin95: 63.66, motorin: 66.2, lpg: 36.04, benzinChange: -0.18, motorinChange: 0.02, lpgChange: 0 },
-  { date: '2026-02-18', benzin95: 63.92, motorin: 66.04, lpg: 36.09, benzinChange: 0.26, motorinChange: -0.16, lpgChange: 0.05 },
-  { date: '2026-02-23', benzin95: 64.04, motorin: 66.22, lpg: 36.12, benzinChange: 0.12, motorinChange: 0.18, lpgChange: 0.03 },
-  { date: '2026-02-28', benzin95: 64.01, motorin: 66.31, lpg: 36.14, benzinChange: -0.03, motorinChange: 0.09, lpgChange: 0.02 },
-  { date: '2026-03-05', benzin95: 64.11, motorin: 66.55, lpg: 36.99, benzinChange: 0.1, motorinChange: 0.24, lpgChange: 0.85 },
-  { date: '2026-03-12', benzin95: 64, motorin: 65.35, lpg: 36.18, benzinChange: -0.11, motorinChange: -1.2, lpgChange: -0.81 },
-  { date: '2026-03-15', benzin95: 65.53, motorin: 66.46, lpg: 36.23, benzinChange: 1.53, motorinChange: 1.11, lpgChange: 0.05 },
+  { date: '2026-09-25', benzin95: 82.11, motorin: 95.21, lpg: 35.44, benzinChange: 0, motorinChange: 0, lpgChange: 0 },
+  { date: '2026-09-26', benzin95: 82.17, motorin: 95.28, lpg: 35.44, benzinChange: 0.06, motorinChange: 0.07, lpgChange: 0 },
+  { date: '2026-09-27', benzin95: 82.17, motorin: 95.28, lpg: 35.44, benzinChange: 0, motorinChange: 0, lpgChange: 0 },
+  { date: '2026-09-28', benzin95: 82.17, motorin: 95.28, lpg: 35.44, benzinChange: 0, motorinChange: 0, lpgChange: 0 },
+  { date: '2026-09-29', benzin95: 82.17, motorin: 95.28, lpg: 35.44, benzinChange: 0, motorinChange: 0, lpgChange: 0 },
+  { date: '2026-09-30', benzin95: 82.17, motorin: 95.28, lpg: 35.44, benzinChange: 0, motorinChange: 0, lpgChange: 0 },
+  { date: '2026-10-01', benzin95: 86.26, motorin: 98.86, lpg: 36.89, benzinChange: 4.09, motorinChange: 3.58, lpgChange: 1.45 },
 ]
 
 const fallbackUpdatedAt = '2026-07-05 10:45'
@@ -138,9 +138,16 @@ const confidenceLabels = {
   medium: 'Orta',
   low: 'Düşük',
 }
-export function buildDetailedFuelPredictions(direction, score, confidence) {
+export function buildDetailedFuelPredictions(direction, score, confidence, prices = []) {
   const isIncrease = direction === 'increase'
   const isDecrease = direction === 'decrease'
+
+  const avgBenzin = prices.length ? (prices.reduce((s, p) => s + (p.benzin95 || 0), 0) / prices.length) : 86.26
+  const avgMotorin = prices.length ? (prices.reduce((s, p) => s + (p.motorin || 0), 0) / prices.length) : 98.86
+  const avgLpg = prices.length ? (prices.reduce((s, p) => s + (p.lpg || 0), 0) / prices.length) : 35.44
+
+  const benzinHike = isIncrease ? 1.85 : isDecrease ? -1.50 : 0
+  const motorinHike = isIncrease ? 5.00 : isDecrease ? -2.10 : 0
 
   return [
     {
@@ -149,13 +156,13 @@ export function buildDetailedFuelPredictions(direction, score, confidence) {
       icon: 'gas-station',
       direction: isIncrease ? 'increase' : isDecrease ? 'decrease' : 'neutral',
       statusText: isIncrease ? 'ZAM BEKLENİYOR' : isDecrease ? 'İNDİRİM BEKLENİYOR' : 'SABİT / DEĞİŞİM YOK',
-      badgeBg: isIncrease ? '#3D141A' : isDecrease ? '#0F382B' : '#16253B',
-      badgeBorder: isIncrease ? colors.danger : isDecrease ? colors.accent : colors.info,
-      textColor: isIncrease ? colors.danger : isDecrease ? colors.accent : colors.info,
+      pillBg: isIncrease ? '#3A0D18' : isDecrease ? '#064E3B' : '#1E293B',
+      pillBorder: isIncrease ? '#F43F5E' : isDecrease ? '#34D399' : '#475569',
+      textColor: isIncrease ? '#F43F5E' : isDecrease ? '#34D399' : '#94A3B8',
       amountText: isIncrease ? '+1.85 ₺' : isDecrease ? '-1.50 ₺' : '0.00 ₺',
       targetDate: isIncrease ? 'Bu Gece 00:00' : isDecrease ? 'Yarın 00:00' : 'Gündemde Değişim Yok',
-      currentPrice: '71.20 ₺',
-      expectedPrice: isIncrease ? '73.05 ₺' : isDecrease ? '69.70 ₺' : '71.20 ₺',
+      currentPrice: `${avgBenzin.toFixed(2)} ₺`,
+      expectedPrice: `${(avgBenzin + benzinHike).toFixed(2)} ₺`,
     },
     {
       key: 'motorin',
@@ -163,13 +170,13 @@ export function buildDetailedFuelPredictions(direction, score, confidence) {
       icon: 'truck-outline',
       direction: isIncrease ? 'increase' : isDecrease ? 'decrease' : 'neutral',
       statusText: isIncrease ? 'ZAM BEKLENİYOR' : isDecrease ? 'İNDİRİM BEKLENİYOR' : 'SABİT / DEĞİŞİM YOK',
-      badgeBg: isIncrease ? '#3D141A' : isDecrease ? '#0F382B' : '#16253B',
-      badgeBorder: isIncrease ? colors.danger : isDecrease ? colors.accent : colors.info,
-      textColor: isIncrease ? colors.danger : isDecrease ? colors.accent : colors.info,
+      pillBg: isIncrease ? '#3A0D18' : isDecrease ? '#064E3B' : '#1E293B',
+      pillBorder: isIncrease ? '#F43F5E' : isDecrease ? '#34D399' : '#475569',
+      textColor: isIncrease ? '#F43F5E' : isDecrease ? '#34D399' : '#94A3B8',
       amountText: isIncrease ? '+5.00 ₺' : isDecrease ? '-2.10 ₺' : '0.00 ₺',
       targetDate: isIncrease ? 'Salı Günü 00:00' : isDecrease ? 'Salı Günü 00:00' : 'Gündemde Değişim Yok',
-      currentPrice: '79.70 ₺',
-      expectedPrice: isIncrease ? '84.70 ₺' : isDecrease ? '77.60 ₺' : '79.70 ₺',
+      currentPrice: `${avgMotorin.toFixed(2)} ₺`,
+      expectedPrice: `${(avgMotorin + motorinHike).toFixed(2)} ₺`,
     },
     {
       key: 'lpg',
@@ -177,13 +184,13 @@ export function buildDetailedFuelPredictions(direction, score, confidence) {
       icon: 'fire',
       direction: 'neutral',
       statusText: 'SABİT / DEĞİŞİM YOK',
-      badgeBg: '#16253B',
-      badgeBorder: colors.info,
-      textColor: colors.info,
+      pillBg: '#1E293B',
+      pillBorder: '#475569',
+      textColor: '#94A3B8',
       amountText: '0.00 ₺',
       targetDate: 'Gündemde Değişim Yok',
-      currentPrice: '36.10 ₺',
-      expectedPrice: '36.10 ₺',
+      currentPrice: `${avgLpg.toFixed(2)} ₺`,
+      expectedPrice: `${avgLpg.toFixed(2)} ₺`,
     },
   ]
 }
@@ -787,6 +794,16 @@ function normalizeHistoryRecord(record) {
   }
 }
 
+export function deduplicateHistoryRecords(records = []) {
+  const map = new Map()
+  for (const record of records) {
+    if (record && record.date) {
+      map.set(record.date, record)
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date))
+}
+
 function normalizePriceChangeEvent(record) {
   const diff = parseFuelValue(record.diff) ?? 0
 
@@ -1138,15 +1155,50 @@ function buildHistoryMetrics(history) {
   ]
 }
 
-export function buildHistoryView(history, periodDays) {
-  const selectedHistory = periodDays === 'all' ? history : history.slice(-periodDays)
-  const chartHistory = sampleHistoryRecords(selectedHistory)
+export function buildHistoryView(history, periodDays, selectedFuelKey = 'benzin95') {
+  const deduped = deduplicateHistoryRecords(history)
+  const selectedHistory = periodDays === 'all' ? deduped : deduped.slice(-periodDays)
+  const chartHistory = sampleHistoryRecords(selectedHistory, periodDays === 7 ? 7 : periodDays === 30 ? 15 : 20)
+
+  const fuelKey = selectedFuelKey === 'motorin' ? 'motorin' : selectedFuelKey === 'lpg' ? 'lpg' : 'benzin95'
+  const fuelName = fuelKey === 'motorin' ? 'Motorin' : fuelKey === 'lpg' ? 'LPG' : 'Benzin 95'
+
+  const fuelValues = selectedHistory.map((item) => ({
+    date: item.date,
+    shortDate: formatShortDate(item.date),
+    price: Number(item[fuelKey]) || 0,
+    change: Number(item[`${fuelKey === 'benzin95' ? 'benzin' : fuelKey}Change`]) || 0,
+  }))
+
+  const validPrices = fuelValues.map((v) => v.price).filter((p) => p > 0)
+  const minPrice = validPrices.length ? Math.min(...validPrices) : 0
+  const maxPrice = validPrices.length ? Math.max(...validPrices) : 0
+  const avgPrice = validPrices.length ? validPrices.reduce((a, b) => a + b, 0) / validPrices.length : 0
+  const firstPrice = validPrices[0] ?? 0
+  const latestPrice = validPrices[validPrices.length - 1] ?? 0
+  const periodDiff = latestPrice - firstPrice
+  const periodDiffPct = firstPrice > 0 ? (periodDiff / firstPrice) * 100 : 0
+
+  const minItem = fuelValues.find((v) => v.price === minPrice)
+  const maxItem = fuelValues.find((v) => v.price === maxPrice)
 
   return {
     chartDomain: buildHistoryDomain(selectedHistory),
     chartLabels: buildHistoryLabels(chartHistory),
     metrics: buildHistoryMetrics(selectedHistory),
     trendSeries: buildHistoryTrendSeries(chartHistory),
+    selectedFuelKey: fuelKey,
+    fuelName,
+    fuelValues,
+    minPrice,
+    maxPrice,
+    avgPrice,
+    firstPrice,
+    latestPrice,
+    periodDiff,
+    periodDiffPct,
+    minDate: minItem?.date ? formatShortDate(minItem.date) : '',
+    maxDate: maxItem?.date ? formatShortDate(maxItem.date) : '',
   }
 }
 
@@ -1251,7 +1303,8 @@ async function fetchRemoteFuelData({ triggerBackend = false } = {}) {
   }
 
   const remotePrices = pricesResult.data?.map(normalizePriceRecord) ?? []
-  const remoteHistory = historyResult.error ? [] : historyResult.data?.map(normalizeHistoryRecord) ?? []
+  const rawHistory = historyResult.error ? [] : historyResult.data?.map(normalizeHistoryRecord) ?? []
+  const remoteHistory = deduplicateHistoryRecords(rawHistory)
   const priceChangeEvents = priceChangeEventsResult.error
     ? []
     : priceChangeEventsResult.data?.map(normalizePriceChangeEvent) ?? []

@@ -14,7 +14,7 @@ export const defaultNotificationSettings = {
   quietHours: true,
   trackedCities: [],
   trackedFuels: ['Benzin', 'Motorin', 'LPG'],
-  weeklySummary: false,
+  weeklySummary: true,
 }
 
 export function configureNotificationHandler() {
@@ -264,6 +264,53 @@ export async function sendTestNotification() {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
     },
   })
+}
+
+export async function cancelWeeklySummaryNotification() {
+  if (Platform.OS === 'web') return
+  try {
+    await Notifications.cancelScheduledNotificationAsync('weekly-summary-notification')
+  } catch {}
+}
+
+export async function scheduleWeeklySummaryNotification(prices = []) {
+  if (Platform.OS === 'web') return
+  try {
+    await setupNotificationChannels()
+    const settings = await loadNotificationSettings()
+    if (!settings.weeklySummary) {
+      await cancelWeeklySummaryNotification()
+      return
+    }
+
+    // Cancel existing weekly summary to prevent duplicate triggers
+    await cancelWeeklySummaryNotification()
+
+    const benzin = prices[0]?.benzin95 ? `${Number(prices[0].benzin95).toFixed(2)} ₺` : '86.26 ₺'
+    const motorin = prices[0]?.motorin ? `${Number(prices[0].motorin).toFixed(2)} ₺` : '98.86 ₺'
+    const lpg = prices[0]?.lpg ? `${Number(prices[0].lpg).toFixed(2)} ₺` : '36.89 ₺'
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'weekly-summary-notification',
+      content: {
+        title: '📊 Haftalık Akaryakıt Özeti',
+        body: `Pazartesi Güncel Fiyatlar: Benzin ${benzin} | Motorin ${motorin} | LPG ${lpg}. Haftalık piyasa analizi için dokunun.`,
+        data: {
+          screen: 'history',
+        },
+        sound: 'default',
+      },
+      trigger: {
+        channelId: NOTIFICATION_CHANNEL_ID,
+        type: Notifications.SchedulableTriggerInputTypes?.WEEKLY ?? 'weekly',
+        weekday: 2, // Pazartesi
+        hour: 9,
+        minute: 0,
+      },
+    })
+  } catch (error) {
+    console.warn('Haftalık özet bildirimi zamanlanamadı:', error?.message)
+  }
 }
 
 export async function requestRemoteTestNotification() {

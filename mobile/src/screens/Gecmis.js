@@ -1,102 +1,68 @@
-import { Fragment, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { StatusBar } from 'expo-status-bar'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ScrollView, View, Text, StyleSheet, useWindowDimensions, Pressable } from 'react-native'
+import { ScrollView, View, Text, StyleSheet, Pressable } from 'react-native'
 import { colors, shadows } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { buildHistoryView } from '../services/fuelData'
 
-const chartHeight = 146
 const historyPeriods = [
   { label: '7G', value: 7 },
   { label: '30G', value: 30 },
   { label: '90G', value: 90 },
-  { label: 'Tumu', value: 'all' },
+  { label: 'Tümü', value: 'all' },
 ]
-function buildPoints(values, chartWidth, chartDomain) {
-  const horizontalPadding = 8
-  const verticalPadding = 12
-  const usableWidth = chartWidth - horizontalPadding * 2
-  const usableHeight = chartHeight - verticalPadding * 2
-  const step = usableWidth / (values.length - 1)
 
-  return values.map((value, index) => ({
-    x: horizontalPadding + index * step,
-    y:
-      verticalPadding +
-      ((chartDomain.max - value) / (chartDomain.max - chartDomain.min)) * usableHeight,
-  }))
-}
-
-function buildSegments(points, strokeWidth) {
-  return points.slice(0, -1).map((point, index) => {
-    const next = points[index + 1]
-    const dx = next.x - point.x
-    const dy = next.y - point.y
-    const length = Math.sqrt(dx * dx + dy * dy)
-    const angle = Math.atan2(dy, dx) * (180 / Math.PI)
-
-    return {
-      angle,
-      left: point.x + dx / 2 - length / 2,
-      top: point.y + dy / 2 - strokeWidth / 2,
-      width: length,
-    }
-  })
-}
-
-function buildChartGuides(chartDomain) {
-  const middle = (chartDomain.min + chartDomain.max) / 2
-
-  return [
-    { label: `${Math.round(chartDomain.max)} TL`, top: 24 },
-    { label: `${Math.round(middle)} TL`, top: 72 },
-    { label: `${Math.round(chartDomain.min)} TL`, top: 120 },
-  ]
-}
-
-function guideLeft(index, count, chartWidth, padding) {
-  if (count <= 1) {
-    return chartWidth / 2
-  }
-
-  return padding + (index * (chartWidth - padding * 2)) / (count - 1)
-}
+const fuelTabsConfig = [
+  { key: 'benzin95', label: 'Benzin 95', icon: 'gas-station', color: '#38BDF8' },
+  { key: 'motorin', label: 'Motorin', icon: 'truck-outline', color: '#F59E0B' },
+  { key: 'lpg', label: 'LPG (Otogaz)', icon: 'fire', color: '#C084FC' },
+]
 
 export default function Gecmis() {
-  const { width } = useWindowDimensions()
   const { data } = useFuelData()
-  const [period, setPeriod] = useState(30)
-  const historyView = useMemo(() => buildHistoryView(data.history, period), [data.history, period])
-  const trendSeries = historyView.trendSeries
-  const chartLabels = historyView.chartLabels
-  const chartDomain = historyView.chartDomain
-  const metrics = historyView.metrics
-  const recentChanges = data.recentChanges
-  const periodLabel = period === 'all' ? 'Tumu' : `${period} Gun`
-  const historySubtitle = period === 'all' ? 'Tum kayitlarin akaryakit degisim trendleri.' : `Son ${period} gunluk akaryakit degisim trendleri.`
-  const chartWidth = Math.max(218, Math.min(width - 92, 330))
-  const chartGuides = useMemo(() => buildChartGuides(chartDomain), [chartDomain])
+  const [selectedFuelKey, setSelectedFuelKey] = useState('benzin95')
+  const [period, setPeriod] = useState(7)
+  const [inspectedIndex, setInspectedIndex] = useState(null)
 
-  const chartSeries = useMemo(
-    () =>
-      trendSeries.map((series) => {
-        const points = buildPoints(series.values, chartWidth, chartDomain)
-
-        return {
-          ...series,
-          points,
-          segments: buildSegments(points, series.strokeWidth),
-        }
-      }),
-    [chartDomain, chartWidth, trendSeries],
+  const historyView = useMemo(
+    () => buildHistoryView(data.history, period, selectedFuelKey),
+    [data.history, period, selectedFuelKey],
   )
+
+  const activeFuelMeta = useMemo(
+    () => fuelTabsConfig.find((f) => f.key === selectedFuelKey) ?? fuelTabsConfig[0],
+    [selectedFuelKey],
+  )
+
+  const fuelValues = historyView.fuelValues || []
+  const recentChanges = data.recentChanges || []
+
+  // Ensure inspectedIndex stays within bounds or defaults to latest
+  const activePoint =
+    inspectedIndex !== null && fuelValues[inspectedIndex]
+      ? fuelValues[inspectedIndex]
+      : fuelValues[fuelValues.length - 1] ?? null
+
+  const minPrice = historyView.minPrice || 0
+  const maxPrice = historyView.maxPrice || 0
+  const avgPrice = historyView.avgPrice || 0
+  const periodDiff = historyView.periodDiff || 0
+  const periodDiffPct = historyView.periodDiffPct || 0
+
+  // Chart domain with comfortable padding
+  const domainMin = Math.max(0, Math.floor(minPrice - 1))
+  const domainMax = Math.ceil(maxPrice + 1)
+  const domainSpan = domainMax - domainMin || 1
+
+  const periodLabel = period === 'all' ? 'Tüm Zamanlar' : `Son ${period} Gün`
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* HEADER BAR */}
         <View style={styles.header}>
           <View style={styles.headerMark}>
             <MaterialCommunityIcons name="chart-line" size={18} color={colors.accent} />
@@ -105,177 +71,291 @@ export default function Gecmis() {
           <View style={{ width: 18 }} />
         </View>
 
+        {/* TITLE & PERIOD BADGE */}
         <View style={styles.titleRow}>
           <View style={styles.titleCopy}>
             <Text style={styles.title}>Fiyat Geçmişi</Text>
-            <Text style={styles.subtitle}>{historySubtitle}</Text>
+            <Text style={styles.subtitle}>{activeFuelMeta.label} için geçmiş fiyat değişim analizi.</Text>
           </View>
           <View style={styles.periodBadge}>
             <Text style={styles.periodBadgeText}>{periodLabel}</Text>
           </View>
         </View>
 
-        <View style={styles.periodSelector}>
-          {historyPeriods.map((option) => {
-            const isActive = option.value === period
-
+        {/* 3'LÜ YAKIT SEGMENTİ SEÇİCİ */}
+        <View style={styles.fuelTabsRow}>
+          {fuelTabsConfig.map((fuel) => {
+            const isSelected = fuel.key === selectedFuelKey
             return (
               <Pressable
-                key={option.label}
-                accessibilityRole="button"
-                onPress={() => setPeriod(option.value)}
-                style={[styles.periodOption, isActive && styles.periodOptionActive]}
+                key={fuel.key}
+                onPress={() => {
+                  setSelectedFuelKey(fuel.key)
+                  setInspectedIndex(null)
+                }}
+                style={({ pressed }) => [
+                  styles.fuelTab,
+                  isSelected && [styles.fuelTabActive, { borderColor: fuel.color }],
+                  pressed && styles.pressed,
+                ]}
               >
-                <Text style={[styles.periodOptionText, isActive && styles.periodOptionTextActive]}>{option.label}</Text>
+                <MaterialCommunityIcons
+                  name={fuel.icon}
+                  size={15}
+                  color={isSelected ? fuel.color : colors.mutedSoft}
+                />
+                <Text style={[styles.fuelTabText, isSelected && { color: colors.white, fontWeight: '900' }]}>
+                  {fuel.label}
+                </Text>
               </Pressable>
             )
           })}
         </View>
 
-        <View style={styles.trendCard}>
-          <View style={styles.cardTop}>
-            <View>
-              <Text style={styles.sectionLabel}>Aylık Trend</Text>
-              <View style={styles.legendRow}>
-                {trendSeries.map((item) => (
-                  <View key={item.key} style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                    <Text style={styles.legendText}>{item.key}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-            <MaterialCommunityIcons name="chart-timeline-variant" size={20} color={colors.mutedSoft} />
-          </View>
-
-          <View style={styles.chartBox}>
-            <View style={[styles.chartPlot, { width: chartWidth, height: chartHeight }]}>
-              {chartLabels.map((label, index) => (
-                <View
-                  key={`${label}-${index}-guide`}
-                  style={[
-                    styles.verticalGridLine,
-                    {
-                      left: guideLeft(index, chartLabels.length, chartWidth, 8),
-                    },
-                  ]}
-                />
-              ))}
-
-              {chartGuides.map((guide) => (
-                <View key={guide.label} style={[styles.gridGuide, { top: guide.top }]}>
-                  <View style={styles.gridLine} />
-                  <Text style={styles.gridLabel}>{guide.label}</Text>
-                </View>
-              ))}
-
-              {chartSeries.map((series) => (
-                <View key={series.key} style={styles.lineLayer}>
-                  {series.segments.map((segment, index) => (
-                    <Fragment key={`${series.key}-${index}`}>
-                      <View
-                        style={[
-                          styles.lineSegmentGlow,
-                          {
-                            backgroundColor: series.color,
-                            left: segment.left,
-                            top: segment.top - 2,
-                            transform: [{ rotate: `${segment.angle}deg` }],
-                            width: segment.width,
-                          },
-                        ]}
-                      />
-                      <View
-                        style={[
-                          styles.lineSegment,
-                          {
-                            backgroundColor: series.color,
-                            height: series.strokeWidth,
-                            left: segment.left,
-                            top: segment.top,
-                            transform: [{ rotate: `${segment.angle}deg` }],
-                            width: segment.width,
-                          },
-                        ]}
-                      />
-                    </Fragment>
-                  ))}
-                  {series.points.map((point, index) => (
-                    <View
-                      key={`${series.key}-point-${index}`}
-                      style={[
-                        index === series.points.length - 1 ? styles.chartPointActive : styles.chartPoint,
-                        {
-                          backgroundColor: series.key === 'Benzin' ? series.color : colors.bg,
-                          borderColor: series.color,
-                          left: point.x - (index === series.points.length - 1 ? 5 : 3),
-                          top: point.y - (index === series.points.length - 1 ? 5 : 3),
-                        },
-                      ]}
-                    />
-                  ))}
-                </View>
-              ))}
-            </View>
-
-            <View style={[styles.chartLabels, { width: chartWidth }]}>
-              {chartLabels.map((label, index) => (
-                <Text key={`${label}-${index}`} style={styles.chartLabel}>
-                  {label}
+        {/* ZAMAN ARALIĞI SEÇİCİ (7G, 30G, 90G, Tümü) */}
+        <View style={styles.periodSelector}>
+          {historyPeriods.map((option) => {
+            const isActive = option.value === period
+            return (
+              <Pressable
+                key={option.label}
+                accessibilityRole="button"
+                onPress={() => {
+                  setPeriod(option.value)
+                  setInspectedIndex(null)
+                }}
+                style={[styles.periodOption, isActive && styles.periodOptionActive]}
+              >
+                <Text style={[styles.periodOptionText, isActive && styles.periodOptionTextActive]}>
+                  {option.label}
                 </Text>
-              ))}
+              </Pressable>
+            )
+          })}
+        </View>
+
+        {/* YENİ NESİL MODERN FİYAT TREND GRAFİĞİ KARTI */}
+        <View style={styles.chartCard}>
+          {/* GRAFİK ÜST TEFTİŞ & BİLGİ ŞERİDİ */}
+          <View style={styles.chartHeader}>
+            <View>
+              <View style={styles.chartFuelBadge}>
+                <View style={[styles.fuelColorDot, { backgroundColor: activeFuelMeta.color }]} />
+                <Text style={styles.chartFuelTitle}>{activeFuelMeta.label}</Text>
+                {inspectedIndex !== null ? (
+                  <Pressable onPress={() => setInspectedIndex(null)} style={styles.resetInspectBtn}>
+                    <Text style={styles.resetInspectText}>Canlıya Dön</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+
+              <View style={styles.priceInspectorRow}>
+                <Text style={styles.chartMainPrice}>
+                  {activePoint ? `${activePoint.price.toFixed(2)} ₺` : '--'}
+                </Text>
+                <View
+                  style={[
+                    styles.diffBadge,
+                    periodDiff > 0 ? styles.diffUp : periodDiff < 0 ? styles.diffDown : styles.diffFlat,
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name={periodDiff > 0 ? 'arrow-up-bold' : periodDiff < 0 ? 'arrow-down-bold' : 'minus'}
+                    size={13}
+                    color={periodDiff > 0 ? colors.danger : periodDiff < 0 ? colors.accent : colors.mutedSoft}
+                  />
+                  <Text
+                    style={[
+                      styles.diffBadgeText,
+                      periodDiff > 0
+                        ? styles.diffUpText
+                        : periodDiff < 0
+                        ? styles.diffDownText
+                        : styles.diffFlatText,
+                    ]}
+                  >
+                    {periodDiff > 0 ? `+${periodDiff.toFixed(2)} ₺` : `${periodDiff.toFixed(2)} ₺`}
+                    {periodDiffPct !== 0 ? ` (%${Math.abs(periodDiffPct).toFixed(1)})` : ''}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.inspectedDateSub}>
+                {inspectedIndex !== null
+                  ? `Seçilen gün: ${activePoint?.shortDate ?? ''}`
+                  : `Son güncel veri · ${activePoint?.shortDate ?? ''}`}
+              </Text>
             </View>
+
+            <View style={styles.chartHeaderRightIcon}>
+              <MaterialCommunityIcons name="chart-box-outline" size={24} color={colors.mutedSoft} />
+            </View>
+          </View>
+
+          {/* SÜTUN GRAFİK GÖRSEL ALANI */}
+          <View style={styles.chartCanvasContainer}>
+            {/* YATAY KILAVUZ ÇİZGİLERİ */}
+            <View style={styles.gridLayer}>
+              <View style={styles.gridGuideLine}>
+                <View style={styles.guideDashedLine} />
+                <Text style={styles.guideLabelText}>{domainMax.toFixed(1)} ₺</Text>
+              </View>
+              <View style={styles.gridGuideLine}>
+                <View style={styles.guideDashedLine} />
+                <Text style={styles.guideLabelText}>{avgPrice ? avgPrice.toFixed(1) : '--'} ₺</Text>
+              </View>
+              <View style={styles.gridGuideLine}>
+                <View style={styles.guideDashedLine} />
+                <Text style={styles.guideLabelText}>{domainMin.toFixed(1)} ₺</Text>
+              </View>
+            </View>
+
+            {/* SÜTUNLAR BAR DİZİLİMİ */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.barsContainer}
+            >
+              {fuelValues.map((item, idx) => {
+                const isSelected =
+                  inspectedIndex === idx || (inspectedIndex === null && idx === fuelValues.length - 1)
+                const price = item.price || 0
+                const ratio = Math.max(0.12, Math.min(1, (price - domainMin) / domainSpan))
+                const barHeightPercent = `${Math.round(ratio * 88)}%`
+
+                return (
+                  <Pressable
+                    key={`${item.date}-${idx}`}
+                    onPress={() => setInspectedIndex(idx)}
+                    style={styles.barColumn}
+                  >
+                    {/* EN TEPEDEKİ SEÇİLİ FİYAT BALONU */}
+                    <View style={styles.tooltipSlot}>
+                      {isSelected ? (
+                        <View style={[styles.floatingTooltip, { borderColor: activeFuelMeta.color }]}>
+                          <Text style={styles.floatingTooltipText}>{price.toFixed(2)}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    {/* SÜTUN GÖVDESİ */}
+                    <View style={styles.barTrack}>
+                      <View
+                        style={[
+                          styles.barFill,
+                          {
+                            height: barHeightPercent,
+                            backgroundColor: isSelected ? activeFuelMeta.color : '#233857',
+                          },
+                          isSelected && styles.barFillActive,
+                        ]}
+                      />
+                    </View>
+
+                    {/* TARİH ETİKETİ */}
+                    <Text style={[styles.barDateLabel, isSelected && styles.barDateLabelActive]}>
+                      {item.shortDate}
+                    </Text>
+                  </Pressable>
+                )
+              })}
+            </ScrollView>
           </View>
         </View>
 
-        <View style={styles.metricsRow}>
-          {metrics.map((metric) => (
-            <View key={metric.label} style={styles.metricCard}>
-              <View style={[styles.metricIcon, metric.tone === 'info' && styles.metricIconInfo]}>
-                <MaterialCommunityIcons
-                  name={metric.icon}
-                  size={17}
-                  color={metric.tone === 'info' ? colors.info : colors.accent}
-                />
-              </View>
-              <Text style={styles.metricLabel}>{metric.label}</Text>
-              <Text style={styles.metricValue}>{metric.value}</Text>
+        {/* 4 AYRI YÜKSEK KONTRAST METRİK KARTLARI (2x2 GRID) */}
+        <View style={styles.metricsGrid}>
+          {/* EN DÜŞÜK FİYAT */}
+          <View style={styles.metricGridCard}>
+            <View style={[styles.metricCardIconBox, { backgroundColor: '#0C2A4A' }]}>
+              <MaterialCommunityIcons name="arrow-down-circle-outline" size={18} color={colors.accent} />
             </View>
-          ))}
+            <Text style={styles.metricGridLabel}>En Düşük Fiyat</Text>
+            <Text style={styles.metricGridValue}>{minPrice ? `${minPrice.toFixed(2)} ₺` : '--'}</Text>
+            <Text style={styles.metricGridSub}>{historyView.minDate ? `Tarih: ${historyView.minDate}` : 'Bu dönemde'}</Text>
+          </View>
+
+          {/* EN YÜKSEK FİYAT */}
+          <View style={styles.metricGridCard}>
+            <View style={[styles.metricCardIconBox, { backgroundColor: '#3A0D18' }]}>
+              <MaterialCommunityIcons name="arrow-up-circle-outline" size={18} color={colors.danger} />
+            </View>
+            <Text style={styles.metricGridLabel}>En Yüksek Fiyat</Text>
+            <Text style={styles.metricGridValue}>{maxPrice ? `${maxPrice.toFixed(2)} ₺` : '--'}</Text>
+            <Text style={styles.metricGridSub}>{historyView.maxDate ? `Tarih: ${historyView.maxDate}` : 'Bu dönemde'}</Text>
+          </View>
+
+          {/* DÖNEM ORTALAMASI */}
+          <View style={styles.metricGridCard}>
+            <View style={[styles.metricCardIconBox, { backgroundColor: '#1E293B' }]}>
+              <MaterialCommunityIcons name="scale-balance" size={18} color={colors.info} />
+            </View>
+            <Text style={styles.metricGridLabel}>Dönem Ortalaması</Text>
+            <Text style={styles.metricGridValue}>{avgPrice ? `${avgPrice.toFixed(2)} ₺` : '--'}</Text>
+            <Text style={styles.metricGridSub}>Hesaplanan ortalama</Text>
+          </View>
+
+          {/* DÖNEM DEĞİŞİMİ */}
+          <View style={styles.metricGridCard}>
+            <View style={[styles.metricCardIconBox, { backgroundColor: '#2C1E0A' }]}>
+              <MaterialCommunityIcons name="chart-timeline-variant" size={18} color={colors.warning} />
+            </View>
+            <Text style={styles.metricGridLabel}>Dönem Değişimi</Text>
+            <Text
+              style={[
+                styles.metricGridValue,
+                periodDiff > 0 ? styles.diffUpText : periodDiff < 0 ? styles.diffDownText : styles.diffFlatText,
+              ]}
+            >
+              {periodDiff > 0 ? `+${periodDiff.toFixed(2)} ₺` : `${periodDiff.toFixed(2)} ₺`}
+            </Text>
+            <Text style={styles.metricGridSub}>
+              {periodDiff > 0 ? '▲ Net Artış' : periodDiff < 0 ? '▼ Net İndirim' : 'Dengeli Seyir'}
+            </Text>
+          </View>
         </View>
 
+        {/* SON DEĞİŞİKLİKLER LİSTESİ */}
         <Text style={styles.changesTitle}>Son Değişiklikler</Text>
 
         <View style={styles.changesCard}>
           {recentChanges.length ? (
-            recentChanges.map((change, index) => (
-              <View
-                key={`${change.date}-${change.tag}-${index}`}
-                style={[styles.changeRow, index !== recentChanges.length - 1 && styles.changeDivider]}
-              >
-                <View style={styles.changeDotWrap}>
-                  <MaterialCommunityIcons
-                    name={change.tone === 'up' ? 'arrow-up-bold' : 'arrow-down-bold'}
-                    size={14}
-                    color={change.tone === 'up' ? colors.warning : colors.accent}
-                  />
-                </View>
-                <View style={styles.changeCopy}>
-                  <View style={styles.changeTitleRow}>
-                    <Text style={styles.changeDate} numberOfLines={1}>
-                      {change.date}
-                    </Text>
-                    <View style={styles.changeTag}>
-                      <Text style={styles.changeTagText}>{change.tag}</Text>
-                    </View>
+            recentChanges.map((change, index) => {
+              const isHike = change.tone === 'up'
+              return (
+                <View
+                  key={`${change.date}-${change.tag}-${index}`}
+                  style={[styles.changeRow, index !== recentChanges.length - 1 && styles.changeDivider]}
+                >
+                  <View
+                    style={[
+                      styles.changeDotWrap,
+                      { backgroundColor: isHike ? '#3A0D18' : '#0C2A4A' },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={isHike ? 'arrow-up-bold' : 'arrow-down-bold'}
+                      size={14}
+                      color={isHike ? colors.danger : colors.accent}
+                    />
                   </View>
-                  <Text style={styles.changeDesc}>{change.desc}</Text>
+                  <View style={styles.changeCopy}>
+                    <View style={styles.changeTitleRow}>
+                      <Text style={styles.changeDate} numberOfLines={1}>
+                        {change.date}
+                      </Text>
+                      <View style={styles.changeTag}>
+                        <Text style={styles.changeTagText}>{change.tag}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.changeDesc}>{change.desc}</Text>
+                  </View>
+                  <Text style={[styles.changeValue, isHike ? styles.changeUp : styles.changeDown]}>
+                    {change.value}
+                  </Text>
                 </View>
-                <Text style={[styles.changeValue, change.tone === 'up' ? styles.changeUp : styles.changeDown]}>
-                  {change.value}
-                </Text>
-              </View>
-            ))
+              )
+            })
           ) : (
             <View style={styles.emptyChanges}>
               <MaterialCommunityIcons name="clock-outline" size={18} color={colors.mutedSoft} />
@@ -297,7 +377,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 24,
+    paddingBottom: 28,
   },
   header: {
     alignItems: 'center',
@@ -329,7 +409,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   titleCopy: {
     flex: 1,
@@ -341,246 +421,319 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   subtitle: {
-    color: colors.muted,
+    color: colors.mutedSoft,
     fontSize: 13,
     fontWeight: '700',
-    marginTop: 5,
+    marginTop: 4,
   },
   periodBadge: {
-    backgroundColor: colors.bgSoft,
+    backgroundColor: colors.surfaceAlt,
     borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingVertical: 6,
   },
   periodBadgeText: {
-    color: colors.mutedSoft,
+    color: colors.accent,
     fontSize: 11,
     fontWeight: '900',
   },
-  periodSelector: {
-    backgroundColor: colors.bgSoft,
+  fuelTabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  fuelTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.surfaceAlt,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 4,
+  },
+  fuelTabActive: {
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+  },
+  fuelTabText: {
+    color: colors.mutedSoft,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  periodSelector: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: 10,
     borderWidth: 1,
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: 14,
     padding: 3,
   },
   periodOption: {
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-    minHeight: 32,
+    minHeight: 34,
+    borderRadius: 7,
   },
   periodOptionActive: {
     backgroundColor: colors.accent,
-    borderRadius: 6,
   },
   periodOptionText: {
     color: colors.mutedSoft,
-    fontSize: 11,
-    fontWeight: '900',
+    fontSize: 12,
+    fontWeight: '800',
   },
   periodOptionTextActive: {
     color: colors.bg,
+    fontWeight: '900',
   },
-  trendCard: {
+  chartCard: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: 14,
+    borderColor: colors.borderLight,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 16,
+    marginBottom: 16,
     ...shadows.card,
   },
-  cardTop: {
-    alignItems: 'flex-start',
+  chartHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    alignItems: 'flex-start',
+    marginBottom: 16,
   },
-  sectionLabel: {
-    color: colors.mutedSoft,
-    fontSize: 12,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  legendRow: {
+  chartFuelBadge: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  legendItem: {
     alignItems: 'center',
-    flexDirection: 'row',
-    marginRight: 12,
+    gap: 6,
     marginBottom: 6,
   },
-  legendDot: {
-    borderRadius: 999,
-    height: 7,
-    marginRight: 6,
-    width: 7,
+  fuelColorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-  legendText: {
-    color: colors.muted,
-    fontSize: 11,
+  chartFuelTitle: {
+    color: colors.text,
+    fontSize: 13,
     fontWeight: '800',
   },
-  chartBox: {
+  resetInspectBtn: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  resetInspectText: {
+    color: colors.accent,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  priceInspectorRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+    marginBottom: 4,
+  },
+  chartMainPrice: {
+    color: colors.white,
+    fontSize: 26,
+    fontWeight: '900',
+  },
+  diffBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  diffUp: {
+    backgroundColor: '#3A0D18',
+    borderColor: colors.danger,
+  },
+  diffDown: {
+    backgroundColor: '#0C2A4A',
+    borderColor: colors.accent,
+  },
+  diffFlat: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+  },
+  diffBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  diffUpText: {
+    color: colors.danger,
+  },
+  diffDownText: {
+    color: colors.accent,
+  },
+  diffFlatText: {
+    color: colors.mutedSoft,
+  },
+  inspectedDateSub: {
+    color: colors.mutedSoft,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  chartHeaderRightIcon: {
+    padding: 4,
+  },
+  chartCanvasContainer: {
+    height: 180,
+    position: 'relative',
+    justifyContent: 'flex-end',
+  },
+  gridLayer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    pointerEvents: 'none',
+  },
+  gridGuideLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  guideDashedLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+    opacity: 0.7,
+  },
+  guideLabelText: {
+    color: colors.muted,
+    fontSize: 9,
+    fontWeight: '700',
+    marginLeft: 8,
+    width: 38,
+    textAlign: 'right',
+  },
+  barsContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    minWidth: '100%',
+    justifyContent: 'space-around',
+    paddingTop: 24,
+    paddingBottom: 4,
+  },
+  barColumn: {
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    minWidth: 38,
+    paddingHorizontal: 4,
+    height: 150,
+  },
+  tooltipSlot: {
+    height: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  floatingTooltip: {
+    backgroundColor: colors.bgSoft,
+    borderRadius: 5,
+    borderWidth: 1,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    ...shadows.soft,
+  },
+  floatingTooltipText: {
+    color: colors.white,
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  barTrack: {
+    width: 14,
+    height: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 7,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  barFill: {
+    width: '100%',
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+  },
+  barFillActive: {
+    shadowColor: colors.white,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+  },
+  barDateLabel: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  barDateLabelActive: {
+    color: colors.white,
+    fontWeight: '900',
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  metricGridCard: {
+    width: '48%',
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 12,
     borderWidth: 1,
-    overflow: 'hidden',
-    paddingHorizontal: 12,
-    paddingTop: 16,
-    paddingBottom: 12,
-  },
-  chartPlot: {
-    position: 'relative',
-  },
-  chartBackdropTop: {
-    backgroundColor: 'rgba(26, 45, 72, 0.42)',
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-    height: '48%',
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  chartBackdropBottom: {
-    backgroundColor: 'rgba(7, 211, 156, 0.08)',
-    bottom: 0,
-    height: '42%',
-    left: 0,
-    position: 'absolute',
-    right: 0,
-  },
-  gridGuide: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    left: 0,
-    position: 'absolute',
-    right: 0,
-  },
-  gridLine: {
-    backgroundColor: '#2A4161',
-    flex: 1,
-    height: 1,
-    opacity: 0.72,
-  },
-  gridLabel: {
-    color: colors.muted,
-    fontSize: 9,
-    fontWeight: '800',
-    marginLeft: 6,
-    width: 28,
-  },
-  verticalGridLine: {
-    backgroundColor: '#1C2D45',
-    bottom: 0,
-    opacity: 0.32,
-    position: 'absolute',
-    top: 0,
-    width: 1,
-  },
-  lineLayer: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  lineSegment: {
-    borderRadius: 999,
-    position: 'absolute',
-  },
-  lineSegmentGlow: {
-    borderRadius: 999,
-    height: 7,
-    opacity: 0.14,
-    position: 'absolute',
-  },
-  chartPoint: {
-    borderRadius: 999,
-    borderWidth: 2,
-    height: 6,
-    position: 'absolute',
-    width: 6,
-  },
-  chartPointActive: {
-    borderRadius: 999,
-    borderWidth: 2,
-    height: 10,
-    position: 'absolute',
-    width: 10,
-    ...shadows.soft,
-  },
-  chartLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  chartLabel: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: '800',
-    textAlign: 'center',
-    width: 58,
-  },
-  metricsRow: {
-    flexDirection: 'row',
-    marginHorizontal: -5,
-    marginTop: 12,
-  },
-  metricCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flex: 1,
-    marginHorizontal: 5,
     padding: 12,
     ...shadows.soft,
   },
-  metricIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.accentDark,
+  metricCardIconBox: {
+    width: 32,
+    height: 32,
     borderRadius: 8,
-    height: 34,
+    alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
-    width: 34,
+    marginBottom: 8,
   },
-  metricIconInfo: {
-    backgroundColor: '#172C4A',
-  },
-  metricLabel: {
+  metricGridLabel: {
     color: colors.mutedSoft,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
   },
-  metricValue: {
+  metricGridValue: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '900',
-    marginTop: 4,
+    marginTop: 3,
+    marginBottom: 2,
+  },
+  metricGridSub: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '600',
   },
   changesTitle: {
     color: colors.text,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '900',
-    marginTop: 22,
     marginBottom: 10,
   },
   changesCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     ...shadows.card,
   },
@@ -599,8 +752,8 @@ const styles = StyleSheet.create({
   changeRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    minHeight: 74,
-    paddingHorizontal: 12,
+    minHeight: 68,
+    paddingHorizontal: 14,
     paddingVertical: 12,
   },
   changeDivider: {
@@ -609,7 +762,6 @@ const styles = StyleSheet.create({
   },
   changeDotWrap: {
     alignItems: 'center',
-    backgroundColor: colors.bgSoft,
     borderRadius: 999,
     height: 30,
     justifyContent: 'center',
@@ -623,43 +775,44 @@ const styles = StyleSheet.create({
   changeTitleRow: {
     alignItems: 'center',
     flexDirection: 'row',
+    gap: 8,
   },
   changeDate: {
     color: colors.text,
-    flexShrink: 1,
     fontSize: 13,
-    fontWeight: '900',
-    marginRight: 8,
+    fontWeight: '800',
   },
   changeDesc: {
     color: colors.mutedSoft,
     fontSize: 11,
-    fontWeight: '700',
-    marginTop: 5,
+    fontWeight: '600',
+    marginTop: 3,
   },
   changeTag: {
-    backgroundColor: colors.bgSoft,
+    backgroundColor: colors.surfaceAlt,
     borderColor: colors.border,
-    borderRadius: 999,
+    borderRadius: 6,
     borderWidth: 1,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   changeTagText: {
     color: colors.mutedSoft,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   changeValue: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '900',
     textAlign: 'right',
-    width: 74,
   },
   changeUp: {
     color: colors.danger,
   },
   changeDown: {
     color: colors.accent,
+  },
+  pressed: {
+    opacity: 0.85,
   },
 })

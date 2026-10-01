@@ -101,11 +101,13 @@ export default function AnaSayfa() {
   const chartWidth = Math.max(210, Math.min(width - 92, 330))
 
   const fuelPredictionsList = useMemo(() => {
-    if (marketSignal?.fuelPredictions && Array.isArray(marketSignal.fuelPredictions) && marketSignal.fuelPredictions.length > 0) {
-      return marketSignal.fuelPredictions
-    }
-    return buildDetailedFuelPredictions(marketSignal?.direction ?? 'increase', marketSignal?.score ?? 65, marketSignal?.confidence ?? 'medium')
-  }, [marketSignal])
+    return buildDetailedFuelPredictions(
+      marketSignal?.direction ?? 'increase',
+      marketSignal?.score ?? 65,
+      marketSignal?.confidence ?? 'medium',
+      data.prices,
+    )
+  }, [data.prices, marketSignal])
 
   useEffect(() => {
     loadFavoriteCities().then(setFavCities)
@@ -276,19 +278,13 @@ export default function AnaSayfa() {
         <View style={styles.predictionDashboard}>
           <View style={styles.predHeader}>
             <View style={styles.predHeaderLeft}>
-              <View style={[styles.predRadarIconBox, { backgroundColor: marketSignal.softColor }]}>
-                <MaterialCommunityIcons name="radar" size={20} color={marketSignal.color} />
+              <View style={[styles.predRadarIconBox, { backgroundColor: colors.surfaceAlt }]}>
+                <MaterialCommunityIcons name="radar" size={20} color={colors.accent} />
               </View>
               <View style={styles.predHeaderCopy}>
                 <Text style={styles.predTitle}>Beklenen Akaryakıt Değişimleri</Text>
                 <Text style={styles.predSubtitle}>Yapay Zeka Piyasa & Zam Tahmin Sinyali</Text>
               </View>
-            </View>
-            <View style={[styles.predConfidenceBadge, { borderColor: marketSignal.color }]}>
-              <View style={[styles.predDot, { backgroundColor: marketSignal.color }]} />
-              <Text style={[styles.predConfidenceText, { color: marketSignal.color }]}>
-                {marketSignal.confidenceLabel} Güven
-              </Text>
             </View>
           </View>
 
@@ -296,13 +292,13 @@ export default function AnaSayfa() {
           <View style={styles.predCardGrid}>
             {fuelPredictionsList.map((pred) => {
               return (
-                <View key={pred.key} style={[styles.predFuelCard, { borderColor: pred.badgeBorder, backgroundColor: pred.badgeBg }]}>
+                <View key={pred.key} style={styles.predFuelCard}>
                   <View style={styles.predFuelTop}>
                     <View style={styles.predFuelBadge}>
                       <MaterialCommunityIcons name={pred.icon} size={16} color={colors.white} />
                       <Text style={styles.predFuelName}>{pred.fuelName}</Text>
                     </View>
-                    <View style={[styles.predStatusPill, { borderColor: pred.badgeBorder }]}>
+                    <View style={[styles.predStatusPill, { borderColor: pred.pillBorder, backgroundColor: pred.pillBg }]}>
                       <Text style={[styles.predStatusText, { color: pred.textColor }]}>
                         {pred.statusText}
                       </Text>
@@ -1374,9 +1370,9 @@ const styles = StyleSheet.create({
   triggeredBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E1B18',
-    borderColor: '#451A03',
-    borderWidth: 1,
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.borderLight,
+    borderWidth: 1.5,
     borderRadius: 12,
     padding: 12,
     marginBottom: 14,
@@ -1386,7 +1382,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: '#381C04',
+    backgroundColor: '#1E293B',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -1395,14 +1391,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   triggeredBannerTitle: {
-    color: '#FBBF24',
+    color: colors.warning,
     fontSize: 13,
     fontWeight: '800',
   },
   triggeredBannerText: {
-    color: '#FDE68A',
+    color: colors.mutedSoft,
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '600',
     marginTop: 2,
   },
   predictionDashboard: {
@@ -1472,9 +1468,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   predFuelCard: {
-    borderRadius: 10,
-    borderWidth: 1.5,
-    padding: 12,
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
     gap: 8,
   },
   predFuelTop: {

@@ -7,12 +7,14 @@ import { colors, shadows } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { fuelTabs } from '../services/fuelData'
 import {
+  cancelWeeklySummaryNotification,
   defaultNotificationSettings,
   getNotificationPermissionStatus,
   loadNotificationSettings,
   requestNotificationAccess,
   requestRemoteTestNotification,
   saveAndSyncNotificationSettings,
+  scheduleWeeklySummaryNotification,
 } from '../services/notifications'
 import {
   addCustomAlert,
@@ -190,6 +192,14 @@ export default function Bildirimler() {
 
     setSettings(nextSettings)
     const registration = await saveAndSyncNotificationSettings(nextSettings, permission.expoPushToken, registrationMeta)
+
+    if (key === 'weeklySummary') {
+      if (value) {
+        scheduleWeeklySummaryNotification(data.prices).catch(() => {})
+      } else {
+        cancelWeeklySummaryNotification().catch(() => {})
+      }
+    }
 
     if (registration.error) {
       setPermission((current) => ({

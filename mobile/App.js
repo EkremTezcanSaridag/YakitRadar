@@ -14,6 +14,7 @@ import {
   configureNotificationHandler,
   setupNotificationChannels,
   loadNotificationSettings,
+  scheduleWeeklySummaryNotification,
   subscribeToNotificationEvents,
   syncExistingNotificationPermission,
 } from './src/services/notifications'
@@ -51,7 +52,12 @@ export default function App() {
     const unsubscribe = subscribeToNotificationEvents()
 
     loadNotificationSettings()
-      .then((settings) => syncExistingNotificationPermission(settings, startupNotificationMeta))
+      .then((settings) => {
+        syncExistingNotificationPermission(settings, startupNotificationMeta)
+        if (settings.weeklySummary) {
+          scheduleWeeklySummaryNotification().catch(() => {})
+        }
+      })
       .catch(() => {})
 
     return unsubscribe
