@@ -1,6 +1,6 @@
 # Yakıt Radar
 
-![Yakıt Radar marka görseli](docs/yakit-radar-brand.png)
+
 
 Yakıt Radar, Türkiye'deki akaryakıt fiyatlarını takip etmek için geliştirilen Expo + React Native mobil uygulamasıdır. Uygulama 81 il için Benzin, Mazot ve LPG fiyatlarını gösterir; şehir arama, yakıt türü filtreleme, yenileme ve fiyat geçmişi ekranlarını içerir.
 
