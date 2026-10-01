@@ -325,7 +325,15 @@ def gecmis_kaydet(veri):
     ort_motorin = round(sum(motorin_liste) / len(motorin_liste), 2)
     ort_lpg = round(sum(lpg_liste) / len(lpg_liste), 2)
 
-    onceki = supabase.table("gecmis").select("*").order("tarih", desc=True).limit(1).execute()
+    # Onceki gunun kaydini bul (bugunden kucuk en son tarih)
+    onceki = (
+        supabase.table("gecmis")
+        .select("*")
+        .lt("tarih", bugun)
+        .order("tarih", desc=True)
+        .limit(1)
+        .execute()
+    )
 
     benzin_degisim = "0.00"
     motorin_degisim = "0.00"
@@ -344,19 +352,30 @@ def gecmis_kaydet(veri):
         if abs(float(lpg_degisim)) > MAX_REASONABLE_PRICE_CHANGE:
             lpg_degisim = "0.00"
 
-    supabase.table("gecmis").upsert(
-        {
-            "tarih": bugun,
-            "benzin_95": str(ort_benzin),
-            "motorin": str(ort_motorin),
-            "lpg": str(ort_lpg),
-            "benzin_degisim": benzin_degisim,
-            "motorin_degisim": motorin_degisim,
-            "lpg_degisim": lpg_degisim,
-        }
-    ).execute()
+    kayit_verisi = {
+        "tarih": bugun,
+        "benzin_95": str(ort_benzin),
+        "motorin": str(ort_motorin),
+        "lpg": str(ort_lpg),
+        "benzin_degisim": benzin_degisim,
+        "motorin_degisim": motorin_degisim,
+        "lpg_degisim": lpg_degisim,
+    }
 
-    print(f"Gecmise kaydedildi: Benzin {ort_benzin}, Motorin {ort_motorin}, LPG {ort_lpg}")
+    # Bugune ait mevcut kayit var mi kontrol et
+    bugunku = supabase.table("gecmis").select("id").eq("tarih", bugun).execute()
+
+    if bugunku.data and len(bugunku.data) > 0:
+        hedef_id = bugunku.data[0]["id"]
+        supabase.table("gecmis").update(kayit_verisi).eq("id", hedef_id).execute()
+        if len(bugunku.data) > 1:
+            fazla_idler = [k["id"] for k in bugunku.data[1:] if "id" in k]
+            if fazla_idler:
+                supabase.table("gecmis").delete().in_("id", fazla_idler).execute()
+        print(f"Gecmis tablosunda bugunun ({bugun}) kaydi guncellendi (ID: {hedef_id}): Benzin {ort_benzin}, Motorin {ort_motorin}, LPG {ort_lpg}")
+    else:
+        supabase.table("gecmis").insert(kayit_verisi).execute()
+        print(f"Gecmis tablosuna yeni gun eklendi ({bugun}): Benzin {ort_benzin}, Motorin {ort_motorin}, LPG {ort_lpg}")
 
 
 def push_tokenlarini_oku():
@@ -778,18 +797,33 @@ if __name__ == "__main__":
     print(f"Fiyatlar cekiliyor... {datetime.now(ISTANBUL_TZ).strftime('%d/%m/%Y %H:%M')}\n")
 
     onceki_fiyatlar = mevcut_fiyatlari_oku()
-    veri = tum_fiyatlari_cek()
-    degisimler = fiyat_degisimlerini_hesapla(onceki_fiyatlar, veri)
+    veri = None
+    scraping_basarili = False
+
+    try:
+        veri = tum_fiyatlari_cek()
+        scraping_basarili = True
+    except Exception as hata:
+        print(f"UYARI: Akaryakit scraping sirasinda hata olustu: {hata}")
+        if onceki_fiyatlar and len(onceki_fiyatlar) >= 50:
+            print("Supabase'deki mevcut fiyat kayitlari yedek veri olarak kullaniliyor...")
+            veri = onceki_fiyatlar
+        else:
+            raise
+
+    degisimler = fiyat_degisimlerini_hesapla(onceki_fiyatlar, veri) if scraping_basarili else []
     klasor = os.path.dirname(os.path.abspath(__file__))
 
-    with open(os.path.join(klasor, "fiyatlar.json"), "w", encoding="utf-8") as f:
-        json.dump(veri, f, ensure_ascii=False, indent=2)
+    if scraping_basarili:
+        with open(os.path.join(klasor, "fiyatlar.json"), "w", encoding="utf-8") as f:
+            json.dump(veri, f, ensure_ascii=False, indent=2)
 
-    for il in sorted(veri.keys()):
-        print(f"  {il}: {veri[il]['benzin_95']}")
+        for il in sorted(veri.keys()):
+            print(f"  {il}: {veri[il]['benzin_95']}")
 
-    fiyat_degisim_gecmisi_kaydet(degisimler)
-    supabase_yaz(veri)
+        fiyat_degisim_gecmisi_kaydet(degisimler)
+        supabase_yaz(veri)
+
     gecmis_kaydet(veri)
     onceki_pompa_hafizasi = gunluk_pompa_hafizasi_oku()
     sinyal = piyasa_sinyali_kaydet(degisimler, onceki_pompa_hafizasi)

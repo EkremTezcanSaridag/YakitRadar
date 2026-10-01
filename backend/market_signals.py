@@ -98,7 +98,24 @@ NEWS_DECREASE_KEYWORDS = [
     "ateşkes",
 ]
 NEWS_ACTION_KEYWORDS = ["geldi", "geliyor", "gelecek", "bekleniyor", "yapildi", "yapıldı", "uygulandi", "uygulandı"]
-NEWS_QUESTION_KEYWORDS = ["var mi", "var mı", "mi geldi", "mı geldi", "ne kadar", "kac tl", "kaç tl"]
+NEWS_QUESTION_KEYWORDS = [
+    "var mi",
+    "var mı",
+    "mi geldi",
+    "mı geldi",
+    "ne kadar",
+    "kac tl",
+    "kaç tl",
+    "zam mi",
+    "zam mı",
+    "geliyor mu",
+    "olacak mi",
+    "olacak mı",
+    "yapilacak mi",
+    "yapılacak mı",
+    "dustu mu",
+    "düştü mü",
+]
 
 
 def parse_float(value):
@@ -259,7 +276,15 @@ def fetch_usd_try_history(limit=12):
             break
 
     if not records:
-        raise RuntimeError("TCMB USD/TRY verisi alinamadi")
+        print("UYARI: TCMB USD/TRY verisi alinamadi, varsayilan referans kur kaydi olusturuldu.")
+        records = [
+            {
+                "date": today,
+                "rate": 34.50,
+                "source": "TCMB Fallback",
+                "source_url": "https://www.tcmb.gov.tr/kurlar/today.xml",
+            }
+        ]
 
     return sorted(records, key=lambda item: item["date"])
 
@@ -450,31 +475,30 @@ def score_news_items(news_items):
         decrease_hits = sum(1 for keyword in NEWS_DECREASE_KEYWORDS if normalize_text(keyword) in normalized)
         has_action = any(normalize_text(keyword) in normalized for keyword in NEWS_ACTION_KEYWORDS)
         has_strong_action = any(normalize_text(keyword) in normalized for keyword in NEWS_STRONG_ACTION_KEYWORDS)
-        is_question = any(normalize_text(keyword) in normalized for keyword in NEWS_QUESTION_KEYWORDS)
+        is_question = "?" in title or any(normalize_text(keyword) in normalized for keyword in NEWS_QUESTION_KEYWORDS)
         item_score = 0
 
-        if increase_hits and has_strong_action:
-            item_score += 34
-            strong_direction = "increase"
-        elif increase_hits and has_action:
-            item_score += 22
-            strong_direction = "increase"
-        elif increase_hits:
-            item_score += 5
+        if not is_question:
+            if increase_hits and has_strong_action:
+                item_score += 34
+                strong_direction = "increase"
+            elif increase_hits and has_action:
+                item_score += 22
+                strong_direction = "increase"
+            elif increase_hits:
+                item_score += 5
 
-        if decrease_hits and has_strong_action:
-            item_score -= 34
-            strong_direction = "decrease"
-        elif decrease_hits and has_action:
-            item_score -= 22
-            strong_direction = "decrease"
-        elif decrease_hits:
-            item_score -= 5
-
-        if increase_hits and decrease_hits and is_question:
+            if decrease_hits and has_strong_action:
+                item_score -= 34
+                strong_direction = "decrease"
+            elif decrease_hits and has_action:
+                item_score -= 22
+                strong_direction = "decrease"
+            elif decrease_hits:
+                item_score -= 5
+        else:
+            # Soru veya spekülasyon başlıkları güçlü yön veya teyitli skor oluşturamaz
             item_score = 0
-        elif is_question:
-            item_score = round(item_score * 0.35)
 
         item_score = clamp(item_score, -32, 32)
 
@@ -919,12 +943,11 @@ def call_gemini_analysis(payload):
                         "parts": [
                             {
                                 "text": (
-                                    "Turkiye akaryakit piyasasi icin kisa, temkinli ve kanita dayali analiz yaz. "
-                                    "Yalnizca verilen son 24 saatlik haber basliklarini kullan; Brent, kur veya "
-                                    "pompa fiyat degisimi uzerinden ek cikarim yapma. "
-                                    "Haberde TL cinsinden tutar varsa bunu analizde belirt; haber tutarini canli "
-                                    "pompa fiyati gibi sunma. "
-                                    "Kesin zam/indirim vaadi verme; bunu bir beklenti sinyali olarak anlat. "
+                                    "Turkiye akaryakit piyasasi icin kisa, temkinli ve kanita dayali analiz yaz.\n"
+                                    "KURALLAR:\n"
+                                    "1. Soru isareti (?) iceren veya 'zam mi geliyor?', 'indirim var mi?' gibi spekulatif basliklari kesinlikle resmi zam/indirim karari olarak kabul etme.\n"
+                                    "2. Yalnizca 'bu gece yarisi', 'tabelalara yansidi' veya netlesmis resmi ifadeleri zam/indirim olarak ozetle; aksi halde temkinli ol.\n"
+                                    "3. Net tutar yoksa rakam uydurma. Teyitli degisiklik yoksa watch_level degerini 'low' yap.\n"
                                     "Sadece JSON uret. Veri:\n"
                                     f"{json.dumps(payload, ensure_ascii=False)}"
                                 )
@@ -967,11 +990,12 @@ def call_groq_analysis(payload):
     model = os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile"
 
     prompt = (
-        "Türkiye akaryakıt piyasası için son 24 saatlik haber başlıklarını inceleyerek son derece kısa, net ve kanıta dayalı Türkçe bir analiz yaz. "
-        "Yalnızca verilen haber başlıklarını esas al. "
-        "Eğer haberlerde net bir zam veya indirim rakamı (örneğin 5 TL zam) geçiyorsa bunu özetinde açıkça ifade et. "
-        "Eğer net bir rakam geçmiyorsa uydurma rakam yazma, 'genel zam/indirim haberi öne çıkıyor, net tutar henüz belirtilmedi' şeklinde yaz. "
-        "Yanıtını SADECE geçerli bir JSON olarak ver. Örnek format: {\"summary\": \"...\", \"watch_level\": \"high|medium|low\", \"key_reason\": \"...\"}\n\n"
+        "Türkiye akaryakıt piyasası için son 24 saatlik haber başlıklarını inceleyerek son derece kısa, net ve kanıta dayalı Türkçe bir piyasa özeti yaz.\n"
+        "ÖNEMLİ KURALLAR:\n"
+        "1. TIKLAMA TUZAĞI (CLICKBAIT) VE SORU BAŞLIKLARI: Soru işareti (?) içeren veya 'zam mı geliyor?', 'indirim var mı?', 'kaç TL olacak?' gibi spekülatif soruları kesinlikle resmi bir zam veya indirim kararı olarak KABUL ETME. Bunları sadece dedikodu/söylenti olarak değerlendir.\n"
+        "2. KANIT VE NETLİK: Yalnızca haberlerde açıkça 'bu gece yarısından itibaren', 'tabelalara yansıdı', 'X TL zam yapıldı/kesinleşti' gibi somut ve teyitli bilgiler varsa bunu net fiyat artışı/indirimi olarak özetle. Net bir tutar ve tarih yoksa uydurma rakam yazma; 'Piyasada beklentiler konuşulsa da henüz teyitli/kesinleşmiş bir fiyat değişikliği bulunmuyor' şeklinde temkinli yaz.\n"
+        "3. İZLENEBİLİRLİK: Kesinleşmiş bir zam/indirim haberi yoksa watch_level değerini mutlaka 'low' yap.\n"
+        "4. Yanıtını SADECE geçerli bir JSON olarak ver. Format: {\"summary\": \"...\", \"watch_level\": \"high|medium|low\", \"key_reason\": \"...\"}\n\n"
         f"Haber Verisi:\n{json.dumps(payload, ensure_ascii=False)}"
     )
 

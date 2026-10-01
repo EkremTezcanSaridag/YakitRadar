@@ -15,6 +15,7 @@ import {
   requestRemoteTestNotification,
   saveAndSyncNotificationSettings,
   scheduleWeeklySummaryNotification,
+  sendTestNotification,
 } from '../services/notifications'
 import {
   addCustomAlert,
@@ -28,6 +29,26 @@ import {
 const fuelChips = ['Benzin', 'Motorin', 'LPG']
 
 function getPermissionCopy(permission) {
+  if (permission.granted) {
+    if (permission.tokenError) {
+      return {
+        badge: 'Yerel Aktif',
+        icon: 'bell-check-outline',
+        title: 'Cihaz Bildirimleri Aktif',
+        desc: 'Özel fiyat alarmlarınız ve haftalık özetler cihazınızda anlık çalışır.',
+        tone: 'active',
+      }
+    }
+
+    return {
+      badge: 'Aktif',
+      icon: 'bell-check-outline',
+      title: 'Bildirim izni açık',
+      desc: permission.expoPushToken ? 'Push token hazırlandı.' : 'Yerel bildirimler hazır.',
+      tone: 'active',
+    }
+  }
+
   if (permission.tokenError) {
     return {
       badge: 'Kontrol gerekli',
@@ -35,16 +56,6 @@ function getPermissionCopy(permission) {
       title: 'Bildirim bağlantısı kurulamadı',
       desc: 'Aşağıdaki ayrıntıyı kontrol edip tekrar deneyin.',
       tone: 'blocked',
-    }
-  }
-
-  if (permission.granted) {
-    return {
-      badge: 'Aktif',
-      icon: 'bell-check-outline',
-      title: 'Bildirim izni açık',
-      desc: permission.expoPushToken ? 'Push token hazırlandı.' : 'Yerel bildirimler hazır.',
-      tone: 'active',
     }
   }
 
@@ -222,7 +233,12 @@ export default function Bildirimler() {
       await requestRemoteTestNotification()
       Alert.alert('Backend testi sırada', 'GitHub Action tamamlandığında gerçek push bildirimi bu cihaza gönderilecek.')
     } catch (error) {
-      Alert.alert('Bildirim gönderilemedi', error?.message ?? 'Beklenmeyen bir sorun oluştu.')
+      try {
+        await sendTestNotification()
+        Alert.alert('Test Bildirimi Gönderildi', 'Yerel bildirim kanalı test edildi. Bildirim çubuğunuzu kontrol edin.')
+      } catch (localError) {
+        Alert.alert('Bildirim gönderilemedi', localError?.message ?? error?.message ?? 'Beklenmeyen bir sorun oluştu.')
+      }
     } finally {
       setTestBusy(false)
     }

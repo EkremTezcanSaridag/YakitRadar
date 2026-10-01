@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { checkAndTriggerCustomAlerts } from '../services/customAlerts'
 import { fallbackFuelData, loadFuelData } from '../services/fuelData'
+import { scheduleWeeklySummaryNotification } from '../services/notifications'
+
+function triggerAlertsAndSchedule(freshData) {
+  if (freshData?.prices?.length) {
+    scheduleWeeklySummaryNotification(freshData.prices).catch(() => {})
+    checkAndTriggerCustomAlerts(freshData.prices, freshData.marketSignal).catch(() => {})
+  }
+}
 
 export function useFuelData() {
   const followUpTimerRef = useRef(null)
@@ -24,6 +33,8 @@ export function useFuelData() {
       refreshing: false,
     })
 
+    triggerAlertsAndSchedule(data)
+
     if (data.refreshRequest?.status === 'queued') {
       if (followUpTimerRef.current) {
         clearTimeout(followUpTimerRef.current)
@@ -41,6 +52,7 @@ export function useFuelData() {
           loading: false,
           refreshing: false,
         })
+        triggerAlertsAndSchedule(nextData)
       }, 45 * 1000)
     }
   }, [])
@@ -59,6 +71,7 @@ export function useFuelData() {
         loading: false,
         refreshing: false,
       })
+      triggerAlertsAndSchedule(data)
     })
 
     return () => {

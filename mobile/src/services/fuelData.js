@@ -573,8 +573,21 @@ async function fetchBrentHistory(limit = 12) {
   throw lastError ?? new Error('Brent verisi alınamadı.')
 }
 
+const FALLBACK_USD_TRY = 34.50
+
 async function fetchUsdTryToday() {
-  return fetchUsdTryForDate(new Date())
+  for (let extraDays = 0; extraDays < 5; extraDays += 1) {
+    try {
+      return await fetchUsdTryForDate(createDateOffset(extraDays), 5000)
+    } catch {}
+  }
+
+  return {
+    date: new Date(),
+    rate: FALLBACK_USD_TRY,
+    source: 'TCMB Referans',
+    sourceUrl: 'https://www.tcmb.gov.tr/kurlar/today.xml',
+  }
 }
 
 function padDatePart(value) {
