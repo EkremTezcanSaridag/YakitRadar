@@ -987,15 +987,15 @@ def call_groq_analysis(payload):
     if not api_key:
         return None
 
-    model = os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile"
+    model = os.getenv("GROQ_MODEL") or "openai/gpt-oss-120b"
 
     prompt = (
-        "Türkiye akaryakıt piyasası için son 24 saatlik haber başlıklarını inceleyerek son derece kısa, net ve kanıta dayalı Türkçe bir piyasa özeti yaz.\n"
-        "ÖNEMLİ KURALLAR:\n"
-        "1. TIKLAMA TUZAĞI (CLICKBAIT) VE SORU BAŞLIKLARI: Soru işareti (?) içeren veya 'zam mı geliyor?', 'indirim var mı?', 'kaç TL olacak?' gibi spekülatif soruları kesinlikle resmi bir zam veya indirim kararı olarak KABUL ETME. Bunları sadece dedikodu/söylenti olarak değerlendir.\n"
-        "2. KANIT VE NETLİK: Yalnızca haberlerde açıkça 'bu gece yarısından itibaren', 'tabelalara yansıdı', 'X TL zam yapıldı/kesinleşti' gibi somut ve teyitli bilgiler varsa bunu net fiyat artışı/indirimi olarak özetle. Net bir tutar ve tarih yoksa uydurma rakam yazma; 'Piyasada beklentiler konuşulsa da henüz teyitli/kesinleşmiş bir fiyat değişikliği bulunmuyor' şeklinde temkinli yaz.\n"
+        "Türkiye akaryakıt piyasası için son haber başlıklarını inceleyerek tarafsız, kanıta dayalı ve gerçekçi bir piyasa analizi yap.\n"
+        "ÇOK ÖNEMLİ KURALLAR:\n"
+        "1. TIKLAMA TUZAĞI (CLICKBAIT) VE TABLOİD SİTELERİ: Soru işareti (?) içeren, 'zam mı geliyor?', 'indirim var mı?', 'kaç TL oldu?', 'tarih belli' gibi spekülatif veya aylar öncesine ait eski haberleri KESİNLİKLE resmi bir zam/indirim kararı olarak KABUL ETME.\n"
+        "2. KANIT VE RESMİYET: Türkiye'de akaryakıt fiyat değişiklikleri yalnızca EPGİS veya güvenilir ana akım ekonomi kaynakları (Bloomberg HT, NTV, AA) tarafından doğrulanır. Eğer haberler yalnızca küçük blogların spekülasyonuysa veya kesinleşmiş bir karar yoksa 'Piyasada resmi olarak kesinleşmiş bir zam veya indirim kararı bulunmamaktadır' de ve direction değerini 'neutral' yap.\n"
         "3. İZLENEBİLİRLİK: Kesinleşmiş bir zam/indirim haberi yoksa watch_level değerini mutlaka 'low' yap.\n"
-        "4. Yanıtını SADECE geçerli bir JSON olarak ver. Format: {\"summary\": \"...\", \"watch_level\": \"high|medium|low\", \"key_reason\": \"...\"}\n\n"
+        "4. Yanıtını SADECE geçerli bir JSON olarak ver. Format: {\"direction\": \"neutral|increase|decrease\", \"summary\": \"...\", \"watch_level\": \"high|medium|low\", \"key_reason\": \"...\"}\n\n"
         f"Haber Verisi:\n{json.dumps(payload, ensure_ascii=False)}"
     )
 
@@ -1009,7 +1009,7 @@ def call_groq_analysis(payload):
             json={
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.2,
+                "temperature": 0.1,
                 "response_format": {"type": "json_object"},
             },
             timeout=25,
@@ -1021,8 +1021,9 @@ def call_groq_analysis(payload):
 
         return {
             "model": f"groq:{model}",
+            "direction": parsed.get("direction", "neutral"),
             "summary": parsed.get("summary", ""),
-            "watch_level": parsed.get("watch_level", "medium"),
+            "watch_level": parsed.get("watch_level", "low"),
             "key_reason": parsed.get("key_reason", ""),
         }
     except Exception as error:
@@ -1056,6 +1057,12 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
         "news_analysis": news_analysis,
     }
     ai_result = call_groq_analysis(ai_payload) or call_gemini_analysis(ai_payload)
+    if ai_result and ai_result.get("direction"):
+        direction = ai_result["direction"]
+        if direction == "neutral":
+            score = 0
+            confidence = "high"
+
     ai_summary = (
         ai_result["summary"]
         if ai_result and ai_result.get("summary")

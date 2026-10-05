@@ -74,14 +74,11 @@ export default function Gecmis() {
           <View style={{ width: 34 }} />
         </View>
 
-        {/* TITLE & PERIOD BADGE */}
+        {/* TITLE */}
         <View style={styles.titleRow}>
           <View style={styles.titleCopy}>
             <Text style={styles.title}>Fiyat Geçmişi</Text>
-            <Text style={styles.subtitle}>{activeFuelMeta.label} için geçmiş fiyat değişim analizi.</Text>
-          </View>
-          <View style={styles.periodBadge}>
-            <Text style={styles.periodBadgeText}>{periodLabel}</Text>
+            <Text style={styles.subtitle}>{activeFuelMeta.label} için son 7 günlük fiyat değişimi.</Text>
           </View>
         </View>
 
@@ -109,28 +106,6 @@ export default function Gecmis() {
                 />
                 <Text style={[styles.fuelTabText, isSelected && { color: colors.white, fontWeight: '900' }]}>
                   {fuel.label}
-                </Text>
-              </Pressable>
-            )
-          })}
-        </View>
-
-        {/* ZAMAN ARALIĞI SEÇİCİ (7G, 30G, 90G, Tümü) */}
-        <View style={styles.periodSelector}>
-          {historyPeriods.map((option) => {
-            const isActive = option.value === period
-            return (
-              <Pressable
-                key={option.label}
-                accessibilityRole="button"
-                onPress={() => {
-                  setPeriod(option.value)
-                  setInspectedIndex(null)
-                }}
-                style={[styles.periodOption, isActive && styles.periodOptionActive]}
-              >
-                <Text style={[styles.periodOptionText, isActive && styles.periodOptionTextActive]}>
-                  {option.label}
                 </Text>
               </Pressable>
             )

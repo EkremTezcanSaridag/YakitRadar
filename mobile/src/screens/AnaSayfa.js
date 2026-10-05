@@ -102,9 +102,9 @@ export default function AnaSayfa() {
 
   const fuelPredictionsList = useMemo(() => {
     return buildDetailedFuelPredictions(
-      marketSignal?.direction ?? 'increase',
-      marketSignal?.score ?? 65,
-      marketSignal?.confidence ?? 'medium',
+      marketSignal?.direction ?? 'neutral',
+      marketSignal?.score ?? 0,
+      marketSignal?.confidence ?? 'high',
       data.prices,
     )
   }, [data.prices, marketSignal])
@@ -356,16 +356,6 @@ export default function AnaSayfa() {
                 </View>
               )
             })}
-          </View>
-
-          {/* SİNYAL METRİKLERİ HIZLI ÇİP BARI */}
-          <View style={styles.predMetricsBar}>
-            {marketSignal.metrics.map((metric) => (
-              <View key={metric.label} style={styles.predMetricChip}>
-                <Text style={styles.predMetricChipLabel}>{metric.label}:</Text>
-                <Text style={styles.predMetricChipVal}>{metric.value}</Text>
-              </View>
-            ))}
           </View>
 
           <Text style={styles.signalDisclaimer}>

@@ -142,12 +142,12 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
   const isIncrease = direction === 'increase'
   const isDecrease = direction === 'decrease'
 
-  const avgBenzin = prices.length ? (prices.reduce((s, p) => s + (p.benzin95 || 0), 0) / prices.length) : 86.26
-  const avgMotorin = prices.length ? (prices.reduce((s, p) => s + (p.motorin || 0), 0) / prices.length) : 98.86
-  const avgLpg = prices.length ? (prices.reduce((s, p) => s + (p.lpg || 0), 0) / prices.length) : 35.44
+  const avgBenzin = prices.length ? (prices.reduce((s, p) => s + (p.benzin95 || 0), 0) / prices.length) : 44.50
+  const avgMotorin = prices.length ? (prices.reduce((s, p) => s + (p.motorin || 0), 0) / prices.length) : 45.20
+  const avgLpg = prices.length ? (prices.reduce((s, p) => s + (p.lpg || 0), 0) / prices.length) : 26.10
 
-  const benzinHike = isIncrease ? 1.85 : isDecrease ? -1.50 : 0
-  const motorinHike = isIncrease ? 5.00 : isDecrease ? -2.10 : 0
+  const benzinHike = isIncrease ? 1.25 : isDecrease ? -1.25 : 0
+  const motorinHike = isIncrease ? 1.30 : isDecrease ? -1.30 : 0
 
   return [
     {
@@ -159,8 +159,8 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
       pillBg: isIncrease ? '#3A0D18' : isDecrease ? '#064E3B' : '#1E293B',
       pillBorder: isIncrease ? '#F43F5E' : isDecrease ? '#34D399' : '#475569',
       textColor: isIncrease ? '#F43F5E' : isDecrease ? '#34D399' : '#94A3B8',
-      amountText: isIncrease ? '+1.85 ₺' : isDecrease ? '-1.50 ₺' : '0.00 ₺',
-      targetDate: isIncrease ? 'Bu Gece 00:00' : isDecrease ? 'Yarın 00:00' : 'Gündemde Değişim Yok',
+      amountText: isIncrease ? '+1.25 ₺' : isDecrease ? '-1.25 ₺' : '0.00 ₺',
+      targetDate: isIncrease ? 'Teyit Bekleniyor' : isDecrease ? 'Teyit Bekleniyor' : 'Gündemde Değişim Yok',
       currentPrice: `${avgBenzin.toFixed(2)} ₺`,
       expectedPrice: `${(avgBenzin + benzinHike).toFixed(2)} ₺`,
     },
@@ -173,8 +173,8 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
       pillBg: isIncrease ? '#3A0D18' : isDecrease ? '#064E3B' : '#1E293B',
       pillBorder: isIncrease ? '#F43F5E' : isDecrease ? '#34D399' : '#475569',
       textColor: isIncrease ? '#F43F5E' : isDecrease ? '#34D399' : '#94A3B8',
-      amountText: isIncrease ? '+5.00 ₺' : isDecrease ? '-2.10 ₺' : '0.00 ₺',
-      targetDate: isIncrease ? 'Salı Günü 00:00' : isDecrease ? 'Salı Günü 00:00' : 'Gündemde Değişim Yok',
+      amountText: isIncrease ? '+1.30 ₺' : isDecrease ? '-1.30 ₺' : '0.00 ₺',
+      targetDate: isIncrease ? 'Teyit Bekleniyor' : isDecrease ? 'Teyit Bekleniyor' : 'Gündemde Değişim Yok',
       currentPrice: `${avgMotorin.toFixed(2)} ₺`,
       expectedPrice: `${(avgMotorin + motorinHike).toFixed(2)} ₺`,
     },
@@ -196,42 +196,36 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
 }
 
 const fallbackMarketSignal = {
-  color: signalToneConfig.increase.color,
-  confidence: 'medium',
-  confidenceLabel: confidenceLabels.medium,
-  direction: 'increase',
-  fuelPredictions: buildDetailedFuelPredictions('increase', 65, 'medium'),
+  color: signalToneConfig.neutral.color,
+  confidence: 'high',
+  confidenceLabel: confidenceLabels.high,
+  direction: 'neutral',
+  fuelPredictions: buildDetailedFuelPredictions('neutral', 0, 'high'),
   fuels: [
-    { confidenceLabel: confidenceLabels.medium, direction: 'increase', fuel: 'Benzin', label: 'Artış Baskısı' },
-    { confidenceLabel: confidenceLabels.medium, direction: 'increase', fuel: 'Motorin', label: 'Artış Baskısı' },
-    { confidenceLabel: confidenceLabels.low, direction: 'neutral', fuel: 'LPG', label: 'Nötr' },
+    { confidenceLabel: confidenceLabels.high, direction: 'neutral', fuel: 'Benzin', label: 'Dengeli' },
+    { confidenceLabel: confidenceLabels.high, direction: 'neutral', fuel: 'Motorin', label: 'Dengeli' },
+    { confidenceLabel: confidenceLabels.high, direction: 'neutral', fuel: 'LPG', label: 'Dengeli' },
   ],
-  icon: signalToneConfig.increase.icon,
+  icon: signalToneConfig.neutral.icon,
   metrics: [
-    { label: 'Haber', value: '5 başlık' },
-    { label: 'Skor', value: '65' },
+    { label: 'Haber', value: '0 başlık' },
+    { label: 'Skor', value: '0' },
     { label: 'Pencere', value: '24s' },
   ],
   analysisFactors: [
     {
-      detail: 'Habertürk ve politikam.com haber başlıklarında benzin ve motorine zam haberleri öne çıkıyor.',
-      label: 'Güncel Haber Etkisi',
-      tone: 'increase',
-      value: '+65',
-    },
-    {
-      detail: 'Son 24 saatteki haber başlıklarında zam haberleri var ancak net TL rakamı henüz belirtilmemiş.',
-      label: 'Öne Çıkan Tutar',
+      detail: 'Resmi kaynaklara göre akaryakıt fiyatlarında şu an için teyit edilmiş bir zam veya indirim kararı bulunmamaktadır.',
+      label: 'Piyasa Durumu',
       tone: 'neutral',
-      value: 'Net Tutar Yok',
+      value: 'Dengeli',
     },
   ],
   newsItems: [],
-  score: 65,
-  softColor: signalToneConfig.increase.softColor,
-  summary: 'Son 24 saatteki haber başlıklarına göre benzin ve motorinde zam haberi öne çıkmaktadır.',
-  title: signalToneConfig.increase.title,
-  updatedAt: 'Bugün 22:04',
+  score: 0,
+  softColor: signalToneConfig.neutral.softColor,
+  summary: 'Piyasada resmi olarak kesinleşmiş bir zam veya indirim kararı bulunmamaktadır. Fiyatlar dengeli seyrini koruyor.',
+  title: signalToneConfig.neutral.title,
+  updatedAt: 'Güncel',
 }
 const brentSources = [
   {
