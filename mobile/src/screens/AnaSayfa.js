@@ -184,10 +184,14 @@ export default function AnaSayfa() {
         <View style={styles.heroHeader}>
           <View style={styles.heroHeaderLeft}>
             <View style={styles.heroPulseBox}>
-              <MaterialCommunityIcons name="radar" size={20} color={colors.accent} />
+              <MaterialCommunityIcons name="gas-station" size={20} color={colors.accent} />
             </View>
-            <View>
-              <Text style={styles.heroBrandTitle}>Yakıt Radar</Text>
+            <View style={styles.heroBrandTextCol}>
+              <View style={styles.heroBrandTitleRow}>
+                <Text style={styles.heroBrandMain}>YAKIT </Text>
+                <Text style={styles.heroBrandAccent}>RADAR</Text>
+              </View>
+              <Text style={styles.heroBrandSubtitle}>Akaryakıt Takip Sistemi</Text>
             </View>
           </View>
 
@@ -488,47 +492,51 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   heroPulseBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#0F223D',
+    borderColor: 'rgba(56, 189, 248, 0.45)',
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.soft,
   },
-  heroPulseDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: colors.accent,
-    marginRight: 4,
+  heroBrandTextCol: {
+    justifyContent: 'center',
   },
-  heroBrandTitle: {
+  heroBrandTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  heroBrandMain: {
     color: colors.white,
     fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: 0.2,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
-  heroLiveTag: {
-    marginTop: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  heroLiveTagText: {
+  heroBrandAccent: {
     color: colors.accent,
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  heroBrandSubtitle: {
+    color: colors.mutedSoft,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '600',
+    marginTop: 1,
+    letterSpacing: 0.2,
   },
   heroHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   heroRefreshBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceAlt,
     borderColor: colors.border,
     borderWidth: 1,
     alignItems: 'center',

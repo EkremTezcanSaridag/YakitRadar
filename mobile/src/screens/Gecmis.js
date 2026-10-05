@@ -65,10 +65,13 @@ export default function Gecmis() {
         {/* HEADER BAR */}
         <View style={styles.header}>
           <View style={styles.headerMark}>
-            <MaterialCommunityIcons name="chart-line" size={18} color={colors.accent} />
+            <MaterialCommunityIcons name="gas-station" size={18} color={colors.accent} />
           </View>
-          <Text style={styles.brand}>Yakıt Radar</Text>
-          <View style={{ width: 18 }} />
+          <View style={styles.brandRow}>
+            <Text style={styles.brandMain}>YAKIT </Text>
+            <Text style={styles.brandAccent}>RADAR</Text>
+          </View>
+          <View style={{ width: 34 }} />
         </View>
 
         {/* TITLE & PERIOD BADGE */}
@@ -192,74 +195,86 @@ export default function Gecmis() {
             </View>
           </View>
 
-          {/* SÜTUN GRAFİK GÖRSEL ALANI */}
+          {/* SÜTUN GRAFİK GÖRSEL ALANI (HATA DÜZELTİLDİ: Y-Ekseni ayrıştırıldı, barlarla çakışma önlendi) */}
           <View style={styles.chartCanvasContainer}>
-            {/* YATAY KILAVUZ ÇİZGİLERİ */}
-            <View style={styles.gridLayer}>
-              <View style={styles.gridGuideLine}>
-                <View style={styles.guideDashedLine} />
-                <Text style={styles.guideLabelText}>{domainMax.toFixed(1)} ₺</Text>
+            {/* ÇİZİM VE BARLAR ALANI */}
+            <View style={styles.chartPlotArea}>
+              {/* YATAY KILAVUZ ÇİZGİLERİ (Sadece bar alanını kapsar) */}
+              <View style={styles.gridLayer}>
+                <View style={styles.gridGuideLine}>
+                  <View style={styles.guideDashedLine} />
+                </View>
+                <View style={styles.gridGuideLine}>
+                  <View style={styles.guideDashedLine} />
+                </View>
+                <View style={styles.gridGuideLine}>
+                  <View style={styles.guideDashedLine} />
+                </View>
               </View>
-              <View style={styles.gridGuideLine}>
-                <View style={styles.guideDashedLine} />
-                <Text style={styles.guideLabelText}>{avgPrice ? avgPrice.toFixed(1) : '--'} ₺</Text>
-              </View>
-              <View style={styles.gridGuideLine}>
-                <View style={styles.guideDashedLine} />
-                <Text style={styles.guideLabelText}>{domainMin.toFixed(1)} ₺</Text>
-              </View>
-            </View>
 
-            {/* SÜTUNLAR BAR DİZİLİMİ */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.barsContainer}
-            >
-              {fuelValues.map((item, idx) => {
-                const isSelected =
-                  inspectedIndex === idx || (inspectedIndex === null && idx === fuelValues.length - 1)
-                const price = item.price || 0
-                const ratio = Math.max(0.12, Math.min(1, (price - domainMin) / domainSpan))
-                const barHeightPercent = `${Math.round(ratio * 88)}%`
+              {/* SÜTUNLAR BAR DİZİLİMİ */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.barsContainer}
+              >
+                {fuelValues.map((item, idx) => {
+                  const isSelected =
+                    inspectedIndex === idx || (inspectedIndex === null && idx === fuelValues.length - 1)
+                  const price = item.price || 0
+                  const ratio = Math.max(0.18, Math.min(1, (price - domainMin) / domainSpan))
+                  const barHeightPercent = `${Math.round(ratio * 88)}%`
 
-                return (
-                  <Pressable
-                    key={`${item.date}-${idx}`}
-                    onPress={() => setInspectedIndex(idx)}
-                    style={styles.barColumn}
-                  >
-                    {/* EN TEPEDEKİ SEÇİLİ FİYAT BALONU */}
-                    <View style={styles.tooltipSlot}>
-                      {isSelected ? (
-                        <View style={[styles.floatingTooltip, { borderColor: activeFuelMeta.color }]}>
-                          <Text style={styles.floatingTooltipText}>{price.toFixed(2)}</Text>
-                        </View>
-                      ) : null}
-                    </View>
+                  return (
+                    <Pressable
+                      key={`${item.date}-${idx}`}
+                      onPress={() => setInspectedIndex(idx)}
+                      style={styles.barColumn}
+                    >
+                      {/* EN TEPEDEKİ SEÇİLİ FİYAT BALONU */}
+                      <View style={styles.tooltipSlot}>
+                        {isSelected ? (
+                          <View style={[styles.floatingTooltip, { borderColor: activeFuelMeta.color }]}>
+                            <Text style={styles.floatingTooltipText}>{price.toFixed(2)}</Text>
+                          </View>
+                        ) : null}
+                      </View>
 
-                    {/* SÜTUN GÖVDESİ */}
-                    <View style={styles.barTrack}>
+                      {/* SÜTUN GÖVDESİ */}
                       <View
                         style={[
-                          styles.barFill,
-                          {
-                            height: barHeightPercent,
-                            backgroundColor: isSelected ? activeFuelMeta.color : '#233857',
-                          },
-                          isSelected && styles.barFillActive,
+                          styles.barTrack,
+                          isSelected && { borderColor: activeFuelMeta.color, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
                         ]}
-                      />
-                    </View>
+                      >
+                        <View
+                          style={[
+                            styles.barFill,
+                            {
+                              height: barHeightPercent,
+                              backgroundColor: isSelected ? activeFuelMeta.color : `${activeFuelMeta.color}3D`,
+                            },
+                            isSelected && styles.barFillActive,
+                          ]}
+                        />
+                      </View>
 
-                    {/* TARİH ETİKETİ */}
-                    <Text style={[styles.barDateLabel, isSelected && styles.barDateLabelActive]}>
-                      {item.shortDate}
-                    </Text>
-                  </Pressable>
-                )
-              })}
-            </ScrollView>
+                      {/* TARİH ETİKETİ */}
+                      <Text style={[styles.barDateLabel, isSelected && styles.barDateLabelActive]}>
+                        {item.shortDate}
+                      </Text>
+                    </Pressable>
+                  )
+                })}
+              </ScrollView>
+            </View>
+
+            {/* BAĞIMSIZ SAĞ Y-EKSENİ (Barlarla ve tarih etiketleriyle asla çakışmaz) */}
+            <View style={styles.yAxisColumn}>
+              <Text style={styles.guideLabelText}>{domainMax.toFixed(1)} ₺</Text>
+              <Text style={styles.guideLabelText}>{avgPrice ? avgPrice.toFixed(1) : '--'} ₺</Text>
+              <Text style={styles.guideLabelText}>{domainMin.toFixed(1)} ₺</Text>
+            </View>
           </View>
         </View>
 
@@ -400,10 +415,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 34,
   },
-  brand: {
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandMain: {
+    color: colors.white,
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  brandAccent: {
     color: colors.accent,
     fontSize: 18,
     fontWeight: '900',
+    letterSpacing: 0.5,
   },
   titleRow: {
     alignItems: 'flex-start',
@@ -593,14 +619,22 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   chartCanvasContainer: {
-    height: 180,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    height: 185,
+  },
+  chartPlotArea: {
+    flex: 1,
     position: 'relative',
     justifyContent: 'flex-end',
   },
   gridLayer: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 26,
+    bottom: 24,
+    left: 0,
+    right: 0,
     justifyContent: 'space-between',
-    paddingVertical: 10,
     pointerEvents: 'none',
   },
   gridGuideLine: {
@@ -611,14 +645,20 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 1,
     backgroundColor: colors.border,
-    opacity: 0.7,
+    opacity: 0.6,
+  },
+  yAxisColumn: {
+    width: 44,
+    paddingLeft: 6,
+    paddingTop: 20,
+    paddingBottom: 24,
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
   },
   guideLabelText: {
-    color: colors.muted,
-    fontSize: 9,
+    color: colors.mutedSoft,
+    fontSize: 9.5,
     fontWeight: '700',
-    marginLeft: 8,
-    width: 38,
     textAlign: 'right',
   },
   barsContainer: {
@@ -626,41 +666,44 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     minWidth: '100%',
     justifyContent: 'space-around',
-    paddingTop: 24,
-    paddingBottom: 4,
+    paddingTop: 10,
+    paddingBottom: 2,
+    paddingHorizontal: 4,
   },
   barColumn: {
     alignItems: 'center',
     justifyContent: 'flex-end',
     minWidth: 38,
     paddingHorizontal: 4,
-    height: 150,
+    height: 155,
   },
   tooltipSlot: {
-    height: 22,
+    height: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
   floatingTooltip: {
-    backgroundColor: colors.bgSoft,
-    borderRadius: 5,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 6,
     borderWidth: 1,
-    paddingHorizontal: 5,
+    paddingHorizontal: 6,
     paddingVertical: 2,
     ...shadows.soft,
   },
   floatingTooltipText: {
     color: colors.white,
-    fontSize: 9,
+    fontSize: 9.5,
     fontWeight: '900',
   },
   barTrack: {
     width: 14,
-    height: 100,
+    height: 98,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 7,
     justifyContent: 'flex-end',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   barFill: {
     width: '100%',
@@ -670,12 +713,12 @@ const styles = StyleSheet.create({
   barFillActive: {
     shadowColor: colors.white,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
   },
   barDateLabel: {
-    color: colors.muted,
-    fontSize: 10,
+    color: colors.mutedSoft,
+    fontSize: 9.5,
     fontWeight: '700',
     marginTop: 6,
     textAlign: 'center',
