@@ -230,42 +230,72 @@ export default function AnaSayfa() {
           </View>
         ) : null}
 
-        {/* 3'LÜ YAKIT FİYATLARI HERO HORIZONTAL SCROLL CAROUSEL */}
+        {/* 3'LÜ YAKIT FİYATLARI - FERAH VE ŞIK KART DÜZENİ */}
         <View style={styles.fuelHeroSection}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeaderTitle}>Anlık Pompa Fiyatları</Text>
-            <Text style={styles.sectionHeaderSub}>81 İl Ortalama</Text>
+            <Text style={styles.sectionHeaderTitle}>Akaryakıt Fiyatları</Text>
+            <Text style={styles.sectionHeaderSub}>81 İl Ortalaması</Text>
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.fuelCarouselScroll}>
-            {fuels.map((fuel, index) => {
-              const badgeBgs = [colors.accentDark, colors.warningDark, colors.purpleDark]
-              const textColors = [colors.accent, colors.warning, colors.purpleGlow]
-              const badgeBg = badgeBgs[index % badgeBgs.length]
-              const textColor = textColors[index % textColors.length]
+            {fuels.map((fuel) => {
+              const isUp = fuel.rawChange > 0
+              const isDown = fuel.rawChange < 0
               return (
-                <View key={fuel.name} style={styles.heroFuelTile}>
+                <View
+                  key={fuel.name}
+                  style={[
+                    styles.heroFuelTile,
+                    {
+                      backgroundColor: fuel.cardBg,
+                      borderColor: fuel.cardBorder,
+                    },
+                  ]}
+                >
+                  {/* ÜST BİLGİ ŞERİDİ (Yakıt Rozeti + Mini Yüzdelik Değişim Rozeti) */}
                   <View style={styles.heroFuelTop}>
-                    <View style={[styles.heroFuelBadge, { backgroundColor: badgeBg }]}>
-                      <Text style={[styles.heroFuelBadgeText, { color: textColor }]}>{fuel.name}</Text>
+                    <View style={styles.heroFuelBadge}>
+                      <MaterialCommunityIcons name={fuel.icon} size={15} color={fuel.accentColor} />
+                      <Text style={[styles.heroFuelBadgeText, { color: fuel.accentColor }]}>{fuel.name}</Text>
                     </View>
-                    <MaterialCommunityIcons name="gas-station-outline" size={16} color={colors.mutedSoft} />
+                    <View
+                      style={[
+                        styles.heroChangeBadge,
+                        isUp ? styles.heroChangeBadgeUp : isDown ? styles.heroChangeBadgeDown : styles.heroChangeBadgeFlat,
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={isUp ? 'arrow-up-bold' : isDown ? 'arrow-down-bold' : 'minus'}
+                        size={10}
+                        color={isUp ? colors.danger : isDown ? '#34D399' : colors.mutedSoft}
+                      />
+                      <Text
+                        style={[
+                          styles.heroChangeBadgeText,
+                          { color: isUp ? colors.danger : isDown ? '#34D399' : colors.mutedSoft },
+                        ]}
+                      >
+                        {fuel.changePct}
+                      </Text>
+                    </View>
                   </View>
 
+                  {/* BÜYÜK VE NET FİYAT */}
                   <View style={styles.heroFuelBody}>
                     <Text style={styles.heroFuelPrice}>{fuel.price}</Text>
-                    <Text style={styles.heroFuelUnit}>₺ / Litre</Text>
                   </View>
 
+                  {/* ALT BİLGİ ŞERİDİ (Son Güncelleme Tarihi ve Değişim Tutarı) */}
                   <View style={styles.heroFuelFooter}>
-                    <View style={[styles.changePill, styles[fuel.tone]]}>
-                      <MaterialCommunityIcons
-                        name={fuel.tone === 'bad' ? 'arrow-up-bold' : fuel.tone === 'good' ? 'arrow-down-bold' : 'minus'}
-                        size={11}
-                        color={fuel.tone === 'flat' ? colors.mutedSoft : colors.white}
-                      />
-                      <Text style={[styles.changeText, styles[`${fuel.tone}Text`]]}>{fuel.change}</Text>
-                    </View>
+                    <Text style={styles.heroFuelDateText}>Son veri · {fuel.dateLabel}</Text>
+                    <Text
+                      style={[
+                        styles.heroFuelDiffSub,
+                        { color: isUp ? colors.danger : isDown ? '#34D399' : colors.mutedSoft },
+                      ]}
+                    >
+                      {fuel.change}
+                    </Text>
                   </View>
                 </View>
               )
@@ -273,52 +303,53 @@ export default function AnaSayfa() {
           </ScrollView>
         </View>
 
-        {/* YENİLEŞTİRİLMİŞ AKARYAKIT TAHMİN DASHBOARD'U */}
+        {/* AKARYAKIT TAHMİN KARTLARI - TEMİZLENMİŞ VE FERAH */}
         <View style={styles.predictionDashboard}>
           <View style={styles.predHeader}>
             <View style={styles.predHeaderLeft}>
               <View style={[styles.predRadarIconBox, { backgroundColor: colors.surfaceAlt }]}>
-                <MaterialCommunityIcons name="radar" size={20} color={colors.accent} />
+                <MaterialCommunityIcons name="trending-up" size={18} color={colors.accent} />
               </View>
               <View style={styles.predHeaderCopy}>
-                <Text style={styles.predTitle}>Beklenen Akaryakıt Değişimleri</Text>
-                <Text style={styles.predSubtitle}>Yapay Zeka Piyasa & Zam Tahmin Sinyali</Text>
+                <Text style={styles.predTitle}>Beklenen Fiyat Değişimleri</Text>
+                <Text style={styles.predSubtitle}>Piyasa ve Brent petrol analiz sinyalleri</Text>
               </View>
             </View>
           </View>
 
-          {/* 3 AYRI YAKIT TÜRÜ TAHMİN KARTI (Benzin, Motorin, LPG) */}
+          {/* 3 AYRI YAKIT TÜRÜ TAHMİN KARTI */}
           <View style={styles.predCardGrid}>
             {fuelPredictionsList.map((pred) => {
+              const isHike = pred.direction === 'increase'
+              const isCut = pred.direction === 'decrease'
               return (
                 <View key={pred.key} style={styles.predFuelCard}>
                   <View style={styles.predFuelTop}>
                     <View style={styles.predFuelBadge}>
-                      <MaterialCommunityIcons name={pred.icon} size={16} color={colors.white} />
+                      <MaterialCommunityIcons name={pred.icon} size={15} color={colors.white} />
                       <Text style={styles.predFuelName}>{pred.fuelName}</Text>
                     </View>
-                    <View style={[styles.predStatusPill, { borderColor: pred.pillBorder, backgroundColor: pred.pillBg }]}>
+                    <View
+                      style={[
+                        styles.predStatusPill,
+                        {
+                          borderColor: pred.pillBorder,
+                          backgroundColor: pred.pillBg,
+                        },
+                      ]}
+                    >
                       <Text style={[styles.predStatusText, { color: pred.textColor }]}>
-                        {pred.statusText}
+                        {isHike ? `${pred.amountText} Zam` : isCut ? `${pred.amountText} İndirim` : 'Sabit'}
                       </Text>
                     </View>
-                  </View>
-
-                  <View style={styles.predAmountBox}>
-                    <Text style={[styles.predAmountText, { color: pred.textColor }]}>
-                      {pred.amountText}
-                    </Text>
-                    <Text style={styles.predUnitText}>/ litre beklenti</Text>
                   </View>
 
                   <View style={styles.predBottomRow}>
-                    <View style={styles.predTransitionPill}>
-                      <Text style={styles.predTransitionText}>
-                        {pred.currentPrice} ➔ <Text style={{ color: pred.textColor, fontWeight: 'bold' }}>{pred.expectedPrice}</Text>
-                      </Text>
-                    </View>
+                    <Text style={styles.predTransitionText}>
+                      {pred.currentPrice} ➔ <Text style={{ color: pred.textColor, fontWeight: '800' }}>{pred.expectedPrice}</Text>
+                    </Text>
                     <View style={styles.predDateChip}>
-                      <MaterialCommunityIcons name="calendar-clock" size={12} color={colors.mutedSoft} />
+                      <MaterialCommunityIcons name="clock-outline" size={11} color={colors.mutedSoft} />
                       <Text style={styles.predDateText}>{pred.targetDate}</Text>
                     </View>
                   </View>
@@ -594,14 +625,12 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   heroFuelTile: {
-    width: 155,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderColor: colors.border,
-    borderWidth: 1,
-    padding: 12,
-    gap: 10,
-    ...shadows.soft,
+    width: 172,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 14,
+    gap: 8,
+    ...shadows.card,
   },
   heroFuelTop: {
     flexDirection: 'row',
@@ -609,37 +638,65 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroFuelBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   heroFuelBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  heroChangeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  heroChangeBadgeUp: {
+    backgroundColor: '#3A0D18',
+    borderColor: 'rgba(244, 63, 94, 0.4)',
+  },
+  heroChangeBadgeDown: {
+    backgroundColor: '#064E3B',
+    borderColor: 'rgba(52, 211, 153, 0.4)',
+  },
+  heroChangeBadgeFlat: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+  },
+  heroChangeBadgeText: {
     fontSize: 10,
     fontWeight: '800',
   },
   heroFuelBody: {
-    gap: 2,
+    paddingVertical: 2,
   },
   heroFuelPrice: {
     color: colors.white,
-    fontSize: 26,
-    fontWeight: '800',
+    fontSize: 27,
+    fontWeight: '900',
     letterSpacing: -0.5,
-  },
-  heroFuelUnit: {
-    color: colors.mutedSoft,
-    fontSize: 10,
-    fontWeight: '600',
   },
   heroFuelFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    paddingTop: 8,
+    marginTop: 2,
   },
-  heroFuelDetailText: {
-    color: colors.accent,
+  heroFuelDateText: {
+    color: colors.mutedSoft,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '600',
+  },
+  heroFuelDiffSub: {
+    fontSize: 11,
+    fontWeight: '800',
   },
   pressed: {
     opacity: 0.72,
@@ -1475,8 +1532,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 12,
     borderWidth: 1,
-    padding: 14,
-    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
   },
   predFuelTop: {
     flexDirection: 'row',
@@ -1498,43 +1556,23 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    backgroundColor: colors.surface,
   },
   predStatusText: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  predAmountBox: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
-  },
-  predAmountText: {
-    fontSize: 26,
-    fontWeight: '900',
-  },
-  predUnitText: {
-    color: colors.mutedSoft,
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10.5,
+    fontWeight: '800',
   },
   predBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 2,
-  },
-  predTransitionPill: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    paddingTop: 8,
   },
   predTransitionText: {
     color: colors.mutedSoft,
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '600',
   },
   predDateChip: {
     flexDirection: 'row',

@@ -950,31 +950,59 @@ function getTone(change) {
 
 function buildHomeFuels(prices, history) {
   const latestHistory = history[history.length - 1]
+  const benzinAvg = average(prices.map((item) => item.benzin95)) || 0
+  const motorinAvg = average(prices.map((item) => item.motorin)) || 0
+  const lpgAvg = average(prices.map((item) => item.lpg)) || 0
+
   const benzinChange = latestHistory?.benzinChange ?? -0.45
   const motorinChange = latestHistory?.motorinChange ?? 0.12
   const lpgChange = latestHistory?.lpgChange ?? 0
 
+  const benzinPct = benzinAvg ? ((Math.abs(benzinChange) / (benzinAvg - benzinChange || 1)) * 100).toFixed(1) : '0.0'
+  const motorinPct = motorinAvg ? ((Math.abs(motorinChange) / (motorinAvg - motorinChange || 1)) * 100).toFixed(1) : '0.0'
+  const lpgPct = lpgAvg ? ((Math.abs(lpgChange) / (lpgAvg - lpgChange || 1)) * 100).toFixed(1) : '0.0'
+
+  const dateLabel = latestHistory?.shortDate ? latestHistory.shortDate : 'Bugün'
+
   return [
     {
       name: 'Benzin 95',
-      price: formatCurrency(average(prices.map((item) => item.benzin95))),
+      price: formatCurrency(benzinAvg),
       change: formatChange(benzinChange),
+      changePct: benzinChange > 0 ? `+${benzinPct}%` : benzinChange < 0 ? `-${benzinPct}%` : '0.0%',
+      rawChange: benzinChange,
       tone: getTone(benzinChange),
-      badgeColor: '#4B7FC8',
+      accentColor: '#38BDF8',
+      cardBg: '#0C192E',
+      cardBorder: 'rgba(56, 189, 248, 0.28)',
+      icon: 'gas-station',
+      dateLabel,
     },
     {
       name: 'Motorin',
-      price: formatCurrency(average(prices.map((item) => item.motorin))),
+      price: formatCurrency(motorinAvg),
       change: formatChange(motorinChange),
+      changePct: motorinChange > 0 ? `+${motorinPct}%` : motorinChange < 0 ? `-${motorinPct}%` : '0.0%',
+      rawChange: motorinChange,
       tone: getTone(motorinChange),
-      badgeColor: '#60758F',
+      accentColor: '#F59E0B',
+      cardBg: '#1E1606',
+      cardBorder: 'rgba(245, 158, 11, 0.28)',
+      icon: 'truck-outline',
+      dateLabel,
     },
     {
-      name: 'LPG',
-      price: formatCurrency(average(prices.map((item) => item.lpg))),
+      name: 'Otogaz',
+      price: formatCurrency(lpgAvg),
       change: formatChange(lpgChange),
+      changePct: lpgChange > 0 ? `+${lpgPct}%` : lpgChange < 0 ? `-${lpgPct}%` : '0.0%',
+      rawChange: lpgChange,
       tone: getTone(lpgChange),
-      badgeColor: colors.warning,
+      accentColor: '#10B981',
+      cardBg: '#061D15',
+      cardBorder: 'rgba(16, 185, 129, 0.28)',
+      icon: 'fire',
+      dateLabel,
     },
   ]
 }
