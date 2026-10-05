@@ -92,10 +92,13 @@ export default function Iller() {
       >
         <View style={styles.header}>
           <View style={styles.headerMark}>
-            <MaterialCommunityIcons name="map-marker" size={18} color={colors.accent} />
+            <MaterialCommunityIcons name="gas-station" size={18} color={colors.accent} />
           </View>
-          <Text style={styles.brand}>Yakıt Radar</Text>
-          <View style={{ width: 18 }} />
+          <View style={styles.brandRow}>
+            <Text style={styles.brandMain}>YAKIT </Text>
+            <Text style={styles.brandAccent}>RADAR</Text>
+          </View>
+          <View style={{ width: 34 }} />
         </View>
 
         <View style={styles.searchBox}>
@@ -284,10 +287,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 34,
   },
-  brand: {
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandMain: {
+    color: colors.white,
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  brandAccent: {
     color: colors.accent,
     fontSize: 18,
     fontWeight: '900',
+    letterSpacing: 0.5,
   },
   searchBox: {
     alignItems: 'center',
