@@ -44,14 +44,22 @@ FUEL_SIGNAL_FACTORS = {
 NEWS_FEEDS = [
     {
         "name": "Akaryakit Haberleri",
-        "url": "https://news.google.com/rss/search?q=akaryak%C4%B1t%20zam%20indirim%20motorin%20benzin%20LPG%20T%C3%BCrkiye%20when%3A1d&hl=tr&gl=TR&ceid=TR:tr",
+        "url": "https://news.google.com/rss/search?q=akaryak%C4%B1t%20zam%20indirim%20motorin%20benzin%20when%3A2d&hl=tr&gl=TR&ceid=TR:tr",
+    },
+    {
+        "name": "Motorin Haberleri",
+        "url": "https://news.google.com/rss/search?q=motorine%20indirim%20OR%20zam%20when%3A2d&hl=tr&gl=TR&ceid=TR:tr",
+    },
+    {
+        "name": "Benzin Haberleri",
+        "url": "https://news.google.com/rss/search?q=benzine%20indirim%20OR%20zam%20when%3A2d&hl=tr&gl=TR&ceid=TR:tr",
     },
     {
         "name": "Brent Petrol Haberleri",
-        "url": "https://news.google.com/rss/search?q=brent%20petrol%20dolar%20akaryak%C4%B1t%20T%C3%BCrkiye%20when%3A1d&hl=tr&gl=TR&ceid=TR:tr",
+        "url": "https://news.google.com/rss/search?q=brent%20petrol%20dolar%20akaryak%C4%B1t%20when%3A2d&hl=tr&gl=TR&ceid=TR:tr",
     },
 ]
-NEWS_MAX_AGE_HOURS = int(os.getenv("NEWS_MAX_AGE_HOURS", "24"))
+NEWS_MAX_AGE_HOURS = int(os.getenv("NEWS_MAX_AGE_HOURS", "48"))
 NEWS_PRICE_PATTERN = re.compile(r"(?<!\d)(\d{1,3}(?:[.,]\d{1,2})?)\s*(?:(?:TL|lira)\b|₺)", re.IGNORECASE)
 NEWS_BLOCKED_SOURCES = {
     "instagram.com",
@@ -60,6 +68,18 @@ NEWS_BLOCKED_SOURCES = {
     "twitter.com",
     "youtube.com",
 }
+NEWS_BLOCKED_KEYWORDS = [
+    "arac muayene",
+    "araç muayene",
+    "muayene ucreti",
+    "muayene ücreti",
+    "trafik sigortasi",
+    "trafik sigortası",
+    "kasko",
+    "mtv",
+    "motorlu tasitlar",
+    "motorlu taşıtlar",
+]
 NEWS_STRONG_ACTION_KEYWORDS = [
     "bu gece",
     "yarindan itibaren",
@@ -427,7 +447,7 @@ def fetch_news_items(limit=8):
 
                 normalized_title = normalize_text(title)
 
-                if normalized_title in seen_titles:
+                if any(blocked in normalized_title for blocked in NEWS_BLOCKED_KEYWORDS):
                     continue
 
                 source = node.findtext("source") or feed["name"]
@@ -452,6 +472,7 @@ def fetch_news_items(limit=8):
             print(f"Haber akisi okunamadi ({feed['name']}): {error}")
 
     items.sort(key=lambda item: item.get("published_at") or "", reverse=True)
+    return items[:15]
 
     return items[:limit]
 
@@ -702,17 +723,30 @@ def direction_label(direction):
     return "notr"
 
 
-def build_fuel_signals(direction, confidence, score):
+def build_fuel_signals(direction, confidence, score, target_fuel=None, expected_amount=None, timing=None):
     signals = []
 
     for fuel, factor in FUEL_SIGNAL_FACTORS.items():
-        fuel_score = min(100, round(score * factor))
-        fuel_direction = direction
-        fuel_confidence = confidence
+        is_target = target_fuel and (target_fuel.lower() in fuel.lower() or fuel.lower() in target_fuel.lower())
+        is_all = not target_fuel or target_fuel in ["Genel", "Hepsi"]
 
-        if fuel == "LPG" and fuel_score < 42:
+        if direction != "neutral" and (is_target or is_all):
+            fuel_direction = direction
+            fuel_score = max(score, 85) if is_target else min(100, round(score * factor))
+            fuel_confidence = confidence
+            fuel_amount = expected_amount
+            fuel_timing = timing or "Bu gece yarısı"
+        else:
+            fuel_direction = "neutral"
+            fuel_score = 0
+            fuel_confidence = "high"
+            fuel_amount = 0.0
+            fuel_timing = "Gündemde değişim yok"
+
+        if fuel == "LPG" and fuel_direction != "neutral" and fuel_score < 42:
             fuel_direction = "neutral"
             fuel_confidence = "low"
+            fuel_amount = 0.0
 
         signals.append(
             {
@@ -721,6 +755,8 @@ def build_fuel_signals(direction, confidence, score):
                 "confidence": fuel_confidence,
                 "score": fuel_score,
                 "label": direction_label(fuel_direction),
+                "expected_amount": fuel_amount,
+                "timing": fuel_timing,
             }
         )
 
@@ -990,12 +1026,22 @@ def call_groq_analysis(payload):
     model = os.getenv("GROQ_MODEL") or "openai/gpt-oss-120b"
 
     prompt = (
-        "Türkiye akaryakıt piyasası için son haber başlıklarını inceleyerek tarafsız, kanıta dayalı ve gerçekçi bir piyasa analizi yap.\n"
-        "ÇOK ÖNEMLİ KURALLAR:\n"
-        "1. TIKLAMA TUZAĞI (CLICKBAIT) VE TABLOİD SİTELERİ: Soru işareti (?) içeren, 'zam mı geliyor?', 'indirim var mı?', 'kaç TL oldu?', 'tarih belli' gibi spekülatif veya aylar öncesine ait eski haberleri KESİNLİKLE resmi bir zam/indirim kararı olarak KABUL ETME.\n"
-        "2. KANIT VE RESMİYET: Türkiye'de akaryakıt fiyat değişiklikleri yalnızca EPGİS veya güvenilir ana akım ekonomi kaynakları (Bloomberg HT, NTV, AA) tarafından doğrulanır. Eğer haberler yalnızca küçük blogların spekülasyonuysa veya kesinleşmiş bir karar yoksa 'Piyasada resmi olarak kesinleşmiş bir zam veya indirim kararı bulunmamaktadır' de ve direction değerini 'neutral' yap.\n"
-        "3. İZLENEBİLİRLİK: Kesinleşmiş bir zam/indirim haberi yoksa watch_level değerini mutlaka 'low' yap.\n"
-        "4. Yanıtını SADECE geçerli bir JSON olarak ver. Format: {\"direction\": \"neutral|increase|decrease\", \"summary\": \"...\", \"watch_level\": \"high|medium|low\", \"key_reason\": \"...\"}\n\n"
+        "Türkiye akaryakıt piyasası için son haber verilerini inceleyerek en gerçekçi piyasa beklentisi analizini yap.\n"
+        "TÜRKİYE AKARYAKIT PİYASASI KURALLARI:\n"
+        "1. Türkiye'de akaryakıt zam ve indirimleri resmi kurumlarca (EPDK/EPGİS) önceden bültenle açıklanmaz; daima 'sektör kaynaklarından edinilen bilgiye göre' ekonomi basınına (Ekonomim, Habertürk, NTV, Sözcü, AA vb.) yansır ve gece yarısı pompaya uygulanır.\n"
+        "2. Eğer haberlerde Motorin, Benzin veya LPG için somut bir indirim veya zam tutarı telaffuz ediliyorsa (örneğin 'motorine 4,95 TL indirim', '4.92 TL indirim bekleniyor') bunu güçlü bir piyasa beklentisi olarak kabul et. İlgili yakıtın (target_fuel: Motorin veya Benzin veya LPG), beklenen yönün (direction: decrease veya increase) ve pozitif tutarın (expected_amount: float, örneğin 4.95) tespitini yap.\n"
+        "3. Ancak hiçbir tutar veya somut beklenti içermeyen, sadece 'fiyatlar ne kadar?', 'kaç TL oldu?' gibi genel günlük fiyat listesi sorgusu başlıklarını tek başına zam/indirim sayma.\n"
+        "4. Eğer piyasada teyitli veya somut bir beklenti yoksa direction='neutral', target_fuel='Yok', expected_amount=0 yap.\n"
+        "5. Yanıtını SADECE geçerli bir JSON olarak ver. Format:\n"
+        "{\n"
+        "  \"direction\": \"neutral|increase|decrease\",\n"
+        "  \"target_fuel\": \"Motorin|Benzin|LPG|Genel|Yok\",\n"
+        "  \"expected_amount\": 4.95,\n"
+        "  \"timing\": \"Bu gece yarısı | Yarından itibaren | Gündemde değişim yok\",\n"
+        "  \"summary\": \"Sektör kaynakları ve ekonomi basınına göre gece yarısından itibaren motorinde ~4.95 TL indirim beklenmektedir.\",\n"
+        "  \"confidence\": \"high|medium|low\",\n"
+        "  \"key_reason\": \"...\"\n"
+        "}\n\n"
         f"Haber Verisi:\n{json.dumps(payload, ensure_ascii=False)}"
     )
 
@@ -1019,11 +1065,23 @@ def call_groq_analysis(payload):
         output_text = result["choices"][0]["message"]["content"]
         parsed = json.loads(output_text)
 
+        expected_amount = None
+        try:
+            raw_amt = parsed.get("expected_amount")
+            if raw_amt is not None:
+                expected_amount = float(str(raw_amt).replace(",", ".").strip())
+        except (ValueError, TypeError):
+            expected_amount = None
+
         return {
             "model": f"groq:{model}",
             "direction": parsed.get("direction", "neutral"),
+            "target_fuel": parsed.get("target_fuel", "Genel"),
+            "expected_amount": expected_amount,
+            "timing": parsed.get("timing", "Bu gece yarısı"),
             "summary": parsed.get("summary", ""),
-            "watch_level": parsed.get("watch_level", "low"),
+            "confidence": parsed.get("confidence", "high"),
+            "watch_level": parsed.get("watch_level", "high" if parsed.get("direction") != "neutral" else "low"),
             "key_reason": parsed.get("key_reason", ""),
         }
     except Exception as error:
@@ -1053,15 +1111,22 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
         "direction": direction,
         "confidence": confidence,
         "score": score,
-        "news": news_items[:5],
+        "news": news_items[:10],
         "news_analysis": news_analysis,
     }
     ai_result = call_groq_analysis(ai_payload) or call_gemini_analysis(ai_payload)
+    target_fuel = ai_result.get("target_fuel") if ai_result else None
+    expected_amount = ai_result.get("expected_amount") if ai_result else None
+    timing = ai_result.get("timing") if ai_result else None
+
     if ai_result and ai_result.get("direction"):
         direction = ai_result["direction"]
         if direction == "neutral":
             score = 0
             confidence = "high"
+        else:
+            score = max(score, 85)
+            confidence = ai_result.get("confidence", "high")
 
     ai_summary = (
         ai_result["summary"]
@@ -1084,7 +1149,14 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
         "usd_change_3d": None,
         "index_change_3d": None,
         "index_change_7d": None,
-        "signals": build_fuel_signals(direction, confidence, score),
+        "signals": build_fuel_signals(
+            direction,
+            confidence,
+            score,
+            target_fuel=target_fuel,
+            expected_amount=expected_amount,
+            timing=timing,
+        ),
         "analysis": {
             "mode": mode,
             "analysis_basis": "news_only",

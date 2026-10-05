@@ -106,6 +106,7 @@ export default function AnaSayfa() {
       marketSignal?.score ?? 0,
       marketSignal?.confidence ?? 'high',
       data.prices,
+      marketSignal,
     )
   }, [data.prices, marketSignal])
 
