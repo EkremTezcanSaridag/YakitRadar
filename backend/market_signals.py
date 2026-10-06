@@ -82,14 +82,12 @@ NEWS_BLOCKED_KEYWORDS = [
 ]
 NEWS_STRONG_ACTION_KEYWORDS = [
     "bu gece",
+    "bu gece yarisi",
+    "bu gece yarısı",
     "yarindan itibaren",
     "yarından itibaren",
-    "litre fiyatina",
-    "litre fiyatına",
-    "pompa fiyatina",
-    "pompa fiyatına",
-    "tabelalara yansidi",
-    "tabelalara yansıdı",
+    "gece yarisindan itibaren",
+    "gece yarısından itibaren",
 ]
 
 NEWS_INCREASE_KEYWORDS = [
@@ -117,7 +115,20 @@ NEWS_DECREASE_KEYWORDS = [
     "ateskes",
     "ateşkes",
 ]
-NEWS_ACTION_KEYWORDS = ["geldi", "geliyor", "gelecek", "bekleniyor", "yapildi", "yapıldı", "uygulandi", "uygulandı"]
+NEWS_ACTION_KEYWORDS = ["geliyor", "gelecek", "bekleniyor", "ongoruluyor", "öngörülüyor", "gundemde", "gündemde"]
+NEWS_ALREADY_APPLIED_KEYWORDS = [
+    "geldi",
+    "yansidi",
+    "yansıdı",
+    "degisti",
+    "değişti",
+    "uygulandi",
+    "uygulandı",
+    "yapildi",
+    "yapıldı",
+    "sonrasi",
+    "sonrası",
+]
 NEWS_QUESTION_KEYWORDS = [
     "var mi",
     "var mı",
@@ -499,8 +510,12 @@ def score_news_items(news_items):
         is_question = "?" in title or any(normalize_text(keyword) in normalized for keyword in NEWS_QUESTION_KEYWORDS)
         item_score = 0
 
+        has_already_applied = any(normalize_text(keyword) in normalized for keyword in NEWS_ALREADY_APPLIED_KEYWORDS)
+
         if not is_question:
-            if increase_hits and has_strong_action:
+            if has_already_applied and not (has_strong_action or has_action):
+                item_score = 0
+            elif increase_hits and has_strong_action:
                 item_score += 34
                 strong_direction = "increase"
             elif increase_hits and has_action:
@@ -508,8 +523,7 @@ def score_news_items(news_items):
                 strong_direction = "increase"
             elif increase_hits:
                 item_score += 5
-
-            if decrease_hits and has_strong_action:
+            elif decrease_hits and has_strong_action:
                 item_score -= 34
                 strong_direction = "decrease"
             elif decrease_hits and has_action:
@@ -1028,17 +1042,20 @@ def call_groq_analysis(payload):
     prompt = (
         "Türkiye akaryakıt piyasası için son haber verilerini inceleyerek en gerçekçi piyasa beklentisi analizini yap.\n"
         "TÜRKİYE AKARYAKIT PİYASASI KURALLARI:\n"
-        "1. Türkiye'de akaryakıt zam ve indirimleri resmi kurumlarca (EPDK/EPGİS) önceden bültenle açıklanmaz; daima 'sektör kaynaklarından edinilen bilgiye göre' ekonomi basınına (Ekonomim, Habertürk, NTV, Sözcü, AA vb.) yansır ve gece yarısı pompaya uygulanır.\n"
-        "2. Eğer haberlerde Motorin, Benzin veya LPG için somut bir indirim veya zam tutarı telaffuz ediliyorsa (örneğin 'motorine 4,95 TL indirim', '4.92 TL indirim bekleniyor') bunu güçlü bir piyasa beklentisi olarak kabul et. İlgili yakıtın (target_fuel: Motorin veya Benzin veya LPG), beklenen yönün (direction: decrease veya increase) ve pozitif tutarın (expected_amount: float, örneğin 4.95) tespitini yap.\n"
-        "3. Ancak hiçbir tutar veya somut beklenti içermeyen, sadece 'fiyatlar ne kadar?', 'kaç TL oldu?' gibi genel günlük fiyat listesi sorgusu başlıklarını tek başına zam/indirim sayma.\n"
-        "4. Eğer piyasada teyitli veya somut bir beklenti yoksa direction='neutral', target_fuel='Yok', expected_amount=0 yap.\n"
-        "5. Yanıtını SADECE geçerli bir JSON olarak ver. Format:\n"
+        "1. GEÇMİŞ ZAMAN (UYGULANMIŞ İNDİRİM/ZAM) vs GELECEK ZAMAN (YENİ BEKLENTİ) AYRIMI (ÇOK KRİTİK):\n"
+        "   - Eğer haberlerde 'indirim geldi', 'zam geldi', 'tabela değişti', 'pompaya yansıdı', 'fiyatlar güncellendi', 'indirim sonrası liste' yazıyorsa, bu indirim/zam ZATEN GEÇMİŞTE KALMIŞTIR VE POMPAYA YANSIMIŞTIR! Gelecek için yeni bir beklenti DEĞİLDİR.\n"
+        "   - Bu durumda direction='neutral', target_fuel='Yok', expected_amount=0 olmalı ve özetinde 'Motorine/benzine uygulanan indirim/zam pompa fiyatlarına yansıdı. Şu an için piyasada yeni bir fiyat değişikliği beklenmemektedir.' denmelidir!\n"
+        "2. Yalnızca henüz pompaya yansımamış ileriye dönük somut yeni bir beklenti varsa ('bu gece yarısı bekleniyor', 'yarından itibaren geçerli olacak', 'tabelalar bu gece değişecek') direction='decrease' veya 'increase', target_fuel ve expected_amount tespit edilmelidir.\n"
+        "3. Türkiye'de akaryakıt zam ve indirimleri resmi kurumlarca (EPDK/EPGİS) önceden bültenle açıklanmaz; daima 'sektör kaynaklarından edinilen bilgiye göre' ekonomi basınına (Ekonomim, Habertürk, NTV, Sözcü vb.) yansır ve gece yarısı pompaya uygulanır.\n"
+        "4. Ancak hiçbir tutar veya somut beklenti içermeyen, sadece 'fiyatlar ne kadar?', 'kaç TL oldu?' gibi genel günlük fiyat listesi sorgusu başlıklarını tek başına zam/indirim sayma.\n"
+        "5. Eğer piyasada teyitli veya somut yeni bir beklenti yoksa direction='neutral', target_fuel='Yok', expected_amount=0 yap.\n"
+        "Format: Sadece geçerli bir JSON üret:\n"
         "{\n"
         "  \"direction\": \"neutral|increase|decrease\",\n"
         "  \"target_fuel\": \"Motorin|Benzin|LPG|Genel|Yok\",\n"
-        "  \"expected_amount\": 4.95,\n"
-        "  \"timing\": \"Bu gece yarısı | Yarından itibaren | Gündemde değişim yok\",\n"
-        "  \"summary\": \"Sektör kaynakları ve ekonomi basınına göre gece yarısından itibaren motorinde ~4.95 TL indirim beklenmektedir.\",\n"
+        "  \"expected_amount\": 0,\n"
+        "  \"timing\": \"Gündemde değişim yok | Bu gece yarısı | Yarından itibaren\",\n"
+        "  \"summary\": \"Motorin litre fiyatına uygulanan indirim pompa tabelalarına yansıdı. Şu an için yeni bir zam veya indirim kararı bulunmamaktadır, fiyatlar dengelidir.\",\n"
         "  \"confidence\": \"high|medium|low\",\n"
         "  \"key_reason\": \"...\"\n"
         "}\n\n"

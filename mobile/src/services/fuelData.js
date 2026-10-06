@@ -211,13 +211,13 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
 }
 
 const fallbackMarketSignal = {
-  color: signalToneConfig.decrease.color,
+  color: signalToneConfig.neutral.color,
   confidence: 'high',
   confidenceLabel: confidenceLabels.high,
-  direction: 'decrease',
+  direction: 'neutral',
   fuels: [
     { confidenceLabel: confidenceLabels.high, direction: 'neutral', fuel: 'Benzin', label: 'Dengeli', expectedAmount: 0, timing: 'Gündemde Değişim Yok' },
-    { confidenceLabel: confidenceLabels.high, direction: 'decrease', fuel: 'Motorin', label: 'İndirim Baskısı', expectedAmount: 4.95, timing: 'Bu Gece 00:00' },
+    { confidenceLabel: confidenceLabels.high, direction: 'neutral', fuel: 'Motorin', label: 'Dengeli', expectedAmount: 0, timing: 'Gündemde Değişim Yok' },
     { confidenceLabel: confidenceLabels.high, direction: 'neutral', fuel: 'LPG', label: 'Dengeli', expectedAmount: 0, timing: 'Gündemde Değişim Yok' },
   ],
   fuelPredictions: [
@@ -239,15 +239,15 @@ const fallbackMarketSignal = {
       key: 'motorin',
       fuelName: 'Motorin',
       icon: 'truck-outline',
-      direction: 'decrease',
-      statusText: 'İNDİRİM BEKLENİYOR',
-      pillBg: '#064E3B',
-      pillBorder: '#34D399',
-      textColor: '#34D399',
-      amountText: '-4.95 ₺',
-      targetDate: 'Bu Gece 00:00',
+      direction: 'neutral',
+      statusText: 'SABİT / DEĞİŞİM YOK',
+      pillBg: '#1E293B',
+      pillBorder: '#475569',
+      textColor: '#94A3B8',
+      amountText: '0.00 ₺',
+      targetDate: 'Gündemde Değişim Yok',
       currentPrice: '45.20 ₺',
-      expectedPrice: '40.25 ₺',
+      expectedPrice: '45.20 ₺',
     },
     {
       key: 'lpg',
@@ -264,26 +264,26 @@ const fallbackMarketSignal = {
       expectedPrice: '26.10 ₺',
     },
   ],
-  icon: signalToneConfig.decrease.icon,
+  icon: signalToneConfig.neutral.icon,
   metrics: [
     { label: 'Haber', value: '12 başlık' },
-    { label: 'Skor', value: '85' },
+    { label: 'Skor', value: '0' },
     { label: 'Pencere', value: '48s' },
   ],
   analysisFactors: [
     {
-      detail: 'Ekonomi basını ve sektör kaynaklarına göre motorinde bu gece yarısından itibaren ~4.95 TL indirim bekleniyor.',
-      label: 'Sektör Kaynakları',
-      tone: 'decrease',
-      value: '-4.95 ₺',
+      detail: 'Motorin litre fiyatına uygulanan 4,95 TL indirim pompa tabelalarına yansıdı. Şu an için yeni bir zam veya indirim kararı beklenmemektedir.',
+      label: 'Son Pompa Hareketi',
+      tone: 'neutral',
+      value: 'Uygulandı',
     },
   ],
   newsItems: [],
-  score: 85,
-  softColor: signalToneConfig.decrease.softColor,
-  summary: 'Ekonomi basını ve sektör kaynaklarına göre motorin litre fiyatında bu gece yarısından itibaren ~4,95 TL indirim bekleniyor.',
-  title: signalToneConfig.decrease.title,
-  updatedAt: 'Bugün',
+  score: 0,
+  softColor: signalToneConfig.neutral.softColor,
+  summary: 'Motorine uygulanan ~4,95 TL indirim pompa fiyatlarına yansıdı. Şu an için piyasada yeni bir fiyat değişikliği beklenmemektedir, fiyatlar dengelidir.',
+  title: signalToneConfig.neutral.title,
+  updatedAt: 'Güncel',
 }
 const brentSources = [
   {
