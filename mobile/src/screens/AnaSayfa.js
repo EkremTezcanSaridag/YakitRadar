@@ -340,7 +340,11 @@ export default function AnaSayfa() {
                       ]}
                     >
                       <Text style={[styles.predStatusText, { color: pred.textColor }]}>
-                        {isHike ? `${pred.amountText} Zam` : isCut ? `${pred.amountText} İndirim` : 'Sabit'}
+                        {isHike && pred.amountText !== '0.00 ₺'
+                          ? `${pred.amountText} Zam`
+                          : isCut && pred.amountText !== '0.00 ₺'
+                          ? `${pred.amountText} İndirim`
+                          : 'Sabit / Değişim Yok'}
                       </Text>
                     </View>
                   </View>

@@ -139,9 +139,13 @@ const confidenceLabels = {
   low: 'Düşük',
 }
 export function buildDetailedFuelPredictions(direction, score, confidence, prices = [], marketSignal = null) {
-  const avgBenzin = prices.length ? (prices.reduce((s, p) => s + (p.benzin95 || 0), 0) / prices.length) : 44.50
-  const avgMotorin = prices.length ? (prices.reduce((s, p) => s + (p.motorin || 0), 0) / prices.length) : 45.20
-  const avgLpg = prices.length ? (prices.reduce((s, p) => s + (p.lpg || 0), 0) / prices.length) : 26.10
+  const avgBenzin = prices.length ? (prices.reduce((s, p) => s + (p.benzin95 || 0), 0) / prices.length) : 86.36
+  const avgMotorin = prices.length ? (prices.reduce((s, p) => s + (p.motorin || 0), 0) / prices.length) : 91.91
+  const avgLpg = prices.length ? (prices.reduce((s, p) => s + (p.lpg || 0), 0) / prices.length) : 41.68
+
+  const summary = (marketSignal?.summary || '').toLowerCase()
+  const isSummaryApplied = summary.includes('yansı') || summary.includes('yansi') || summary.includes('uygulan') || summary.includes('değişti') || summary.includes('degisti')
+  const isOverallNeutral = direction === 'neutral' || isSummaryApplied
 
   const fuels = marketSignal?.fuels || []
   const benzinSignal = fuels.find((f) => f.fuel?.toLowerCase().includes('benzin'))
@@ -149,20 +153,22 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
   const lpgSignal = fuels.find((f) => f.fuel?.toLowerCase().includes('lpg'))
 
   // Motorin
-  const motorinDir = motorinSignal?.direction || (direction === 'decrease' ? 'decrease' : direction === 'increase' ? 'increase' : 'neutral')
-  const motorinAmt = Number(motorinSignal?.expectedAmount) || (motorinDir === 'decrease' ? 4.95 : motorinDir === 'increase' ? 1.50 : 0)
-  const isMotorinInc = motorinDir === 'increase'
-  const isMotorinDec = motorinDir === 'decrease'
+  const rawMotorinDir = isOverallNeutral ? 'neutral' : (motorinSignal?.direction || 'neutral')
+  const motorinAmt = isOverallNeutral ? 0 : (Number(motorinSignal?.expectedAmount) || 0)
+  const motorinDir = motorinAmt > 0 && !isOverallNeutral ? rawMotorinDir : 'neutral'
+  const isMotorinInc = motorinDir === 'increase' && motorinAmt > 0
+  const isMotorinDec = motorinDir === 'decrease' && motorinAmt > 0
 
   // Benzin
-  const benzinDir = benzinSignal?.direction || (direction === 'increase' ? 'increase' : 'neutral')
-  const benzinAmt = Number(benzinSignal?.expectedAmount) || (benzinDir === 'increase' ? 1.25 : benzinDir === 'decrease' ? 1.25 : 0)
-  const isBenzinInc = benzinDir === 'increase'
-  const isBenzinDec = benzinDir === 'decrease'
+  const rawBenzinDir = isOverallNeutral ? 'neutral' : (benzinSignal?.direction || 'neutral')
+  const benzinAmt = isOverallNeutral ? 0 : (Number(benzinSignal?.expectedAmount) || 0)
+  const benzinDir = benzinAmt > 0 && !isOverallNeutral ? rawBenzinDir : 'neutral'
+  const isBenzinInc = benzinDir === 'increase' && benzinAmt > 0
+  const isBenzinDec = benzinDir === 'decrease' && benzinAmt > 0
 
   // LPG
-  const lpgDir = lpgSignal?.direction || 'neutral'
-  const lpgAmt = Number(lpgSignal?.expectedAmount) || 0
+  const lpgDir = 'neutral'
+  const lpgAmt = 0
 
   return [
     {
@@ -175,7 +181,7 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
       pillBorder: isBenzinInc ? '#F43F5E' : isBenzinDec ? '#34D399' : '#475569',
       textColor: isBenzinInc ? '#F43F5E' : isBenzinDec ? '#34D399' : '#94A3B8',
       amountText: isBenzinInc ? `+${benzinAmt.toFixed(2)} ₺` : isBenzinDec ? `-${benzinAmt.toFixed(2)} ₺` : '0.00 ₺',
-      targetDate: benzinSignal?.timing || (benzinDir !== 'neutral' ? 'Bu Gece 00:00' : 'Gündemde Değişim Yok'),
+      targetDate: isBenzinInc || isBenzinDec ? (benzinSignal?.timing || 'Bu Gece 00:00') : 'Gündemde Değişim Yok',
       currentPrice: `${avgBenzin.toFixed(2)} ₺`,
       expectedPrice: `${(avgBenzin + (isBenzinInc ? benzinAmt : isBenzinDec ? -benzinAmt : 0)).toFixed(2)} ₺`,
     },
@@ -189,7 +195,7 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
       pillBorder: isMotorinInc ? '#F43F5E' : isMotorinDec ? '#34D399' : '#475569',
       textColor: isMotorinInc ? '#F43F5E' : isMotorinDec ? '#34D399' : '#94A3B8',
       amountText: isMotorinInc ? `+${motorinAmt.toFixed(2)} ₺` : isMotorinDec ? `-${motorinAmt.toFixed(2)} ₺` : '0.00 ₺',
-      targetDate: motorinSignal?.timing || (motorinDir !== 'neutral' ? 'Bu Gece 00:00' : 'Gündemde Değişim Yok'),
+      targetDate: isMotorinInc || isMotorinDec ? (motorinSignal?.timing || 'Bu Gece 00:00') : 'Gündemde Değişim Yok',
       currentPrice: `${avgMotorin.toFixed(2)} ₺`,
       expectedPrice: `${(avgMotorin + (isMotorinInc ? motorinAmt : isMotorinDec ? -motorinAmt : 0)).toFixed(2)} ₺`,
     },
