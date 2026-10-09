@@ -7,7 +7,7 @@ import ScreenHeader from '../components/ScreenHeader'
 import { colors, shadows } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { fuelTabs } from '../services/fuelData'
-import { defaultFavoriteCities, loadFavoriteCities, setPrimaryCity, toggleFavoriteCity } from '../services/favoriteCities'
+import { defaultFavoriteCities, loadFavoriteCities, setPrimaryCityManual, toggleFavoriteCity } from '../services/favoriteCities'
 
 function formatCurrency(value) {
   return `${value.toFixed(2)} ₺`
@@ -56,7 +56,7 @@ export default function Iller() {
       {
         text: 'Benim şehrim yap',
         onPress: async () => {
-          await setPrimaryCity(cityName)
+          await setPrimaryCityManual(cityName)
         },
       },
     ])
