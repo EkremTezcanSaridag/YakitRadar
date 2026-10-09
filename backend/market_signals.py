@@ -10,6 +10,14 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from xml.etree import ElementTree
 
 import requests
+from dotenv import load_dotenv
+
+from http_client import SCRAPER_REQUEST_TIMEOUT, make_request_with_retry
+
+load_dotenv()
+
+GEMINI_REQUEST_TIMEOUT = 45
+
 
 def resolve_istanbul_timezone():
     try:
@@ -203,14 +211,12 @@ def multiply_values(first, second):
 
 
 def fetch_csv_text(url):
-    response = requests.get(
-        url,
-        headers={"User-Agent": "YakitRadar/1.0"},
-        timeout=30,
-    )
-    response.raise_for_status()
-
-    return response.text
+    try:
+        response = make_request_with_retry(url)
+        return response.text
+    except Exception as e:
+        print(f"HATA: CSV verisi cekilemedi ({url}): {e}")
+        raise
 
 
 def fetch_brent_history(limit=12):
@@ -262,12 +268,11 @@ def tcmb_url_for_date(day):
 
 
 def fetch_usd_try_for_date(day):
-    response = requests.get(
-        tcmb_url_for_date(day),
-        headers={"User-Agent": "YakitRadar/1.0"},
-        timeout=20,
-    )
-    response.raise_for_status()
+    try:
+        response = make_request_with_retry(tcmb_url_for_date(day))
+    except Exception as e:
+        print(f"HATA: TCMB kur verisi cekilemedi ({day}): {e}")
+        raise
 
     root = ElementTree.fromstring(response.content)
     usd_node = root.find("./Currency[@CurrencyCode='USD']")
@@ -437,16 +442,14 @@ def fetch_news_items(limit=8):
 
     for feed in NEWS_FEEDS:
         try:
-            response = requests.get(
+            response = make_request_with_retry(
                 feed["url"],
                 headers={
                     "User-Agent": "YakitRadar/1.0",
                     "Cache-Control": "no-cache",
                     "Pragma": "no-cache",
-                },
-                timeout=20,
+                }
             )
-            response.raise_for_status()
             root = ElementTree.fromstring(response.content)
 
             for node in root.findall("./channel/item"):
@@ -1010,7 +1013,7 @@ def call_gemini_analysis(payload):
                     "responseSchema": schema,
                 },
             },
-            timeout=45,
+            timeout=GEMINI_REQUEST_TIMEOUT,
         )
         response.raise_for_status()
         output_text = extract_gemini_text(response.json())
@@ -1075,7 +1078,7 @@ def call_groq_analysis(payload):
                 "temperature": 0.1,
                 "response_format": {"type": "json_object"},
             },
-            timeout=25,
+            timeout=SCRAPER_REQUEST_TIMEOUT,
         )
         response.raise_for_status()
         result = response.json()

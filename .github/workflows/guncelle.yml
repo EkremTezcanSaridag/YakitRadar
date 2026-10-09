@@ -23,6 +23,10 @@ on:
 jobs:
   guncelle:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: guncelle-price-update
+      cancel-in-progress: false
 
     steps:
       - name: Kodu çek
