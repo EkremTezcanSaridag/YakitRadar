@@ -1,23 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { StatusBar } from 'expo-status-bar'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Pressable, RefreshControl, ScrollView, Text, TextInput, View, StyleSheet } from 'react-native'
-import { colors, shadows } from '../theme'
+import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View, StyleSheet } from 'react-native'
+import ScreenHeader from '../components/ScreenHeader'
+import { colors, shadows, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
-import { fuelTabs } from '../services/fuelData'
-import { defaultFavoriteCities, loadFavoriteCities, toggleFavoriteCity } from '../services/favoriteCities'
+import { computeNationalAverages, fuelTabs, getRealPriceRows } from '../services/fuelData'
+import { formatCurrencyTr, formatSignedCurrencyTr } from '../utils/priceFormat'
+import { defaultFavoriteCities, loadFavoriteCities, setPrimaryCityManual, toggleFavoriteCity } from '../services/favoriteCities'
 
-function formatCurrency(value) {
-  return `${value.toFixed(2)} ₺`
-}
-
-function formatChange(value) {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(2)} ₺`
-}
-
-function formatStationCount(value) {
-  return `${String(value).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} istasyon`
+const fuelIonicon = {
+  'gas-station': 'car-sport-outline',
+  'truck-outline': 'bus-outline',
+  fire: 'flame-outline',
 }
 
 function normalizeSearch(value) {
@@ -49,27 +45,43 @@ export default function Iller() {
     setFavoriteCities(updated)
   }
 
-  const cities = useMemo(
-    () => {
-      const normalizedQuery = normalizeSearch(searchQuery.trim())
+  function handleMakePrimaryCity(cityName) {
+    Alert.alert(cityName, undefined, [
+      { style: 'cancel', text: 'İptal' },
+      {
+        text: 'Benim şehrim yap',
+        onPress: async () => {
+          await setPrimaryCityManual(cityName)
+        },
+      },
+    ])
+  }
 
-      return [...data.prices]
-        .filter((city) => {
-          if (showOnlyFavorites && !favoriteCities.includes(city.city)) return false
-          if (normalizedQuery && !normalizeSearch(city.city).includes(normalizedQuery)) return false
-          return true
-        })
-        .sort((first, second) => first[selectedFuelKey] - second[selectedFuelKey])
-        .map((city) => ({
+  const cities = useMemo(() => {
+    const normalizedQuery = normalizeSearch(searchQuery.trim())
+    const realPrices = getRealPriceRows(data.prices)
+    const averages = computeNationalAverages(realPrices)
+    const nationalAvg = averages[selectedFuelKey]
+
+    return realPrices
+      .filter((city) => {
+        if (showOnlyFavorites && !favoriteCities.includes(city.city)) return false
+        if (normalizedQuery && !normalizeSearch(city.city).includes(normalizedQuery)) return false
+        return true
+      })
+      .sort((first, second) => first[selectedFuelKey] - second[selectedFuelKey])
+      .map((city) => {
+        const price = city[selectedFuelKey]
+        const avgDiff = nationalAvg && price ? price - nationalAvg : null
+
+        return {
           name: city.city,
-          price: formatCurrency(city[selectedFuelKey]),
-          change: formatChange(city.change),
-          stations: formatStationCount(city.stations),
+          price: formatCurrencyTr(price),
+          avgDiff,
           isFavorite: favoriteCities.includes(city.city),
-        }))
-    },
-    [data.prices, favoriteCities, searchQuery, selectedFuelKey, showOnlyFavorites],
-  )
+        }
+      })
+  }, [data.prices, favoriteCities, searchQuery, selectedFuelKey, showOnlyFavorites])
 
   const bestCity = cities[0]
   const hasSearchQuery = searchQuery.trim().length > 0
@@ -90,19 +102,10 @@ export default function Iller() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <View style={styles.headerMark}>
-            <MaterialCommunityIcons name="gas-station" size={18} color={colors.accent} />
-          </View>
-          <View style={styles.brandRow}>
-            <Text style={styles.brandMain}>YAKIT </Text>
-            <Text style={styles.brandAccent}>RADAR</Text>
-          </View>
-          <View style={{ width: 34 }} />
-        </View>
+        <ScreenHeader showRefresh title="İller" />
 
         <View style={styles.searchBox}>
-          <MaterialCommunityIcons name="magnify" size={18} color={colors.accent} />
+          <Ionicons name="search-outline" size={18} color={colors.mutedSoft} />
           <TextInput
             autoCapitalize="words"
             autoCorrect={false}
@@ -120,40 +123,21 @@ export default function Iller() {
               onPress={() => setSearchQuery('')}
               style={({ pressed }) => [styles.clearSearchButton, pressed && styles.pressed]}
             >
-              <MaterialCommunityIcons name="close" size={15} color={colors.mutedSoft} />
+              <Ionicons name="close" size={18} color={colors.mutedSoft} />
             </Pressable>
           )}
         </View>
 
-        <View style={styles.titleRow}>
-          <View style={styles.titleCopy}>
-            <Text style={styles.title}>Şehir Bazlı Fiyatlar</Text>
-            <Text style={styles.subtitle}>{selectedFuelTitle} için günlük ortalama fiyatlar.</Text>
-          </View>
-          <View style={styles.titleActions}>
-            <Pressable
-              accessibilityLabel="Fiyatları yenile"
-              onPress={refresh}
-              style={({ pressed }) => [styles.refreshButton, pressed && styles.pressed]}
-            >
-              <MaterialCommunityIcons
-                name="refresh"
-                size={17}
-                color={refreshing ? colors.mutedSoft : colors.accent}
-              />
-            </Pressable>
-            <View style={styles.countBadge}>
-              <Text style={styles.countBadgeText}>{cities.length} İl</Text>
-            </View>
-          </View>
-        </View>
+        <Text style={styles.leadText}>
+          {selectedFuelTitle} · {data.hasRealPrices ? `${cities.length} il` : 'Veri yok'}
+        </Text>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segmentRow}>
           <Pressable
             onPress={() => setShowOnlyFavorites((prev) => !prev)}
             style={({ pressed }) => [styles.segment, showOnlyFavorites && styles.favoriteSegmentActive, pressed && styles.pressed]}
           >
-            <MaterialCommunityIcons
+            <Ionicons
               name={showOnlyFavorites ? 'heart' : 'heart-outline'}
               size={14}
               color={showOnlyFavorites ? '#FF4D4D' : colors.mutedSoft}
@@ -170,10 +154,10 @@ export default function Iller() {
                 onPress={() => setSelectedFuel(item)}
                 style={({ pressed }) => [styles.segment, selected && styles.segmentActive, pressed && styles.pressed]}
               >
-                <MaterialCommunityIcons
-                  name={item.icon}
+                <Ionicons
+                  name={fuelIonicon[item.icon] ?? 'ellipse-outline'}
                   size={14}
-                  color={selected ? colors.accent : colors.mutedSoft}
+                  color={selected ? colors.onAccent : colors.mutedSoft}
                 />
                 <Text style={[styles.segmentText, selected && styles.segmentTextActive]}>{item.label}</Text>
               </Pressable>
@@ -183,7 +167,7 @@ export default function Iller() {
 
         <View style={styles.insightCard}>
           <View style={styles.insightIcon}>
-            <MaterialCommunityIcons name="trending-down" size={20} color={colors.accent} />
+            <Ionicons name="trending-down-outline" size={20} color={colors.muted} />
           </View>
           <View style={styles.insightCopy}>
             <Text style={styles.insightTitle}>
@@ -205,51 +189,63 @@ export default function Iller() {
 
         {cities.length === 0 && (
           <View style={styles.emptyCard}>
-            <MaterialCommunityIcons name="map-search-outline" size={28} color={colors.accent} />
+            <Ionicons name="search-outline" size={28} color={colors.mutedSoft} />
             <Text style={styles.emptyTitle}>{showOnlyFavorites ? 'Favori iliniz yok' : 'İl bulunamadı'}</Text>
             <Text style={styles.emptyText}>{showOnlyFavorites ? 'Kalp simgesine dokunarak il ekleyin.' : 'Arama metnini kısaltarak tekrar deneyin.'}</Text>
           </View>
         )}
 
+        {!data.hasRealPrices ? (
+          <View style={styles.emptyCard}>
+            <Ionicons name="cloud-offline-outline" size={28} color={colors.mutedSoft} />
+            <Text style={styles.emptyTitle}>Veri yok</Text>
+            <Text style={styles.emptyText}>Gerçek fiyat verisi bulunamadı.</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.flatListBlock}>
         {cities.map((city, index) => {
-          const trendUp = city.change.startsWith('+')
+          const trendUp = city.avgDiff !== null && city.avgDiff > 0
+          const trendDown = city.avgDiff !== null && city.avgDiff < 0
 
           return (
-            <View key={city.name} style={styles.cityCard}>
-              <View style={styles.rankBox}>
-                <Text style={styles.rankText}>{index + 1}</Text>
-              </View>
+            <Pressable
+              key={city.name}
+              onLongPress={() => handleMakePrimaryCity(city.name)}
+              style={({ pressed }) => [styles.flatRow, pressed && styles.pressed]}
+            >
+              <Text style={styles.rankText}>{index + 1}</Text>
 
               <View style={styles.cityInfo}>
                 <View style={styles.cityNameRow}>
                   <Text style={styles.cityName}>{city.name}</Text>
                   <Pressable onPress={() => handleToggleFavorite(city.name)} style={styles.heartButton}>
-                    <MaterialCommunityIcons
+                    <Ionicons
                       name={city.isFavorite ? 'heart' : 'heart-outline'}
                       size={18}
                       color={city.isFavorite ? '#FF4D4D' : colors.muted}
                     />
                   </Pressable>
                 </View>
-                <View style={styles.cityChangeWrap}>
-                  <MaterialCommunityIcons
-                    name={trendUp ? 'arrow-up-bold' : 'arrow-down-bold'}
-                    size={12}
-                    color={trendUp ? colors.warning : colors.accent}
-                  />
-                  <Text style={[styles.cityChange, trendUp ? styles.cityChangeUp : styles.cityChangeDown]}>
-                    {city.change} ort. fiyattan
-                  </Text>
-                </View>
+                {city.avgDiff !== null && Math.abs(city.avgDiff) >= 0.005 ? (
+                  <View style={styles.cityChangeWrap}>
+                    <Ionicons
+                      name={trendUp ? 'caret-up' : trendDown ? 'caret-down' : 'remove'}
+                      size={12}
+                      color={colors.mutedSoft}
+                    />
+                    <Text style={styles.cityChange}>
+                      {formatSignedCurrencyTr(city.avgDiff)} 81 il ort.
+                    </Text>
+                  </View>
+                ) : null}
               </View>
 
-              <View style={styles.priceWrap}>
-                <Text style={styles.price}>{city.price}</Text>
-                <Text style={styles.priceUnit}>/ litre</Text>
-              </View>
-            </View>
+              <Text style={styles.price}>{city.price}</Text>
+            </Pressable>
           )
         })}
+        </View>
       </ScrollView>
     </SafeAreaView>
   )
@@ -262,9 +258,27 @@ const styles = StyleSheet.create({
   },
   content: {
     backgroundColor: colors.bg,
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: spacing.screen,
+    paddingTop: spacing.sm,
     paddingBottom: 96,
+  },
+  leadText: {
+    color: colors.mutedSoft,
+    fontSize: typography.caption,
+    fontWeight: '500',
+    marginBottom: spacing.md,
+  },
+  flatListBlock: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  flatRow: {
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingVertical: spacing.lg,
   },
   header: {
     alignItems: 'center',
@@ -425,18 +439,15 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
   segmentTextActive: {
-    color: colors.accent,
+    color: colors.onAccent,
   },
   insightCard: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
     flexDirection: 'row',
-    marginBottom: 16,
-    padding: 14,
-    ...shadows.soft,
+    marginBottom: spacing.md,
+    paddingVertical: spacing.md,
   },
   insightIcon: {
     alignItems: 'center',
@@ -463,9 +474,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   insightPrice: {
-    color: colors.accent,
-    fontSize: 15,
-    fontWeight: '900',
+    color: colors.text,
+    fontSize: typography.body,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   listHeader: {
     alignItems: 'center',
@@ -483,28 +495,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
-  cityCard: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: 'row',
-    marginBottom: 10,
-    minHeight: 82,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    ...shadows.soft,
-  },
   emptyCard: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 18,
-    paddingVertical: 24,
-    ...shadows.soft,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
   },
   emptyTitle: {
     color: colors.text,
@@ -519,21 +513,13 @@ const styles = StyleSheet.create({
     marginTop: 5,
     textAlign: 'center',
   },
-  rankBox: {
-    alignItems: 'center',
-    backgroundColor: colors.bgSoft,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    height: 36,
-    justifyContent: 'center',
-    marginRight: 12,
-    width: 36,
-  },
   rankText: {
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: '900',
+    color: colors.mutedSoft,
+    fontSize: typography.caption,
+    fontWeight: '600',
+    width: 24,
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
   },
   cityInfo: {
     flex: 1,

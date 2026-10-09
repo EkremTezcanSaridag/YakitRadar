@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { computeNationalAverages, getRealPriceRows } from './fuelData'
 import Constants, { ExecutionEnvironment } from 'expo-constants'
 import * as Notifications from 'expo-notifications'
 import { Platform } from 'react-native'
@@ -286,9 +287,17 @@ export async function scheduleWeeklySummaryNotification(prices = []) {
     // Cancel existing weekly summary to prevent duplicate triggers
     await cancelWeeklySummaryNotification()
 
-    const benzin = prices[0]?.benzin95 ? `${Number(prices[0].benzin95).toFixed(2)} ₺` : '86.26 ₺'
-    const motorin = prices[0]?.motorin ? `${Number(prices[0].motorin).toFixed(2)} ₺` : '98.86 ₺'
-    const lpg = prices[0]?.lpg ? `${Number(prices[0].lpg).toFixed(2)} ₺` : '36.89 ₺'
+    const realPrices = getRealPriceRows(prices)
+    const averages = computeNationalAverages(realPrices)
+
+    if (!averages.benzin95 && !averages.motorin && !averages.lpg) {
+      await cancelWeeklySummaryNotification()
+      return
+    }
+
+    const benzin = averages.benzin95 ? `${averages.benzin95.toFixed(2)} ₺` : '--'
+    const motorin = averages.motorin ? `${averages.motorin.toFixed(2)} ₺` : '--'
+    const lpg = averages.lpg ? `${averages.lpg.toFixed(2)} ₺` : '--'
 
     await Notifications.scheduleNotificationAsync({
       identifier: 'weekly-summary-notification',

@@ -1,5 +1,7 @@
 import { colors } from '../theme'
 import { supabase } from '../supabase'
+import { parseExpectedFuelSignals } from './expectedChange'
+import { formatCurrencyTr, formatSignedCurrencyTr } from '../utils/priceFormat'
 
 export const fuelTabs = [
   { key: 'benzin95', label: 'Benzin', title: 'Benzin 95', icon: 'gas-station' },
@@ -91,25 +93,6 @@ export const provinceNames = [
   'Düzce',
 ]
 
-const highlightedCities = {
-  Adana: { benzin95: 63.95, motorin: 66.24, lpg: 36.08, change: -0.12, stations: 386 },
-  Ankara: { benzin95: 64.1, motorin: 66.41, lpg: 36.22, change: 0.03, stations: 842 },
-  Antalya: { benzin95: 64.02, motorin: 66.38, lpg: 36.18, change: -0.05, stations: 438 },
-  İstanbul: { benzin95: 64.12, motorin: 66.45, lpg: 36.2, change: 0.05, stations: 1248 },
-  İzmir: { benzin95: 64.08, motorin: 66.39, lpg: 36.25, change: 0.01, stations: 716 },
-}
-
-const fallbackHistory = [
-  { date: '2026-09-25', benzin95: 82.11, motorin: 95.21, lpg: 35.44, benzinChange: 0, motorinChange: 0, lpgChange: 0 },
-  { date: '2026-09-26', benzin95: 82.17, motorin: 95.28, lpg: 35.44, benzinChange: 0.06, motorinChange: 0.07, lpgChange: 0 },
-  { date: '2026-09-27', benzin95: 82.17, motorin: 95.28, lpg: 35.44, benzinChange: 0, motorinChange: 0, lpgChange: 0 },
-  { date: '2026-09-28', benzin95: 82.17, motorin: 95.28, lpg: 35.44, benzinChange: 0, motorinChange: 0, lpgChange: 0 },
-  { date: '2026-09-29', benzin95: 82.17, motorin: 95.28, lpg: 35.44, benzinChange: 0, motorinChange: 0, lpgChange: 0 },
-  { date: '2026-09-30', benzin95: 82.17, motorin: 95.28, lpg: 35.44, benzinChange: 0, motorinChange: 0, lpgChange: 0 },
-  { date: '2026-10-01', benzin95: 86.26, motorin: 98.86, lpg: 36.89, benzinChange: 4.09, motorinChange: 3.58, lpgChange: 1.45 },
-]
-
-const fallbackUpdatedAt = '2026-07-05 10:45'
 const signalToneConfig = {
   increase: {
     color: colors.danger,
@@ -119,29 +102,68 @@ const signalToneConfig = {
     tone: 'bad',
   },
   decrease: {
-    color: colors.accent,
+    color: colors.success,
     icon: 'trending-down',
-    softColor: colors.accentDark,
+    softColor: colors.successDark,
     title: 'İndirim baskısı',
     tone: 'good',
   },
   neutral: {
     color: colors.info,
     icon: 'swap-horizontal',
-    softColor: '#26364F',
+    softColor: colors.surfaceAlt,
     title: 'Nötr sinyal',
     tone: 'flat',
   },
 }
+
+function predictionPillTokens(isInc, isDec) {
+  if (isInc) {
+    return {
+      pillBg: colors.dangerDark,
+      pillBorder: colors.danger,
+      textColor: colors.danger,
+    }
+  }
+  if (isDec) {
+    return {
+      pillBg: colors.successDark,
+      pillBorder: colors.success,
+      textColor: colors.success,
+    }
+  }
+  return {
+    pillBg: colors.selected,
+    pillBorder: colors.border,
+    textColor: colors.muted,
+  }
+}
+
+const neutralPredictionPill = predictionPillTokens(false, false)
 const confidenceLabels = {
   high: 'Yüksek',
   medium: 'Orta',
   low: 'Düşük',
 }
+
+export function getRealPriceRows(prices = []) {
+  return (prices ?? []).filter(
+    (row) =>
+      row?.dataUpdatedAt
+      && row.city
+      && (Number(row.benzin95) > 0 || Number(row.motorin) > 0 || Number(row.lpg) > 0),
+  )
+}
+
 export function buildDetailedFuelPredictions(direction, score, confidence, prices = [], marketSignal = null) {
-  const avgBenzin = prices.length ? (prices.reduce((s, p) => s + (p.benzin95 || 0), 0) / prices.length) : 86.36
-  const avgMotorin = prices.length ? (prices.reduce((s, p) => s + (p.motorin || 0), 0) / prices.length) : 91.91
-  const avgLpg = prices.length ? (prices.reduce((s, p) => s + (p.lpg || 0), 0) / prices.length) : 41.68
+  const realPrices = getRealPriceRows(prices)
+  const avgBenzin = realPrices.length
+    ? realPrices.reduce((s, p) => s + (p.benzin95 || 0), 0) / realPrices.length
+    : 0
+  const avgMotorin = realPrices.length
+    ? realPrices.reduce((s, p) => s + (p.motorin || 0), 0) / realPrices.length
+    : 0
+  const avgLpg = realPrices.length ? realPrices.reduce((s, p) => s + (p.lpg || 0), 0) / realPrices.length : 0
 
   const summary = (marketSignal?.summary || '').toLowerCase()
   const isSummaryApplied = summary.includes('yansı') || summary.includes('yansi') || summary.includes('uygulan') || summary.includes('değişti') || summary.includes('degisti')
@@ -177,9 +199,7 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
       icon: 'gas-station',
       direction: benzinDir,
       statusText: isBenzinInc ? 'ZAM BEKLENİYOR' : isBenzinDec ? 'İNDİRİM BEKLENİYOR' : 'SABİT / DEĞİŞİM YOK',
-      pillBg: isBenzinInc ? '#3A0D18' : isBenzinDec ? '#064E3B' : '#1E293B',
-      pillBorder: isBenzinInc ? '#F43F5E' : isBenzinDec ? '#34D399' : '#475569',
-      textColor: isBenzinInc ? '#F43F5E' : isBenzinDec ? '#34D399' : '#94A3B8',
+      ...predictionPillTokens(isBenzinInc, isBenzinDec),
       amountText: isBenzinInc ? `+${benzinAmt.toFixed(2)} ₺` : isBenzinDec ? `-${benzinAmt.toFixed(2)} ₺` : '0.00 ₺',
       targetDate: isBenzinInc || isBenzinDec ? (benzinSignal?.timing || 'Bu Gece 00:00') : 'Gündemde Değişim Yok',
       currentPrice: `${avgBenzin.toFixed(2)} ₺`,
@@ -191,9 +211,7 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
       icon: 'truck-outline',
       direction: motorinDir,
       statusText: isMotorinInc ? 'ZAM BEKLENİYOR' : isMotorinDec ? 'İNDİRİM BEKLENİYOR' : 'SABİT / DEĞİŞİM YOK',
-      pillBg: isMotorinInc ? '#3A0D18' : isMotorinDec ? '#064E3B' : '#1E293B',
-      pillBorder: isMotorinInc ? '#F43F5E' : isMotorinDec ? '#34D399' : '#475569',
-      textColor: isMotorinInc ? '#F43F5E' : isMotorinDec ? '#34D399' : '#94A3B8',
+      ...predictionPillTokens(isMotorinInc, isMotorinDec),
       amountText: isMotorinInc ? `+${motorinAmt.toFixed(2)} ₺` : isMotorinDec ? `-${motorinAmt.toFixed(2)} ₺` : '0.00 ₺',
       targetDate: isMotorinInc || isMotorinDec ? (motorinSignal?.timing || 'Bu Gece 00:00') : 'Gündemde Değişim Yok',
       currentPrice: `${avgMotorin.toFixed(2)} ₺`,
@@ -205,9 +223,7 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
       icon: 'fire',
       direction: lpgDir,
       statusText: 'SABİT / DEĞİŞİM YOK',
-      pillBg: '#1E293B',
-      pillBorder: '#475569',
-      textColor: '#94A3B8',
+      ...neutralPredictionPill,
       amountText: '0.00 ₺',
       targetDate: 'Gündemde Değişim Yok',
       currentPrice: `${avgLpg.toFixed(2)} ₺`,
@@ -216,81 +232,6 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
   ]
 }
 
-const fallbackMarketSignal = {
-  color: signalToneConfig.neutral.color,
-  confidence: 'high',
-  confidenceLabel: confidenceLabels.high,
-  direction: 'neutral',
-  fuels: [
-    { confidenceLabel: confidenceLabels.high, direction: 'neutral', fuel: 'Benzin', label: 'Dengeli', expectedAmount: 0, timing: 'Gündemde Değişim Yok' },
-    { confidenceLabel: confidenceLabels.high, direction: 'neutral', fuel: 'Motorin', label: 'Dengeli', expectedAmount: 0, timing: 'Gündemde Değişim Yok' },
-    { confidenceLabel: confidenceLabels.high, direction: 'neutral', fuel: 'LPG', label: 'Dengeli', expectedAmount: 0, timing: 'Gündemde Değişim Yok' },
-  ],
-  fuelPredictions: [
-    {
-      key: 'benzin95',
-      fuelName: 'Benzin 95',
-      icon: 'gas-station',
-      direction: 'neutral',
-      statusText: 'SABİT / DEĞİŞİM YOK',
-      pillBg: '#1E293B',
-      pillBorder: '#475569',
-      textColor: '#94A3B8',
-      amountText: '0.00 ₺',
-      targetDate: 'Gündemde Değişim Yok',
-      currentPrice: '44.50 ₺',
-      expectedPrice: '44.50 ₺',
-    },
-    {
-      key: 'motorin',
-      fuelName: 'Motorin',
-      icon: 'truck-outline',
-      direction: 'neutral',
-      statusText: 'SABİT / DEĞİŞİM YOK',
-      pillBg: '#1E293B',
-      pillBorder: '#475569',
-      textColor: '#94A3B8',
-      amountText: '0.00 ₺',
-      targetDate: 'Gündemde Değişim Yok',
-      currentPrice: '45.20 ₺',
-      expectedPrice: '45.20 ₺',
-    },
-    {
-      key: 'lpg',
-      fuelName: 'LPG (Otogaz)',
-      icon: 'fire',
-      direction: 'neutral',
-      statusText: 'SABİT / DEĞİŞİM YOK',
-      pillBg: '#1E293B',
-      pillBorder: '#475569',
-      textColor: '#94A3B8',
-      amountText: '0.00 ₺',
-      targetDate: 'Gündemde Değişim Yok',
-      currentPrice: '26.10 ₺',
-      expectedPrice: '26.10 ₺',
-    },
-  ],
-  icon: signalToneConfig.neutral.icon,
-  metrics: [
-    { label: 'Haber', value: '12 başlık' },
-    { label: 'Skor', value: '0' },
-    { label: 'Pencere', value: '48s' },
-  ],
-  analysisFactors: [
-    {
-      detail: 'Motorin litre fiyatına uygulanan 4,95 TL indirim pompa tabelalarına yansıdı. Şu an için yeni bir zam veya indirim kararı beklenmemektedir.',
-      label: 'Son Pompa Hareketi',
-      tone: 'neutral',
-      value: 'Uygulandı',
-    },
-  ],
-  newsItems: [],
-  score: 0,
-  softColor: signalToneConfig.neutral.softColor,
-  summary: 'Motorine uygulanan ~4,95 TL indirim pompa fiyatlarına yansıdı. Şu an için piyasada yeni bir fiyat değişikliği beklenmemektedir, fiyatlar dengelidir.',
-  title: signalToneConfig.neutral.title,
-  updatedAt: 'Güncel',
-}
 const brentSources = [
   {
     dateField: 'Date',
@@ -362,11 +303,11 @@ function parseMarketNumber(value) {
 }
 
 function formatCurrency(value) {
-  return `${value.toFixed(2)} ₺`
+  return formatCurrencyTr(value)
 }
 
 function formatChange(value) {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(2)} ₺`
+  return formatSignedCurrencyTr(value)
 }
 
 function formatStationCount(value) {
@@ -401,6 +342,76 @@ function formatTodayLabel() {
 
 function formatSyncTime(date = new Date()) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
+}
+
+function formatSyncTimeHm(date = new Date()) {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+const GUNCELLEME_TEXT_RE = /^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/
+const DATA_CHECK_STALE_MS = 3 * 60 * 60 * 1000
+
+function parseGuncellemeIstanbul(value) {
+  if (!value) {
+    return null
+  }
+
+  const match = String(value).trim().match(GUNCELLEME_TEXT_RE)
+
+  if (!match) {
+    return null
+  }
+
+  const [, year, month, day, hour, minute] = match
+  const instant = new Date(`${year}-${month}-${day}T${hour}:${minute}:00+03:00`)
+
+  if (Number.isNaN(instant.getTime())) {
+    return null
+  }
+
+  return {
+    hm: `${hour}:${minute}`,
+    instant,
+  }
+}
+
+function formatHmEuropeIstanbul(date) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Istanbul',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
+function buildSonKontrolMeta(prices, syncedAt) {
+  let latest = null
+
+  for (const row of prices) {
+    const parsed = parseGuncellemeIstanbul(row.dataUpdatedAt)
+
+    if (!parsed) {
+      continue
+    }
+
+    if (!latest || parsed.instant > latest.instant) {
+      latest = parsed
+    }
+  }
+
+  if (latest) {
+    return {
+      dataCheckStale: Date.now() - latest.instant.getTime() > DATA_CHECK_STALE_MS,
+      lastUpdatedHm: latest.hm,
+      lastUpdatedLabel: 'Son kontrol',
+    }
+  }
+
+  return {
+    dataCheckStale: Date.now() - syncedAt.getTime() > DATA_CHECK_STALE_MS,
+    lastUpdatedHm: formatHmEuropeIstanbul(syncedAt),
+    lastUpdatedLabel: 'Son kontrol',
+  }
 }
 
 function formatSignalTime(dateValue) {
@@ -803,53 +814,28 @@ async function fetchLiveMarketSignal() {
   }
 }
 
-function getFallbackCity(name, index) {
-  const known = highlightedCities[name]
-
-  if (known) {
-    return known
-  }
-
-  const safeIndex = index >= 0 ? index : 0
-  const base = 64 + ((safeIndex * 7) % 37) / 100
-
-  return {
-    benzin95: base,
-    motorin: base + 2.28 + ((safeIndex % 5) - 2) / 100,
-    lpg: 36.05 + ((safeIndex * 3) % 26) / 100,
-    change: ((safeIndex % 9) - 4) / 100,
-    stations: 96 + ((safeIndex * 37) % 420),
-  }
-}
-
-function createFallbackPrices() {
-  return provinceNames.map((city, index) => {
-    const fallback = getFallbackCity(city, index)
-
-    return {
-      city,
-      benzin95: fallback.benzin95,
-      motorin: fallback.motorin,
-      lpg: fallback.lpg,
-      change: fallback.change,
-      stations: fallback.stations,
-      updatedAt: fallbackUpdatedAt,
-    }
-  })
-}
-
 function normalizePriceRecord(record, index) {
   const city = record.il ?? record.city ?? record.name ?? provinceNames[index]
-  const fallback = getFallbackCity(city, provinceNames.indexOf(city))
+  const dataUpdatedAt = record.guncelleme ?? record.updated_at ?? null
+  const benzin95 = parseFuelValue(record.benzin_95 ?? record.benzin95)
+  const motorin = parseFuelValue(record.motorin)
+  const lpg = parseFuelValue(record.lpg)
+
+  if (!city || !dataUpdatedAt) {
+    return null
+  }
+
+  if (!benzin95 && !motorin && !lpg) {
+    return null
+  }
 
   return {
     city,
-    benzin95: parseFuelValue(record.benzin_95 ?? record.benzin95) ?? fallback.benzin95,
-    motorin: parseFuelValue(record.motorin) ?? fallback.motorin,
-    lpg: parseFuelValue(record.lpg) ?? fallback.lpg,
-    change: parseFuelValue(record.degisim ?? record.change) ?? fallback.change,
-    stations: Number(record.istasyon ?? record.stations) || fallback.stations,
-    updatedAt: record.guncelleme ?? record.updated_at ?? fallbackUpdatedAt,
+    benzin95: benzin95 ?? 0,
+    motorin: motorin ?? 0,
+    lpg: lpg ?? 0,
+    updatedAt: dataUpdatedAt,
+    dataUpdatedAt,
   }
 }
 
@@ -891,13 +877,14 @@ function normalizePriceChangeEvent(record) {
 
 function normalizeMarketSignalRecord(record) {
   if (!record) {
-    return fallbackMarketSignal
+    return null
   }
 
   const direction = normalizeSignalDirection(record.direction)
   const confidence = normalizeSignalConfidence(record.confidence)
   const tone = signalToneConfig[direction]
-  const rawFuelSignals = parseJsonList(record.signals)
+  const signalsFieldPresent = record.signals !== null && record.signals !== undefined
+  const rawFuelSignals = signalsFieldPresent ? parseJsonList(record.signals) : []
   const analysis = parseJsonObject(record.analysis)
   const rawFactors = parseJsonList(analysis.factors)
   const rawNewsItems = parseJsonList(record.news_items)
@@ -917,7 +904,7 @@ function normalizeMarketSignalRecord(record) {
           timing: signal.timing ?? (fuelDirection !== 'neutral' ? 'Bu Gece 00:00' : 'Gündemde Değişim Yok'),
         }
       })
-    : fallbackMarketSignal.fuels
+    : []
   const analysisFactors = rawFactors.length
     ? rawFactors.slice(0, 6).map((factor) => ({
         detail: factor.detail ?? '',
@@ -925,7 +912,7 @@ function normalizeMarketSignalRecord(record) {
         tone: normalizeSignalDirection(factor.tone),
         value: factor.value ?? '--',
       }))
-    : fallbackMarketSignal.analysisFactors
+    : []
   const newsItems = rawNewsItems.length
     ? rawNewsItems
         .slice(0, 3)
@@ -956,34 +943,11 @@ function normalizeMarketSignalRecord(record) {
     newsItems,
     score: Number(record.score) || 0,
     softColor: tone.softColor,
-    summary: record.summary ?? fallbackMarketSignal.summary,
+    summary: record.summary ?? '',
     title: tone.title,
     updatedAt: formatSignalTime(record.calculated_at ?? record.signal_date),
+    expectedFuelSignals: signalsFieldPresent ? parseExpectedFuelSignals(rawFuelSignals) : [],
   }
-}
-
-function mergePricesWithFallback(records) {
-  const incomingByCity = new Map(records.map((record) => [record.city, record]))
-
-  return provinceNames.map((city, index) => {
-    const incoming = incomingByCity.get(city)
-
-    if (incoming) {
-      return incoming
-    }
-
-    const fallback = getFallbackCity(city, index)
-
-    return {
-      city,
-      benzin95: fallback.benzin95,
-      motorin: fallback.motorin,
-      lpg: fallback.lpg,
-      change: fallback.change,
-      stations: fallback.stations,
-      updatedAt: fallbackUpdatedAt,
-    }
-  })
 }
 
 function average(values) {
@@ -994,6 +958,15 @@ function average(values) {
   }
 
   return validValues.reduce((total, value) => total + value, 0) / validValues.length
+}
+
+export function computeNationalAverages(prices = []) {
+  const rows = getRealPriceRows(prices)
+  return {
+    benzin95: average(rows.map((row) => row.benzin95).filter((value) => value > 0)),
+    motorin: average(rows.map((row) => row.motorin).filter((value) => value > 0)),
+    lpg: average(rows.map((row) => row.lpg).filter((value) => value > 0)),
+  }
 }
 
 function getTone(change) {
@@ -1014,8 +987,8 @@ function buildHomeFuels(prices, history) {
   const motorinAvg = average(prices.map((item) => item.motorin)) || 0
   const lpgAvg = average(prices.map((item) => item.lpg)) || 0
 
-  const benzinChange = latestHistory?.benzinChange ?? -0.45
-  const motorinChange = latestHistory?.motorinChange ?? 0.12
+  const benzinChange = latestHistory?.benzinChange ?? 0
+  const motorinChange = latestHistory?.motorinChange ?? 0
   const lpgChange = latestHistory?.lpgChange ?? 0
 
   const benzinPct = benzinAvg ? ((Math.abs(benzinChange) / (benzinAvg - benzinChange || 1)) * 100).toFixed(1) : '0.0'
@@ -1032,9 +1005,9 @@ function buildHomeFuels(prices, history) {
       changePct: benzinChange > 0 ? `+${benzinPct}%` : benzinChange < 0 ? `-${benzinPct}%` : '0.0%',
       rawChange: benzinChange,
       tone: getTone(benzinChange),
-      accentColor: '#38BDF8',
-      cardBg: '#0C192E',
-      cardBorder: 'rgba(56, 189, 248, 0.28)',
+      stripeColor: colors.fuelStripeBenzin,
+      cardBg: colors.surface,
+      cardBorder: colors.border,
       icon: 'gas-station',
       dateLabel,
     },
@@ -1045,9 +1018,9 @@ function buildHomeFuels(prices, history) {
       changePct: motorinChange > 0 ? `+${motorinPct}%` : motorinChange < 0 ? `-${motorinPct}%` : '0.0%',
       rawChange: motorinChange,
       tone: getTone(motorinChange),
-      accentColor: '#F59E0B',
-      cardBg: '#1E1606',
-      cardBorder: 'rgba(245, 158, 11, 0.28)',
+      stripeColor: colors.fuelStripeMotorin,
+      cardBg: colors.surface,
+      cardBorder: colors.border,
       icon: 'truck-outline',
       dateLabel,
     },
@@ -1058,9 +1031,9 @@ function buildHomeFuels(prices, history) {
       changePct: lpgChange > 0 ? `+${lpgPct}%` : lpgChange < 0 ? `-${lpgPct}%` : '0.0%',
       rawChange: lpgChange,
       tone: getTone(lpgChange),
-      accentColor: '#10B981',
-      cardBg: '#061D15',
-      cardBorder: 'rgba(16, 185, 129, 0.28)',
+      stripeColor: colors.fuelStripeLpg,
+      cardBg: colors.surface,
+      cardBorder: colors.border,
       icon: 'fire',
       dateLabel,
     },
@@ -1068,70 +1041,43 @@ function buildHomeFuels(prices, history) {
 }
 
 function buildCityRows(prices) {
-  return [...prices]
+  const avgs = computeNationalAverages(prices)
+
+  return [...getRealPriceRows(prices)]
     .sort((first, second) => first.benzin95 - second.benzin95)
     .map((item) => ({
       name: item.city,
       price: formatCurrency(item.benzin95),
-      change: formatChange(item.change),
-      stations: formatStationCount(item.stations),
+      avgDiff: avgs.benzin95 ? item.benzin95 - avgs.benzin95 : null,
     }))
 }
 
-function buildHomeTrendSeries(history, prices = []) {
-  const avgBenzin = average(prices.map((item) => item.benzin95)) || 86.26
-  const avgMotorin = average(prices.map((item) => item.motorin)) || 98.86
-  const avgLpg = average(prices.map((item) => item.lpg)) || 35.44
+function buildHomeTrendSeries(history) {
+  const slice = history.slice(-7)
 
-  const benzinVals = [
-    Number((avgBenzin - 1.40).toFixed(2)),
-    Number((avgBenzin - 0.90).toFixed(2)),
-    Number((avgBenzin - 0.90).toFixed(2)),
-    Number((avgBenzin - 0.50).toFixed(2)),
-    Number((avgBenzin - 0.20).toFixed(2)),
-    Number((avgBenzin - 0.20).toFixed(2)),
-    Number(avgBenzin.toFixed(2)),
-  ]
-
-  const motorinVals = [
-    Number((avgMotorin - 2.80).toFixed(2)),
-    Number((avgMotorin - 2.10).toFixed(2)),
-    Number((avgMotorin - 1.60).toFixed(2)),
-    Number((avgMotorin - 1.20).toFixed(2)),
-    Number((avgMotorin - 0.40).toFixed(2)),
-    Number((avgMotorin - 0.40).toFixed(2)),
-    Number(avgMotorin.toFixed(2)),
-  ]
-
-  const lpgVals = [
-    Number((avgLpg - 0.45).toFixed(2)),
-    Number((avgLpg - 0.45).toFixed(2)),
-    Number((avgLpg - 0.25).toFixed(2)),
-    Number((avgLpg - 0.15).toFixed(2)),
-    Number((avgLpg - 0.15).toFixed(2)),
-    Number(avgLpg.toFixed(2)),
-    Number(avgLpg.toFixed(2)),
-  ]
+  if (slice.length < 2) {
+    return []
+  }
 
   return [
     {
       key: 'Benzin',
-      color: colors.accent,
-      values: benzinVals,
+      color: colors.chartBenzin,
+      values: slice.map((item) => item.benzin95),
       strokeWidth: 3,
       opacity: 1,
     },
     {
       key: 'Motorin',
-      color: colors.warning,
-      values: motorinVals,
+      color: colors.chartMotorin,
+      values: slice.map((item) => item.motorin),
       strokeWidth: 3,
       opacity: 1,
     },
     {
       key: 'LPG',
-      color: colors.purpleGlow,
-      values: lpgVals,
+      color: colors.chartLpg,
+      values: slice.map((item) => item.lpg),
       strokeWidth: 3,
       opacity: 1,
     },
@@ -1175,6 +1121,10 @@ function sampleHistoryRecords(history, maxPoints = 12) {
 }
 
 function buildHistoryDomain(history) {
+  if (!history.length) {
+    return { min: 0, max: 1 }
+  }
+
   const values = history.flatMap((item) => [item.benzin95, item.motorin, item.lpg])
   const min = Math.min(...values)
   const max = Math.max(...values)
@@ -1187,7 +1137,7 @@ function buildHistoryDomain(history) {
 
 function buildHistoryLabels(history) {
   if (history.length < 3) {
-    return ['13 Şub', '28 Şub', '15 Mar']
+    return []
   }
 
   return [history[0], history[Math.floor(history.length / 2)], history[history.length - 1]].map((item) =>
@@ -1234,6 +1184,10 @@ function buildRecentChanges(history, priceChangeEvents = []) {
 }
 
 function buildHistoryMetrics(history) {
+  if (!history.length) {
+    return []
+  }
+
   const latest = history[history.length - 1]
   const lowestBenzin = history.reduce(
     (selected, item) => (item.benzin95 < selected.benzin95 ? item : selected),
@@ -1308,15 +1262,17 @@ function buildFuelData({
   history,
   source,
   error,
-  marketSignal = fallbackMarketSignal,
+  marketSignal = null,
   priceChangeEvents = [],
   refreshRequest = null,
   syncedAt = new Date(),
 }) {
+  const realPrices = getRealPriceRows(prices)
   const cityRows = buildCityRows(prices)
+  const sonKontrol = buildSonKontrolMeta(realPrices, syncedAt)
 
   return {
-    bestCity: cityRows[0],
+    bestCity: cityRows[0] ?? null,
     cities: cityRows,
     currentDateLabel: formatTodayLabel(),
     error,
@@ -1326,8 +1282,11 @@ function buildFuelData({
     historyMetrics: buildHistoryMetrics(history),
     historyTrendSeries: buildHistoryTrendSeries(history),
     homeFuels: buildHomeFuels(prices, history),
-    homeTrendSeries: buildHomeTrendSeries(history, prices),
-    lastUpdatedLabel: formatSyncTime(syncedAt),
+    homeTrendSeries: buildHomeTrendSeries(history),
+    hasRealPrices: realPrices.length > 0,
+    dataCheckStale: sonKontrol.dataCheckStale,
+    lastUpdatedLabel: sonKontrol.lastUpdatedLabel,
+    lastUpdatedHm: sonKontrol.lastUpdatedHm,
     marketSignal,
     prices,
     recentChanges: buildRecentChanges(history, priceChangeEvents),
@@ -1383,27 +1342,24 @@ async function fetchRemoteFuelData({ triggerBackend = false } = {}) {
     supabase
       .from('gecmis')
       .select('tarih, benzin_95, motorin, lpg, benzin_degisim, motorin_degisim, lpg_degisim')
-      .order('tarih', { ascending: true })
+      .order('tarih', { ascending: false })
       .limit(365),
-    supabase
-      .from('market_signals')
-      .select(
-        'signal_date, direction, confidence, score, summary, brent_usd, usd_try, brent_try_index, brent_change_3d, usd_change_3d, index_change_3d, index_change_7d, signals, analysis, news_items, calculated_at',
-      )
-      .order('calculated_at', { ascending: false })
-      .limit(1),
-    supabase
-      .from('price_change_events')
-      .select('city, fuel, old_price, new_price, diff, direction, event_at, created_at')
-      .order('event_at', { ascending: false })
-      .limit(100),
+    supabase.from('market_signals').select(marketSignalSelect).order('calculated_at', { ascending: false }).limit(1),
+    process.env.EXPO_PUBLIC_SKIP_PRICE_EVENTS === '1'
+      ? Promise.resolve({ data: [], error: null })
+      : supabase
+          .from('price_change_events')
+          .select('city, fuel, old_price, new_price, diff, direction, event_at, created_at')
+          .order('event_at', { ascending: false })
+          .limit(100),
   ])
 
   if (pricesResult.error) {
     throw pricesResult.error
   }
 
-  const remotePrices = pricesResult.data?.map(normalizePriceRecord) ?? []
+  const remotePrices =
+    pricesResult.data?.map(normalizePriceRecord).filter((row) => row !== null) ?? []
   const rawHistory = historyResult.error ? [] : historyResult.data?.map(normalizeHistoryRecord) ?? []
   const remoteHistory = deduplicateHistoryRecords(rawHistory)
   const priceChangeEvents = priceChangeEventsResult.error
@@ -1421,35 +1377,62 @@ async function fetchRemoteFuelData({ triggerBackend = false } = {}) {
 
   const marketSignal =
     marketSignalResult.error || !latestSignalRecord || isSignalStale
-      ? fallbackMarketSignal
+      ? null
       : normalizeMarketSignalRecord(latestSignalRecord)
 
   return {
-    history: remoteHistory.length >= 2 ? remoteHistory : fallbackHistory,
+    history: remoteHistory,
     marketSignal,
     priceChangeEvents,
-    prices: mergePricesWithFallback(remotePrices),
+    prices: remotePrices,
     refreshRequest,
     source: 'supabase',
   }
 }
 
-const fallbackFuelData = buildFuelData({
-  history: fallbackHistory,
-  prices: createFallbackPrices(),
-  source: 'fallback',
-})
-
-function createFallbackFuelData(error) {
+function createEmptyFuelData(error) {
   return buildFuelData({
     error,
-    history: fallbackHistory,
-    prices: createFallbackPrices(),
-    source: 'fallback',
+    history: [],
+    marketSignal: null,
+    prices: [],
+    source: 'empty',
   })
 }
 
+export const emptyFuelData = createEmptyFuelData()
+
 let fuelDataCache = null
+
+const marketSignalSelect =
+  'signal_date, direction, confidence, score, summary, brent_usd, usd_try, brent_try_index, brent_change_3d, usd_change_3d, index_change_3d, index_change_7d, signals, analysis, news_items, calculated_at'
+
+export async function refreshMarketSignalFromRemote() {
+  if (!supabase) {
+    return null
+  }
+
+  const { data, error } = await supabase
+    .from('market_signals')
+    .select(marketSignalSelect)
+    .order('calculated_at', { ascending: false })
+    .limit(1)
+
+  if (error || !data?.[0]) {
+    return null
+  }
+
+  const signal = normalizeMarketSignalRecord(data[0])
+
+  if (fuelDataCache) {
+    fuelDataCache = {
+      ...fuelDataCache,
+      marketSignal: signal,
+    }
+  }
+
+  return signal
+}
 
 export async function loadFuelData({ refresh = false, triggerBackend = refresh } = {}) {
   if (fuelDataCache && !refresh) {
@@ -1459,12 +1442,16 @@ export async function loadFuelData({ refresh = false, triggerBackend = refresh }
   try {
     const remoteFuelData = await fetchRemoteFuelData({ triggerBackend })
 
-    fuelDataCache = remoteFuelData ? buildFuelData(remoteFuelData) : createFallbackFuelData()
+    if (remoteFuelData) {
+      fuelDataCache = buildFuelData(remoteFuelData)
+    } else if (!fuelDataCache || fuelDataCache.source !== 'supabase') {
+      fuelDataCache = createEmptyFuelData()
+    }
   } catch (error) {
-    fuelDataCache = createFallbackFuelData(error)
+    if (!fuelDataCache || fuelDataCache.source !== 'supabase') {
+      fuelDataCache = createEmptyFuelData(error)
+    }
   }
 
   return fuelDataCache
 }
-
-export { fallbackFuelData }
