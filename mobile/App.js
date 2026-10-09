@@ -24,6 +24,7 @@ import { initAds, trackAdInteraction } from './src/services/adManager'
 import { colors } from './src/theme'
 
 import { Platform, StyleSheet, View } from 'react-native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 enableScreens()
 configureNotificationHandler()
@@ -71,9 +72,10 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
-        <SupabaseConfigDevBanner />
-        <NavigationContainer>
+      <SafeAreaProvider>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+          <SupabaseConfigDevBanner />
+          <NavigationContainer>
           <Tab.Navigator
           screenListeners={{
             tabPress: () => {
@@ -137,8 +139,9 @@ export default function App() {
           <Tab.Screen name={tabs.vehicle} component={Aracim} />
           <Tab.Screen name={tabs.alerts} component={Bildirimler} />
         </Tab.Navigator>
-      </NavigationContainer>
-    </GestureHandlerRootView>
+          </NavigationContainer>
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
     </ErrorBoundary>
   )
 }

@@ -10,7 +10,7 @@ export class ErrorBoundary extends React.Component {
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true }
+    return { hasError: true, error }
   }
 
   componentDidCatch(error, errorInfo) {
@@ -48,6 +48,12 @@ export class ErrorBoundary extends React.Component {
             <Text style={styles.message}>
               Uygulama beklenmeyen bir hatayla karşılaştı. Lütfen uygulamayı yeniden başlatmayı deneyin.
             </Text>
+
+            {this.state.error ? (
+              <Text style={styles.detailLine} numberOfLines={4}>
+                Detay: {this.state.error?.message || String(this.state.error)}
+              </Text>
+            ) : null}
 
             {__DEV__ && this.state.error && (
               <View style={styles.debugContainer}>
@@ -109,7 +115,15 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+  detailLine: {
+    fontSize: 12,
+    color: colors.mutedSoft,
+    textAlign: 'center',
+    lineHeight: 17,
+    marginBottom: 24,
     paddingHorizontal: 16,
   },
   button: {

@@ -13,10 +13,22 @@ if (missingSupabaseEnv) {
   )
 }
 
-export const supabase = hasSupabaseConfig
-  ? createClient(process.env.EXPO_PUBLIC_SUPABASE_URL, process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY, {
-      auth: {
-        persistSession: false,
+let supabaseClient = null
+
+if (hasSupabaseConfig) {
+  try {
+    supabaseClient = createClient(
+      process.env.EXPO_PUBLIC_SUPABASE_URL,
+      process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        auth: {
+          persistSession: false,
+        },
       },
-    })
-  : null
+    )
+  } catch (error) {
+    console.warn('[YakitRadar] Supabase istemcisi oluşturulamadı:', error?.message ?? error)
+  }
+}
+
+export const supabase = supabaseClient
