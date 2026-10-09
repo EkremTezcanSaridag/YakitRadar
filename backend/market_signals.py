@@ -1291,7 +1291,6 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
         "confidence": confidence,
         "score": score,
         "summary": ai_summary,
-        "source_disagreement_note": source_disagreement_note,
         "brent_usd": macro.get("brent_usd"),
         "usd_try": macro.get("usd_try"),
         "brent_try_index": None,
@@ -1320,6 +1319,7 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
             "macro": macro,
             "factors": analysis_factors,
             "ai": ai_result,
+            "source_disagreement_note": source_disagreement_note,
         },
         "news_items": public_news_items,
         "sources": {
@@ -1328,3 +1328,50 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
         },
         "calculated_at": calculated_at.isoformat(),
     }
+
+
+ALLOWED_MARKET_SIGNAL_COLUMNS = frozenset(
+    {
+        "signal_date",
+        "direction",
+        "confidence",
+        "score",
+        "summary",
+        "brent_usd",
+        "usd_try",
+        "brent_try_index",
+        "brent_change_3d",
+        "usd_change_3d",
+        "index_change_3d",
+        "index_change_7d",
+        "signals",
+        "analysis",
+        "news_items",
+        "sources",
+        "calculated_at",
+    }
+)
+
+
+def prepare_market_signal_row(signal: dict) -> dict:
+    """Strip keys that are not real market_signals table columns (extras go into analysis)."""
+    analysis = dict(signal.get("analysis") or {})
+
+    for key, value in signal.items():
+        if key in ALLOWED_MARKET_SIGNAL_COLUMNS:
+            continue
+
+        if key == "analysis":
+            continue
+
+        analysis[key] = value
+
+    row = {key: signal[key] for key in ALLOWED_MARKET_SIGNAL_COLUMNS if key in signal}
+    row["analysis"] = analysis
+
+    unexpected = set(row) - ALLOWED_MARKET_SIGNAL_COLUMNS
+
+    if unexpected:
+        raise ValueError(f"market_signals row has unexpected columns: {sorted(unexpected)}")
+
+    return row

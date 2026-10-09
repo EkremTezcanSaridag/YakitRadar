@@ -144,7 +144,8 @@ export function parseExpectedFuelSignals(signalsField) {
 
   return list
     .map((signal) => {
-      const amountTl = parseFuelNumber(signal?.expected_amount_tl)
+      const rawAmount = signal?.expected_amount_tl ?? signal?.expected_amount
+      const amountTl = parseFuelNumber(rawAmount)
 
       if (amountTl === null) {
         return null
@@ -159,12 +160,17 @@ export function parseExpectedFuelSignals(signalsField) {
         direction = 'increase'
       }
 
+      const currentPrice = parseFuelNumber(signal?.current_price)
+      const expectedPrice = parseFuelNumber(signal?.expected_price)
+
       return {
         amountTl: Math.abs(amountTl),
         direction,
         fuel: displayFuelName(signal?.fuel, fuelKey),
         fuelKey,
         timing: signal?.timing ?? '',
+        currentPrice,
+        expectedPrice,
       }
     })
     .filter(Boolean)

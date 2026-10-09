@@ -883,9 +883,13 @@ function normalizeMarketSignalRecord(record) {
   const direction = normalizeSignalDirection(record.direction)
   const confidence = normalizeSignalConfidence(record.confidence)
   const tone = signalToneConfig[direction]
-  const signalsFieldPresent = record.signals !== null && record.signals !== undefined
-  const rawFuelSignals = signalsFieldPresent ? parseJsonList(record.signals) : []
   const analysis = parseJsonObject(record.analysis)
+  const topLevelSignals = parseJsonList(record.signals)
+  const analysisSignals = parseJsonList(analysis.signals)
+  const rawFuelSignals = topLevelSignals.length ? topLevelSignals : analysisSignals
+  const signalsFieldPresent =
+    (record.signals !== null && record.signals !== undefined && topLevelSignals.length > 0) ||
+    analysisSignals.length > 0
   const rawFactors = parseJsonList(analysis.factors)
   const rawNewsItems = parseJsonList(record.news_items)
   const lookbackHours = Number(analysis.lookback_hours) || 24
@@ -947,6 +951,7 @@ function normalizeMarketSignalRecord(record) {
     title: tone.title,
     updatedAt: formatSignalTime(record.calculated_at ?? record.signal_date),
     expectedFuelSignals: signalsFieldPresent ? parseExpectedFuelSignals(rawFuelSignals) : [],
+    sourceDisagreementNote: analysis.source_disagreement_note ?? null,
   }
 }
 
