@@ -173,8 +173,11 @@ export default function AnaSayfa() {
               <Text allowFontScaling style={styles.screenSubtitle}>
                 {refreshing
                   ? 'Yenileniyor…'
-                  : `${data.lastUpdatedLabel ?? 'Son kontrol'}: ${data.lastUpdatedHm ?? '--:--'}`}
+                  : `Son kontrol: ${data.lastUpdatedHm ?? '--:--'}`}
               </Text>
+              {!refreshing && data.dataCheckStale ? (
+                <Text allowFontScaling style={styles.staleDataNote}>Veri eski olabilir</Text>
+              ) : null}
             </View>
             <Pressable
               accessibilityLabel="Fiyatları yenile"
@@ -489,6 +492,13 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: typography.caption,
     fontWeight: '400',
+    marginTop: spacing.xs,
+    textAlign: 'left',
+  },
+  staleDataNote: {
+    color: colors.accent,
+    fontSize: typography.caption,
+    fontWeight: '500',
     marginTop: spacing.xs,
     textAlign: 'left',
   },

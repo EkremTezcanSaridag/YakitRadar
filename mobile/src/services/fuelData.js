@@ -419,37 +419,69 @@ function formatSyncTimeHm(date = new Date()) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
-function buildLastUpdatedMeta(prices, syncedAt) {
-  let latestMs = null
+const GUNCELLEME_TEXT_RE = /^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/
+const DATA_CHECK_STALE_MS = 3 * 60 * 60 * 1000
+
+function parseGuncellemeIstanbul(value) {
+  if (!value) {
+    return null
+  }
+
+  const match = String(value).trim().match(GUNCELLEME_TEXT_RE)
+
+  if (!match) {
+    return null
+  }
+
+  const [, year, month, day, hour, minute] = match
+  const instant = new Date(`${year}-${month}-${day}T${hour}:${minute}:00+03:00`)
+
+  if (Number.isNaN(instant.getTime())) {
+    return null
+  }
+
+  return {
+    hm: `${hour}:${minute}`,
+    instant,
+  }
+}
+
+function formatHmEuropeIstanbul(date) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Istanbul',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
+function buildSonKontrolMeta(prices, syncedAt) {
+  let latest = null
 
   for (const row of prices) {
-    if (!row.dataUpdatedAt) {
+    const parsed = parseGuncellemeIstanbul(row.dataUpdatedAt)
+
+    if (!parsed) {
       continue
     }
 
-    const parsed = new Date(row.dataUpdatedAt)
-
-    if (Number.isNaN(parsed.getTime())) {
-      continue
-    }
-
-    const ms = parsed.getTime()
-
-    if (latestMs === null || ms > latestMs) {
-      latestMs = ms
+    if (!latest || parsed.instant > latest.instant) {
+      latest = parsed
     }
   }
 
-  if (latestMs !== null) {
+  if (latest) {
     return {
-      lastUpdatedLabel: 'Son güncelleme',
-      lastUpdatedHm: formatSyncTimeHm(new Date(latestMs)),
+      dataCheckStale: Date.now() - latest.instant.getTime() > DATA_CHECK_STALE_MS,
+      lastUpdatedHm: latest.hm,
+      lastUpdatedLabel: 'Son kontrol',
     }
   }
 
   return {
+    dataCheckStale: Date.now() - syncedAt.getTime() > DATA_CHECK_STALE_MS,
+    lastUpdatedHm: formatHmEuropeIstanbul(syncedAt),
     lastUpdatedLabel: 'Son kontrol',
-    lastUpdatedHm: formatSyncTimeHm(syncedAt),
   }
 }
 
@@ -1365,7 +1397,7 @@ function buildFuelData({
   syncedAt = new Date(),
 }) {
   const cityRows = buildCityRows(prices)
-  const lastUpdated = buildLastUpdatedMeta(prices, syncedAt)
+  const sonKontrol = buildSonKontrolMeta(prices, syncedAt)
 
   return {
     bestCity: cityRows[0],
@@ -1379,8 +1411,9 @@ function buildFuelData({
     historyTrendSeries: buildHistoryTrendSeries(history),
     homeFuels: buildHomeFuels(prices, history),
     homeTrendSeries: buildHomeTrendSeries(history, prices),
-    lastUpdatedLabel: lastUpdated.lastUpdatedLabel,
-    lastUpdatedHm: lastUpdated.lastUpdatedHm,
+    dataCheckStale: sonKontrol.dataCheckStale,
+    lastUpdatedLabel: sonKontrol.lastUpdatedLabel,
+    lastUpdatedHm: sonKontrol.lastUpdatedHm,
     marketSignal,
     prices,
     recentChanges: buildRecentChanges(history, priceChangeEvents),
@@ -1436,7 +1469,7 @@ async function fetchRemoteFuelData({ triggerBackend = false } = {}) {
     supabase
       .from('gecmis')
       .select('tarih, benzin_95, motorin, lpg, benzin_degisim, motorin_degisim, lpg_degisim')
-      .order('tarih', { ascending: true })
+      .order('tarih', { ascending: false })
       .limit(365),
     supabase
       .from('market_signals')
