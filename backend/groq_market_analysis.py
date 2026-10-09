@@ -397,11 +397,12 @@ def extract_price_amounts_from_fields(
     summary: str | None,
     description: str | None,
     normalize_text_fn,
+    article_text: str | None = None,
 ) -> list[dict[str, Any]]:
     merged: list[dict[str, Any]] = []
     seen: set[tuple[str, str, float]] = set()
 
-    for field in (title, summary, description):
+    for field in (title, summary, description, article_text):
         if not field:
             continue
 
@@ -600,6 +601,26 @@ def is_bu_gece_already_applied(normalized_title: str, published_at: datetime | N
     return published_at.astimezone(now.tzinfo) < most_recent_istanbul_midnight(now)
 
 
+def compute_bu_gece_effective_at(
+    reference: datetime,
+    timing: str | None = None,
+    normalized_title: str = "",
+) -> datetime | None:
+    """Istanbul midnight when a 'bu gece' pump change is expected to apply."""
+    timing_value = (timing or "").lower()
+
+    if not title_implies_bu_gece(normalized_title) and "bu gece" not in timing_value:
+        return None
+
+    local = reference.astimezone(reference.tzinfo)
+    target_date = local.date()
+
+    if local.hour >= 18:
+        target_date = local.date() + timedelta(days=1)
+
+    return datetime(target_date.year, target_date.month, target_date.day, tzinfo=local.tzinfo)
+
+
 def enrich_news_item(item: dict[str, Any], now: datetime, normalize_text_fn) -> dict[str, Any]:
     title = strip_news_title_source_suffix(item.get("title") or "")
     normalized_title = normalize_text_fn(title)
@@ -619,6 +640,7 @@ def enrich_news_item(item: dict[str, Any], now: datetime, normalize_text_fn) -> 
         item.get("summary"),
         item.get("description"),
         normalize_text_fn,
+        item.get("article_text"),
     )
     return enriched
 
@@ -1061,9 +1083,11 @@ def build_mobile_fuel_signals(
     confidence: str,
     score: int,
     timing: str | None = None,
+    reference_time: datetime | None = None,
 ) -> list[dict[str, Any]]:
     timing_value = timing or DEFAULT_TIMING
     mobile_signals = []
+    reference_time = reference_time or datetime.now()
 
     for signal in parsed_signals:
         direction = signal.get("direction", "neutral")
@@ -1078,8 +1102,21 @@ def build_mobile_fuel_signals(
         else:
             fuel_score = max(score, 85)
             fuel_confidence = confidence or DEFAULT_CONFIDENCE
-            fuel_timing = timing_value if timing_value != DEFAULT_TIMING else "Bu gece yarısı"
+            fuel_timing = (
+                signal.get("timing")
+                or (timing_value if timing_value != DEFAULT_TIMING else "Bu gece yarısı")
+            )
             fuel_amount = amount if amount is not None else 0.0
+
+        effective_at = None
+        effective_dt = compute_bu_gece_effective_at(
+            reference_time,
+            timing=fuel_timing if direction != "neutral" else None,
+            normalized_title="",
+        )
+
+        if effective_dt is not None:
+            effective_at = effective_dt.isoformat()
 
         mobile_signals.append(
             {
@@ -1094,6 +1131,7 @@ def build_mobile_fuel_signals(
                 "expected_price": signal.get("expected_price"),
                 "reason": signal.get("reason", ""),
                 "timing": fuel_timing,
+                "effective_at": effective_at,
             }
         )
 

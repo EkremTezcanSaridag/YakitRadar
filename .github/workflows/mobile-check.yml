@@ -32,6 +32,9 @@ jobs:
       - name: Supabase URL normalizer tests
         run: npm run test:normalize-supabase-url
 
+      - name: Expected change box tests
+        run: npm run test:expected-change
+
       - name: Export Android bundle
         env:
           EXPO_PUBLIC_SUPABASE_URL: https://ci-placeholder.invalid

@@ -1,57 +1,28 @@
 import { colors } from '../theme'
 import { formatDecimalTr } from '../utils/priceFormat'
+import {
+  buildDirectionSubtitle,
+  displayFuelName,
+  filterVisibleExpectedFuelSignals,
+  formatTimingSuffix,
+  isAfterBuGeceEffectiveMidnight,
+  mapSignalFuelToKey,
+  parseExpectedFuelSignals,
+  shouldShowExpectedChangeBox,
+} from './expectedChangeLogic'
 
-const FUEL_ORDER = ['benzin95', 'motorin', 'lpg']
-
-function parseFuelNumber(value) {
-  if (value === null || value === undefined || value === '') {
-    return null
-  }
-
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : null
-  }
-
-  const parsed = Number.parseFloat(
-    String(value)
-      .replace('₺', '')
-      .replace('TL', '')
-      .replace(/\s/g, '')
-      .replace(',', '.'),
-  )
-
-  return Number.isFinite(parsed) ? parsed : null
-}
-
-export function mapSignalFuelToKey(fuelName) {
-  const normalized = (fuelName ?? '').toLocaleLowerCase('tr-TR')
-
-  if (normalized.includes('motorin')) {
-    return 'motorin'
-  }
-
-  if (normalized.includes('lpg') || normalized.includes('otogaz')) {
-    return 'lpg'
-  }
-
-  return 'benzin95'
-}
-
-export function displayFuelName(fuelName, fuelKey) {
-  if (fuelName && fuelName.trim()) {
-    return fuelName.trim()
-  }
-
-  if (fuelKey === 'motorin') {
-    return 'Motorin'
-  }
-
-  if (fuelKey === 'lpg') {
-    return 'LPG'
-  }
-
-  return 'Benzin'
-}
+export {
+  BU_GECE_VISIBILITY_HOURS,
+  EXPECTED_PUMP_TOLERANCE_TL,
+  buildDirectionSubtitle,
+  computeExpectedPumpPrice,
+  filterVisibleExpectedFuelSignals,
+  formatTimingSuffix,
+  isAfterBuGeceEffectiveMidnight,
+  mapSignalFuelToKey,
+  parseExpectedFuelSignals,
+  shouldShowExpectedChangeBox,
+} from './expectedChangeLogic'
 
 export function formatTlComma(value) {
   return formatDecimalTr(value, '--')
@@ -66,36 +37,6 @@ export function formatSignedChangeAmount(amountTl, direction) {
   }
 
   return `+${body} ₺`
-}
-
-export function formatTimingSuffix(timing) {
-  if (!timing || !String(timing).trim()) {
-    return ''
-  }
-
-  const raw = String(timing).trim()
-  const lower = raw.toLocaleLowerCase('tr-TR')
-
-  if (lower.includes('bu gece')) {
-    return 'bu gece'
-  }
-
-  if (lower.includes('yarın')) {
-    return 'yarın'
-  }
-
-  return lower
-}
-
-export function buildDirectionSubtitle(direction, timing) {
-  const kind = direction === 'decrease' ? 'İndirim' : 'Zam'
-  const suffix = formatTimingSuffix(timing)
-
-  if (!suffix) {
-    return kind
-  }
-
-  return `${kind} · ${suffix}`
 }
 
 export function formatAccessibleChangeLabel(fuelName, amountTl, direction) {
@@ -135,60 +76,21 @@ export function computeCityPriceRange(currentPrice, amountTl, direction) {
   }
 }
 
-export function parseExpectedFuelSignals(signalsField) {
-  if (signalsField === null || signalsField === undefined) {
-    return []
-  }
-
-  const list = Array.isArray(signalsField) ? signalsField : []
-
-  return list
-    .map((signal) => {
-      const rawAmount = signal?.expected_amount_tl ?? signal?.expected_amount
-      const amountTl = parseFuelNumber(rawAmount)
-
-      if (amountTl === null) {
-        return null
-      }
-
-      const fuelKey = mapSignalFuelToKey(signal?.fuel)
-      let direction = 'increase'
-
-      if (signal?.direction === 'decrease') {
-        direction = 'decrease'
-      } else if (signal?.direction === 'increase') {
-        direction = 'increase'
-      }
-
-      const currentPrice = parseFuelNumber(signal?.current_price)
-      const expectedPrice = parseFuelNumber(signal?.expected_price)
-
-      return {
-        amountTl: Math.abs(amountTl),
-        direction,
-        fuel: displayFuelName(signal?.fuel, fuelKey),
-        fuelKey,
-        timing: signal?.timing ?? '',
-        currentPrice,
-        expectedPrice,
-      }
-    })
-    .filter(Boolean)
-    .sort((a, b) => FUEL_ORDER.indexOf(a.fuelKey) - FUEL_ORDER.indexOf(b.fuelKey))
-}
-
-export function enrichExpectedChanges(changes, cityRow) {
+export function enrichExpectedChanges(changes, cityRow, nowMs = Date.now()) {
   return changes.map((change) => {
     const current = Number(cityRow?.[change.fuelKey]) || 0
     const priceRange = computeCityPriceRange(current, change.amountTl, change.direction)
     const isDecrease = change.direction === 'decrease'
+    const pendingPumpReflection = isAfterBuGeceEffectiveMidnight(change.effectiveAt, nowMs)
 
     return {
       ...change,
       accessibilityLabel: formatAccessibleChangeLabel(change.fuel, change.amountTl, change.direction),
       amountLabel: formatSignedChangeAmount(change.amountTl, change.direction),
       priceRangeLabel: priceRange ? `${priceRange.from} → ${priceRange.to} ₺` : null,
-      subtitle: buildDirectionSubtitle(change.direction, change.timing),
+      subtitle: buildDirectionSubtitle(change.direction, change.timing, {
+        pendingPumpReflection,
+      }),
       tokens: isDecrease
         ? {
             bg: colors.expectedDecreaseBg,
@@ -223,3 +125,6 @@ export function getExpectedChangeLayout(count) {
     { flexBasis: '100%', maxWidth: '100%' },
   ]
 }
+
+// Re-export for screens that only need display names
+export { displayFuelName }

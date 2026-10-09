@@ -20,7 +20,10 @@ import {
   removeComparisonCity,
   setPrimaryCityManual,
 } from '../services/favoriteCities'
-import { enrichExpectedChanges } from '../services/expectedChange'
+import {
+  enrichExpectedChanges,
+  filterVisibleExpectedFuelSignals,
+} from '../services/expectedChange'
 import { loadShowMarketNote } from '../services/uiPreferences'
 import { formatDecimalTr, formatPerLiterTr } from '../utils/priceFormat'
 
@@ -117,12 +120,13 @@ export default function AnaSayfa() {
   const fuelLabel = FUEL_OPTIONS.find((fuel) => fuel.key === fuelKey)?.label ?? 'Yakıt'
 
   const expectedChangeBoxes = useMemo(() => {
-    const raw = data.marketSignal?.expectedFuelSignals ?? []
-    if (!raw.length) {
+    const raw = data.marketSignal?.signals ?? data.marketSignal?.expectedFuelSignals
+    const visible = filterVisibleExpectedFuelSignals(raw, heroCity)
+    if (!visible.length) {
       return []
     }
-    return enrichExpectedChanges(raw, heroCity)
-  }, [data.marketSignal?.expectedFuelSignals, heroCity])
+    return enrichExpectedChanges(visible, heroCity)
+  }, [data.marketSignal?.signals, data.marketSignal?.expectedFuelSignals, heroCity])
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
