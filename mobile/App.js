@@ -20,9 +20,11 @@ import {
 } from './src/services/notifications'
 import { initAds, trackAdInteraction } from './src/services/adManager'
 import SakinSolmaTabBar from './src/components/SakinSolmaTabBar'
+import LocationOnboarding from './src/screens/LocationOnboarding'
+import { hasUserConfiguredPrimaryCity } from './src/services/favoriteCities'
 import { colors } from './src/theme'
 
-import { AccessibilityInfo, Easing, Platform } from 'react-native'
+import { AccessibilityInfo, Easing, Platform, View } from 'react-native'
 
 enableScreens()
 configureNotificationHandler()
@@ -172,6 +174,26 @@ function MainTabs() {
   )
 }
 
+function AppRoot() {
+  const [bootState, setBootState] = useState('loading')
+
+  useEffect(() => {
+    hasUserConfiguredPrimaryCity()
+      .then((configured) => setBootState(configured ? 'app' : 'onboarding'))
+      .catch(() => setBootState('app'))
+  }, [])
+
+  if (bootState === 'loading') {
+    return <View style={{ flex: 1, backgroundColor: colors.bg }} />
+  }
+
+  if (bootState === 'onboarding') {
+    return <LocationOnboarding onComplete={() => setBootState('app')} />
+  }
+
+  return <MainTabs />
+}
+
 export default function App() {
   useEffect(() => {
     initAds().catch(() => {})
@@ -193,7 +215,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
-        <MainTabs />
+        <AppRoot />
       </GestureHandlerRootView>
     </SafeAreaProvider>
   )

@@ -8,7 +8,12 @@ import CityPickerModal from '../components/CityPickerModal'
 import ScreenHeader from '../components/ScreenHeader'
 import { colors, radii, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
-import { defaultFavoriteCities, loadFavoriteCities, setPrimaryCity } from '../services/favoriteCities'
+import {
+  defaultFavoriteCities,
+  loadFavoriteCities,
+  loadLocationCityMeta,
+  setPrimaryCityManual,
+} from '../services/favoriteCities'
 
 const FUEL_OPTIONS = [
   { key: 'benzin95', label: 'Benzin', icon: 'car-sport-outline' },
@@ -25,9 +30,11 @@ export default function AnaSayfa() {
   const [favCities, setFavCities] = useState(defaultFavoriteCities)
   const [fuelKey, setFuelKey] = useState('benzin95')
   const [cityPickerOpen, setCityPickerOpen] = useState(false)
+  const [locationMeta, setLocationMeta] = useState(null)
 
   const reloadFavorites = useCallback(() => {
     loadFavoriteCities().then(setFavCities)
+    loadLocationCityMeta().then(setLocationMeta)
   }, [])
 
   useEffect(() => {
@@ -41,8 +48,9 @@ export default function AnaSayfa() {
   )
 
   async function handleSelectCity(cityName) {
-    const next = await setPrimaryCity(cityName)
+    const next = await setPrimaryCityManual(cityName)
     setFavCities(next)
+    setLocationMeta(null)
   }
 
   const heroCityName = favCities[0] ?? 'İstanbul'
@@ -110,6 +118,19 @@ export default function AnaSayfa() {
             <Text allowFontScaling style={styles.heroUnit}>₺/L</Text>
           </View>
           <Text allowFontScaling style={styles.heroFuelHint}>{fuelLabel}</Text>
+          {locationMeta?.source === 'location' && locationMeta.city === heroCity?.city ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setCityPickerOpen(true)}
+              style={({ pressed }) => [styles.locationNoteRow, pressed && styles.pressed]}
+            >
+              <Ionicons color={colors.mutedSoft} name="navigate-outline" size={14} />
+              <Text allowFontScaling style={styles.locationNoteText}>
+                Konumuna göre {locationMeta.city} seçildi ·{' '}
+                <Text style={styles.locationNoteAction}>Değiştir</Text>
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
 
         <View style={styles.fuelSelector}>
@@ -242,6 +263,22 @@ const styles = StyleSheet.create({
     color: colors.mutedSoft,
     fontSize: typography.body,
     marginTop: spacing.xs,
+  },
+  locationNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    alignSelf: 'flex-start',
+  },
+  locationNoteText: {
+    color: colors.mutedSoft,
+    fontSize: typography.caption,
+    flexShrink: 1,
+  },
+  locationNoteAction: {
+    color: colors.muted,
+    fontWeight: '600',
   },
   fuelSelector: {
     flexDirection: 'row',
