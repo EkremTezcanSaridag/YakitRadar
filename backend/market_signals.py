@@ -20,7 +20,7 @@ from groq_market_analysis import (
     build_macro_snapshot,
     build_mobile_fuel_signals,
     SOURCE_DISAGREEMENT_NOTE,
-    build_deterministic_market_summary,
+    resolve_market_summary,
     compute_pump_averages,
     derive_overall_direction,
     enrich_news_item,
@@ -1078,11 +1078,18 @@ def call_groq_analysis(payload):
         "5. Somut yeni beklenti yoksa tüm yakıtlar neutral, expected_amount_tl null.\n"
         "6. timing: somut beklenti yoksa \"Gündemde değişim yok\"; varsa \"Bu gece yarısı\" veya \"Yarından itibaren\".\n"
         "7. confidence: kanıt gücüne göre high|medium|low; belirsizse low.\n"
+        "8. summary: TEK kısa cümle, paragraf veya açıklama YOK. Biçim:\n"
+        "   - Etkilenen her yakıt için: '<Yakıt> ↑ <tutar> TL' veya '<Yakıt> ↓ <tutar> TL' (';' ile ayır).\n"
+        "     Örnek: 'Motorin ↑ 6,40 TL; Benzin ↓ 0,96 TL'\n"
+        "   - Tek yakıt, tutarlı cümle de olabilir: 'Sadece motorin, 3 TL indirim bekleniyor.'\n"
+        "   - Tutar yoksa: 'Motorin ↑ (tutar belirsiz)'\n"
+        "   - Hiç değişiklik yoksa: 'Değişiklik beklenmiyor.'\n"
         "Yanıt: yalnızca geçerli JSON:\n"
         "{\n"
         "  \"direction\": \"neutral|increase|decrease\",\n"
         "  \"timing\": \"Gündemde değişim yok | Bu gece yarısı | Yarından itibaren\",\n"
         "  \"confidence\": \"high|medium|low\",\n"
+        "  \"summary\": \"Motorin ↑ 6,40 TL; Benzin ↓ 0,96 TL\",\n"
         "  \"key_reason\": \"kısa gerekçe\",\n"
         "  \"signals\": [\n"
         "    {\"fuel\": \"Benzin|Motorin|LPG\", \"direction\": \"neutral|increase|decrease\", "
@@ -1123,7 +1130,7 @@ def call_groq_analysis(payload):
             timing = DEFAULT_TIMING
             confidence = DEFAULT_CONFIDENCE
 
-        summary = build_deterministic_market_summary(fuel_signals)
+        summary = resolve_market_summary(parsed.get("summary"), fuel_signals)
         source_disagreement_note = (
             SOURCE_DISAGREEMENT_NOTE if payload.get("news_amount_source_disagreement") else None
         )
@@ -1242,8 +1249,9 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
     source_disagreement_note = ai_result.get("source_disagreement_note") if ai_result else None
 
     if ai_result and ai_result.get("fuel_signals"):
-        ai_summary = ai_result.get("summary") or build_deterministic_market_summary(
-            ai_result["fuel_signals"]
+        ai_summary = ai_result.get("summary") or resolve_market_summary(
+            None,
+            ai_result["fuel_signals"],
         )
     elif ai_result and ai_result.get("summary"):
         ai_summary = ai_result["summary"]

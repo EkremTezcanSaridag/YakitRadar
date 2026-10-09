@@ -32,6 +32,10 @@ FUEL_STEM_TO_NAME = {
 }
 
 SOURCE_DISAGREEMENT_NOTE = "kaynaklar arasında fark var"
+MAX_GROQ_SUMMARY_CHARS = 160
+NO_CHANGE_SUMMARY = "Değişiklik beklenmiyor."
+SUMMARY_ARROW_UP = "↑"
+SUMMARY_ARROW_DOWN = "↓"
 
 INCREASE_HINTS = (
     "zam",
@@ -852,6 +856,109 @@ def format_signed_tl_amount(value: float | None) -> str:
 
     prefix = "+" if value > 0 else ""
     return f"{prefix}{format_tl_amount(value)}"
+
+
+def active_directional_signals(signals: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        signal
+        for signal in signals
+        if signal.get("fuel") in ALLOWED_SIGNAL_FUELS
+        and signal.get("direction") in {"increase", "decrease"}
+    ]
+
+
+def build_fallback_signal_summary(signals: list[dict[str, Any]]) -> str:
+    active = active_directional_signals(signals)
+
+    if not active:
+        return NO_CHANGE_SUMMARY
+
+    parts = []
+
+    for fuel in ("Motorin", "Benzin", "LPG"):
+        signal = next((entry for entry in signals if entry.get("fuel") == fuel), None)
+
+        if not signal or signal.get("direction") not in {"increase", "decrease"}:
+            continue
+
+        arrow = SUMMARY_ARROW_UP if signal["direction"] == "increase" else SUMMARY_ARROW_DOWN
+        amount = signal.get("expected_amount_tl")
+
+        if amount is None:
+            parts.append(f"{fuel} {arrow} (tutar belirsiz)")
+        else:
+            parts.append(f"{fuel} {arrow} {format_tl_amount(abs(float(amount)))} TL")
+
+    return "; ".join(parts) if parts else NO_CHANGE_SUMMARY
+
+
+def _summary_part_for_fuel(summary: str, fuel: str) -> str | None:
+    for part in summary.split(";"):
+        cleaned = part.strip()
+
+        if fuel.lower() in cleaned.lower():
+            return cleaned
+
+    return None
+
+
+def _parse_amount_from_summary_part(part: str) -> float | None:
+    match = re.search(r"(\d{1,2}(?:[.,]\d{1,2})?)\s*tl", part.lower())
+
+    if not match:
+        return None
+
+    return parse_numeric_token(match.group(1))
+
+
+def validate_groq_summary(summary: str, signals: list[dict[str, Any]]) -> bool:
+    if not summary or len(summary.strip()) > MAX_GROQ_SUMMARY_CHARS:
+        return False
+
+    text = summary.strip()
+    active = active_directional_signals(signals)
+
+    if not active:
+        return text == NO_CHANGE_SUMMARY
+
+    if text == NO_CHANGE_SUMMARY:
+        return False
+
+    for signal in active:
+        fuel = signal["fuel"]
+        part = _summary_part_for_fuel(text, fuel)
+
+        if not part:
+            return False
+
+        expected_arrow = SUMMARY_ARROW_UP if signal["direction"] == "increase" else SUMMARY_ARROW_DOWN
+
+        if expected_arrow not in part:
+            return False
+
+        amount = signal.get("expected_amount_tl")
+
+        if amount is None:
+            if "(tutar belirsiz)" not in part.lower():
+                return False
+            continue
+
+        parsed_amount = _parse_amount_from_summary_part(part)
+
+        if parsed_amount is None:
+            return False
+
+        if round(parsed_amount, 2) != round(abs(float(amount)), 2):
+            return False
+
+    return True
+
+
+def resolve_market_summary(groq_summary: str | None, signals: list[dict[str, Any]]) -> str:
+    if groq_summary and validate_groq_summary(groq_summary, signals):
+        return groq_summary.strip()
+
+    return build_fallback_signal_summary(signals)
 
 
 def fuel_name_for_summary(fuel: str, capitalize: bool) -> str:
