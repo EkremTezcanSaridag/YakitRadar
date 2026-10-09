@@ -48,6 +48,14 @@ jobs:
           cd backend
           pytest --cov=. --cov-report=term-missing --cov-report=xml -v
 
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Deno test (refresh-prices cooldown)
+        run: deno test --allow-env supabase/functions/refresh-prices/cooldown_logic_test.ts
+
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
         if: always()

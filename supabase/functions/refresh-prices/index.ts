@@ -1,16 +1,12 @@
-function resolveCorsHeaders(allowedInvokeHeader: string) {
-  return {
-    'Access-Control-Allow-Headers': `authorization, x-client-info, apikey, content-type, ${allowedInvokeHeader}`,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Origin': '*',
-  }
+import { evaluateWorkflowCooldown, type GitHubConfig } from './github_workflow.ts'
+
+const corsHeaders = {
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Origin': '*',
 }
 
-function jsonResponse(
-  corsHeaders: Record<string, string>,
-  body: Record<string, unknown>,
-  status = 200,
-) {
+function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     headers: {
       ...corsHeaders,
@@ -21,39 +17,12 @@ function jsonResponse(
 }
 
 Deno.serve(async (request) => {
-  const invokeSecretHeader =
-    Deno.env.get('REFRESH_PRICES_INVOKE_SECRET_HEADER') ?? 'x-yakitradar-refresh-secret'
-  const corsHeaders = resolveCorsHeaders(invokeSecretHeader)
-
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   if (request.method !== 'POST') {
-    return jsonResponse(
-      corsHeaders,
-      { message: 'Only POST requests are supported.', status: 'error' },
-      405,
-    )
-  }
-
-  const expectedInvokeSecret = Deno.env.get('REFRESH_PRICES_INVOKE_SECRET')
-
-  if (!expectedInvokeSecret) {
-    return jsonResponse(
-      corsHeaders,
-      {
-        message: 'REFRESH_PRICES_INVOKE_SECRET secret is missing.',
-        status: 'error',
-      },
-      500,
-    )
-  }
-
-  const providedInvokeSecret = request.headers.get(invokeSecretHeader)
-
-  if (!providedInvokeSecret || providedInvokeSecret !== expectedInvokeSecret) {
-    return jsonResponse(corsHeaders, { message: 'Unauthorized.', status: 'error' }, 401)
+    return jsonResponse({ message: 'Only POST requests are supported.', status: 'error' }, 405)
   }
 
   const token = Deno.env.get('GITHUB_ACTION_TOKEN')
@@ -70,13 +39,32 @@ Deno.serve(async (request) => {
 
   if (!token) {
     return jsonResponse(
-      corsHeaders,
       {
         message: 'GITHUB_ACTION_TOKEN secret is missing.',
         status: 'error',
       },
       500,
     )
+  }
+
+  const githubConfig: GitHubConfig = {
+    owner,
+    repo,
+    workflow,
+    token,
+  }
+
+  const cooldownDecision = await evaluateWorkflowCooldown(githubConfig, {
+    bypassCooldown: testNotification,
+  })
+
+  if (cooldownDecision.skip) {
+    return jsonResponse({
+      skipped: true,
+      reason: cooldownDecision.reason ?? 'cooldown',
+      status: 'skipped',
+      testNotification,
+    })
   }
 
   const dispatchUrl = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow}/dispatches`
@@ -106,7 +94,6 @@ Deno.serve(async (request) => {
       const details = await response.text()
 
       return jsonResponse(
-        corsHeaders,
         {
           details,
           message: `GitHub workflow dispatch failed with ${response.status}.`,
@@ -116,7 +103,7 @@ Deno.serve(async (request) => {
       )
     }
 
-    return jsonResponse(corsHeaders, {
+    return jsonResponse({
       message: 'Price refresh workflow queued.',
       queuedAt: new Date().toISOString(),
       status: 'queued',
@@ -124,7 +111,6 @@ Deno.serve(async (request) => {
     })
   } catch (error) {
     return jsonResponse(
-      corsHeaders,
       {
         message: error instanceof Error ? error.message : 'Unknown refresh trigger error.',
         status: 'error',
