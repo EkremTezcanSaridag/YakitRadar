@@ -4,6 +4,7 @@ from price_memory_validation import (
     MAX_MEMORY_AVERAGE_DIFF,
     normalize_memory_fuel,
     parse_finite_average_diff,
+    sanitize_mobile_fuel_signals,
     sanitize_price_memory_item,
     sanitize_price_memory_items,
 )
@@ -86,6 +87,25 @@ class TestSanitizePriceMemoryItems:
     def test_empty_input(self):
         assert sanitize_price_memory_items([]) == []
         assert sanitize_price_memory_items(None) == []
+
+
+class TestSanitizeMobileFuelSignals:
+    def test_normalizes_lpg_alias(self):
+        signals = [
+            {"fuel": "Otogaz", "direction": "neutral", "score": 0},
+            {"fuel": "Benzin", "direction": "increase", "score": 90},
+        ]
+
+        result = sanitize_mobile_fuel_signals(signals)
+
+        assert result[0]["fuel"] == "LPG"
+        assert result[1]["fuel"] == "Benzin"
+
+    def test_drops_invalid_fuel(self, capsys):
+        result = sanitize_mobile_fuel_signals([{"fuel": "Diesel", "direction": "increase"}])
+
+        assert result == []
+        assert "UYARI" in capsys.readouterr().out
 
 
 class TestMergePriceMemoryIntegration:

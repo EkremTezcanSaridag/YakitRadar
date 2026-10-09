@@ -95,3 +95,35 @@ def sanitize_price_memory_items(items):
             sanitized.append(clean)
 
     return sanitized
+
+
+def sanitize_mobile_fuel_signal(signal):
+    if not isinstance(signal, dict):
+        print(f"UYARI: signals kaydi gecersiz (nesne degil): {signal!r}")
+        return None
+
+    fuel = normalize_memory_fuel(signal.get("fuel"))
+
+    if fuel is None:
+        print(f"UYARI: signals kaydi reddedildi (gecersiz yakit): {signal.get('fuel')!r}")
+        return None
+
+    sanitized = dict(signal)
+    sanitized["fuel"] = fuel
+
+    return sanitized
+
+
+def sanitize_mobile_fuel_signals(signals):
+    if not signals:
+        return []
+
+    sanitized = []
+
+    for signal in signals:
+        clean = sanitize_mobile_fuel_signal(signal)
+
+        if clean is not None:
+            sanitized.append(clean)
+
+    return sanitized

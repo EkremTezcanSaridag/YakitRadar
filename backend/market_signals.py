@@ -13,7 +13,10 @@ import requests
 from dotenv import load_dotenv
 
 from http_client import SCRAPER_REQUEST_TIMEOUT, make_request_with_retry
-from price_memory_validation import sanitize_price_memory_items
+from price_memory_validation import (
+    sanitize_mobile_fuel_signals,
+    sanitize_price_memory_items,
+)
 from groq_market_analysis import (
     DEFAULT_CONFIDENCE,
     DEFAULT_TIMING,
@@ -1279,6 +1282,7 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
             timing=timing,
         )
 
+    fuel_signals = sanitize_mobile_fuel_signals(fuel_signals)
     public_news_items = serialize_news_for_groq(news_items)
 
     return {
