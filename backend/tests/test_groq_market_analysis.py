@@ -1,6 +1,6 @@
 """Unit tests for groq_market_analysis helpers."""
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -8,7 +8,11 @@ from groq_market_analysis import (
     NO_CHANGE_SUMMARY,
     aggregate_news_amount_extractions,
     build_fallback_signal_summary,
+    build_mobile_fuel_signals,
+    compute_bu_gece_effective_at,
+    enrich_news_item,
     extract_price_amounts,
+    is_bu_gece_already_applied,
     parse_expected_amount_tl,
     parse_groq_fuel_signals,
     resolve_market_summary,
@@ -219,3 +223,57 @@ class TestGroqSummaryValidation:
 class TestStripNewsTitleSourceSuffix:
     def test_strips_trailing_source(self):
         assert strip_news_title_source_suffix("Motorine zam - Habertürk") == "Motorine zam"
+
+
+IST = timezone(timedelta(hours=3))
+
+
+class TestBuGeceEffectiveAt:
+    def test_evening_reference_targets_next_midnight(self):
+        ref = datetime(2026, 10, 9, 20, 0, tzinfo=IST)
+        effective = compute_bu_gece_effective_at(ref, timing="Bu gece yarısı")
+
+        assert effective == datetime(2026, 10, 10, 0, 0, tzinfo=IST)
+
+    def test_morning_reference_same_day_midnight(self):
+        ref = datetime(2026, 10, 9, 9, 0, tzinfo=IST)
+        effective = compute_bu_gece_effective_at(ref, timing="bu gece")
+
+        assert effective == datetime(2026, 10, 9, 0, 0, tzinfo=IST)
+
+    def test_build_mobile_signal_includes_effective_at(self):
+        parsed = [
+            {
+                "fuel": "Motorin",
+                "direction": "increase",
+                "expected_amount": 6.4,
+                "expected_amount_tl": 6.4,
+                "timing": "Bu gece yarısı",
+            }
+        ]
+        ref = datetime(2026, 10, 9, 20, 0, tzinfo=IST)
+        mobile = build_mobile_fuel_signals(parsed, "high", 90, timing="Bu gece yarısı", reference_time=ref)
+        motorin = next(item for item in mobile if item["fuel"] == "Motorin")
+
+        assert motorin["expected_amount_tl"] == 6.4
+        assert motorin["effective_at"] == datetime(2026, 10, 10, 0, 0, tzinfo=IST).isoformat()
+
+
+class TestEnrichBuGeceAging:
+    def test_bu_gece_before_midnight_not_marked_applied(self):
+        now = datetime(2026, 10, 9, 23, 0, tzinfo=IST)
+        published = datetime(2026, 10, 9, 18, 0, tzinfo=IST)
+        item = {
+            "title": "Bu gece motorine zam",
+            "published_at_parsed": published,
+        }
+        enriched = enrich_news_item(item, now, normalize_text)
+
+        assert enriched["bu_gece_already_applied"] is False
+
+    def test_bu_gece_after_midnight_marked_applied(self):
+        now = datetime(2026, 10, 10, 8, 0, tzinfo=IST)
+        published = datetime(2026, 10, 9, 18, 0, tzinfo=IST)
+        title = "Bu gece motorine zam"
+
+        assert is_bu_gece_already_applied(normalize_text(title), published, now) is True
