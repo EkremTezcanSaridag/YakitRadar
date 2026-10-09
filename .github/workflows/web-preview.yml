@@ -50,12 +50,14 @@ jobs:
         id: eas_deploy
         env:
           DEPLOY_JSON_PATH: /tmp/eas-deploy.json
+          PREVIEW_ALIAS: zifiri-siyah
         run: |
           set -euo pipefail
           eas deploy \
             --non-interactive \
             --json \
             --environment preview \
+            --alias "$PREVIEW_ALIAS" \
             --export-dir dist \
             > "$DEPLOY_JSON_PATH"
 
@@ -82,11 +84,29 @@ jobs:
             *) DEPLOY_URL="https://${DEPLOY_URL}" ;;
           esac
 
+          ALIAS_URL=$(jq -r --arg alias "$PREVIEW_ALIAS" '
+            (if type == "array" then .[0] else . end)
+            | .aliasUrl // .alias // empty
+            | if . == "" then empty else . end
+          ' "$DEPLOY_JSON_PATH")
+
+          if [ -z "$ALIAS_URL" ] || [ "$ALIAS_URL" = "null" ]; then
+            SLUG=$(jq -r '.expo.slug' app.json)
+            ALIAS_URL="https://${SLUG}--${PREVIEW_ALIAS}.expo.app"
+          fi
+
+          case "$ALIAS_URL" in
+            http://*|https://*) ;;
+            *) ALIAS_URL="https://${ALIAS_URL}" ;;
+          esac
+
           echo "deploy_url=${DEPLOY_URL}" >> "$GITHUB_OUTPUT"
+          echo "alias_url=${ALIAS_URL}" >> "$GITHUB_OUTPUT"
           rm -f "$DEPLOY_JSON_PATH"
 
       - name: Job summary
         env:
+          ALIAS_URL: ${{ steps.eas_deploy.outputs.alias_url }}
           DEPLOY_URL: ${{ steps.eas_deploy.outputs.deploy_url }}
           GIT_REF: ${{ github.ref_name }}
         run: |
@@ -95,5 +115,7 @@ jobs:
             echo ""
             echo "Branch: \`$GIT_REF\`"
             echo ""
-            echo "**Preview URL:** $DEPLOY_URL"
+            echo "**Stable preview URL (alias):** $ALIAS_URL"
+            echo ""
+            echo "**This deployment URL:** $DEPLOY_URL"
           } >> "$GITHUB_STEP_SUMMARY"
