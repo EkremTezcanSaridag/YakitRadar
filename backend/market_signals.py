@@ -28,11 +28,13 @@ from groq_market_analysis import (
     compute_pump_averages,
     derive_overall_direction,
     enrich_news_item,
+    extract_price_amounts_from_fields,
     format_gecmis_trend,
     parse_groq_fuel_signals,
     resolve_market_summary,
     strip_news_title_source_suffix,
 )
+from news_article_sources import enrich_items_with_article_bodies, fetch_publisher_news_items
 
 load_dotenv()
 
@@ -575,6 +577,42 @@ def fetch_news_items(limit=8):
         except Exception as error:
             print(f"Haber akisi okunamadi ({feed['name']}): {error}")
 
+    for publisher_item in fetch_publisher_news_items(parse_rss_date):
+        title = strip_news_title_source_suffix(publisher_item.get("title") or "")
+        normalized_title = normalize_text(title)
+        published_at = publisher_item.get("published_at_parsed")
+
+        if not title or normalized_title in seen_titles:
+            continue
+
+        if any(blocked in normalized_title for blocked in NEWS_BLOCKED_KEYWORDS):
+            continue
+
+        clean_source = (publisher_item.get("source") or "").strip()
+
+        if is_blocked_news_source(clean_source) or not is_recent_news_item(published_at):
+            continue
+
+        seen_titles.add(normalized_title)
+        clean_description = clean_news_text(publisher_item.get("description") or "")
+
+        items.append(
+            {
+                "title": title,
+                "source": clean_source,
+                "url": (publisher_item.get("url") or "").strip(),
+                "published_at": published_at.isoformat() if published_at else None,
+                "published_at_parsed": published_at,
+                "summary": clean_description or None,
+                "description": clean_description or None,
+                "price_mentions": extract_news_price_mentions(
+                    title,
+                    publisher_item.get("raw_description") or clean_description,
+                ),
+                "feed_origin": "publisher",
+            }
+        )
+
     items.sort(key=lambda item: item.get("published_at") or "", reverse=True)
     return items[:limit]
 
@@ -601,7 +639,7 @@ def score_news_items(news_items):
         is_question = "?" in title or any(normalize_text(keyword) in normalized for keyword in NEWS_QUESTION_KEYWORDS)
         item_score = 0
 
-        has_already_applied = item.get("bu_gece_already_applied") or any(
+        has_already_applied = any(
             normalize_text(keyword) in normalized for keyword in NEWS_ALREADY_APPLIED_KEYWORDS
         )
 
@@ -1077,7 +1115,7 @@ def call_groq_analysis(payload):
         "- haberlerde_gecen_tutarlar: kodun haber metninden çıkardığı tutarlar (başlık + özet/açıklama); yalnızca bu listeden seçim yap\n"
         "KURALLAR:\n"
         "1. Geçmişte uygulanmış zam/indirim ('geldi', 'yansıdı', 'tabela değişti') gelecek beklenti DEĞİLDİR → ilgili yakıt neutral.\n"
-        "2. 'bu gece' içeren başlıkta bu_gece_already_applied=true ise o beklenti artık geçmişte kabul edilir → neutral.\n"
+        "2. bu_gece_already_applied yalnızca zamanlama bilgisidir; tutarları sıfırlama veya neutral yapma.\n"
         "3. expected_amount_tl: yalnızca haberlerde_gecen_tutarlar içindeki aynı yakıt ve yön için geçen tutar (zam +, indirim -). Liste dışı veya belirsizse null; ASLA uydurma.\n"
         "4. current_price ve expected_price alanlarını JSON'a yazma; bunlar sistemde hesaplanır.\n"
         "5. Somut yeni beklenti yoksa tüm yakıtlar neutral, expected_amount_tl null.\n"
@@ -1172,6 +1210,22 @@ def call_groq_analysis(payload):
 def build_market_signal(price_changes=None, previous_price_memory=None):
     calculated_at = datetime.now(ISTANBUL_TZ)
     news_items = fetch_news_items()
+
+    def _item_has_extracted_amounts(item: dict) -> bool:
+        return bool(
+            extract_price_amounts_from_fields(
+                item.get("title"),
+                item.get("summary"),
+                item.get("description"),
+                normalize_text,
+                item.get("article_text"),
+            )
+        )
+
+    news_items = enrich_items_with_article_bodies(
+        news_items,
+        has_amounts_fn=_item_has_extracted_amounts,
+    )
     news_items = [
         enrich_news_item(item, calculated_at, normalize_text)
         for item in news_items
@@ -1271,6 +1325,7 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
             confidence,
             score,
             timing=timing,
+            reference_time=calculated_at,
         )
     else:
         fuel_signals = build_fuel_signals(
