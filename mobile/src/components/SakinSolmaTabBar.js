@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { Ionicons } from '@expo/vector-icons'
 import { CommonActions } from '@react-navigation/native'
 import {
   Animated,
@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { colors } from '../theme'
+import { colors, iconSize, typography } from '../theme'
 
 const useNativeDriver = Platform.OS !== 'web'
 
@@ -206,10 +206,10 @@ export default function SakinSolmaTabBar({
               />
               <View style={styles.iconStack}>
                 <Animated.View style={[styles.iconLayer, { opacity: anims.iconInactiveOpacity }]}>
-                  <MaterialCommunityIcons name={iconMeta.inactive} color={colors.muted} size={20} />
+                  <Ionicons name={iconMeta.inactive} color={colors.muted} size={iconSize.tab} />
                 </Animated.View>
                 <Animated.View style={[styles.iconLayer, { opacity: anims.iconActiveOpacity }]}>
-                  <MaterialCommunityIcons name={iconMeta.active} color={colors.accent} size={20} />
+                  <Ionicons name={iconMeta.active} color={colors.accent} size={iconSize.tab} />
                 </Animated.View>
               </View>
             </View>
@@ -252,6 +252,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: iconSize.tabTouch,
   },
   iconWrap: {
     alignItems: 'center',
@@ -283,8 +284,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: typography.micro,
+    fontWeight: '600',
     lineHeight: 12,
     textAlign: 'center',
   },

@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Pressable, RefreshControl, ScrollView, View, Text, StyleSheet, useWindowDimensions } from 'react-native'
-import { colors, shadows } from '../theme'
+import { colors, iconSize, radii, shadows, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { buildDetailedFuelPredictions } from '../services/fuelData'
 import { defaultFavoriteCities, loadFavoriteCities } from '../services/favoriteCities'
@@ -70,24 +70,9 @@ function formatLegendValue(values) {
   return Number.isFinite(lastValue) ? `${lastValue.toFixed(2)} TL` : '--'
 }
 
-function getUpdateLabel(data, refreshing) {
-  if (refreshing) {
-    return 'Yenileniyor...'
-  }
-
-  if (data.refreshRequest?.status === 'queued') {
-    return 'Backend guncelleme siraya alindi'
-  }
-
-  if (data.refreshRequest?.status === 'skipped' && data.refreshRequest?.reason === 'cooldown') {
-    return 'Guncelleme zaten tetiklendi'
-  }
-
-  if (data.refreshRequest?.status === 'error') {
-    return 'Canli guncelleme tetiklenemedi'
-  }
-
-  return `Son Güncelleme: ${data.lastUpdatedLabel}`
+function splitFuelPrice(priceLabel) {
+  const amount = String(priceLabel).replace(/\s*₺\s*$/, '').trim()
+  return { amount, unit: '₺/L' }
 }
 
 export default function AnaSayfa() {
@@ -181,22 +166,14 @@ export default function AnaSayfa() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* MODERN GLASS HERO HEADER */}
-        <View style={styles.heroHeader}>
-          <View style={styles.heroHeaderLeft}>
-            <View style={styles.heroPulseBox}>
-              <MaterialCommunityIcons name="gas-station" size={20} color={colors.accent} />
+        <View style={styles.screenHeader}>
+          <View style={styles.screenHeaderRow}>
+            <View>
+              <Text allowFontScaling style={styles.screenTitle}>Ana Sayfa</Text>
+              <Text allowFontScaling style={styles.screenSubtitle}>
+                {refreshing ? 'Yenileniyor…' : `Son güncelleme: ${data.lastUpdatedHm ?? '--:--'}`}
+              </Text>
             </View>
-            <View style={styles.heroBrandTextCol}>
-              <View style={styles.heroBrandTitleRow}>
-                <Text style={styles.heroBrandMain}>YAKIT </Text>
-                <Text style={styles.heroBrandAccent}>RADAR</Text>
-              </View>
-              <Text style={styles.heroBrandSubtitle}>Akaryakıt Takip Sistemi</Text>
-            </View>
-          </View>
-
-          <View style={styles.heroHeaderRight}>
             <Pressable
               accessibilityLabel="Fiyatları yenile"
               onPress={refresh}
@@ -204,18 +181,10 @@ export default function AnaSayfa() {
             >
               <MaterialCommunityIcons
                 name="refresh"
-                size={18}
-                color={refreshing ? colors.mutedSoft : colors.accent}
+                size={iconSize.tab}
+                color={refreshing ? colors.mutedSoft : colors.muted}
               />
             </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.heroMetaBar}>
-          <Text style={styles.heroDateText}>{data.currentDateLabel}</Text>
-          <View style={styles.heroUpdatePill}>
-            <MaterialCommunityIcons name="clock-outline" size={12} color={colors.accent} />
-            <Text style={styles.heroUpdateText}>{getUpdateLabel(data, refreshing)}</Text>
           </View>
         </View>
 
@@ -242,6 +211,8 @@ export default function AnaSayfa() {
             {fuels.map((fuel) => {
               const isUp = fuel.rawChange > 0
               const isDown = fuel.rawChange < 0
+              const stripeColor = fuel.stripeColor ?? colors.border
+              const { amount, unit } = splitFuelPrice(fuel.price)
               return (
                 <View
                   key={fuel.name}
@@ -250,27 +221,18 @@ export default function AnaSayfa() {
                     {
                       backgroundColor: fuel.cardBg,
                       borderColor: fuel.cardBorder,
+                      borderLeftColor: stripeColor,
                     },
                   ]}
                 >
-                  {/* ÜST BİLGİ ŞERİDİ (Yakıt Rozeti + Mini Yüzdelik Değişim Rozeti) */}
                   <View style={styles.heroFuelTop}>
                     <View style={styles.heroFuelBadge}>
-                      <MaterialCommunityIcons name={fuel.icon} size={15} color={fuel.accentColor} />
-                      <Text style={[styles.heroFuelBadgeText, { color: fuel.accentColor }]}>{fuel.name}</Text>
+                      <View style={[styles.fuelStripeDot, { backgroundColor: stripeColor }]} />
+                      <Text allowFontScaling style={styles.heroFuelBadgeText}>{fuel.name}</Text>
                     </View>
-                    <View
-                      style={[
-                        styles.heroChangeBadge,
-                        isUp ? styles.heroChangeBadgeUp : isDown ? styles.heroChangeBadgeDown : styles.heroChangeBadgeFlat,
-                      ]}
-                    >
-                      <MaterialCommunityIcons
-                        name={isUp ? 'arrow-up-bold' : isDown ? 'arrow-down-bold' : 'minus'}
-                        size={10}
-                        color={isUp ? colors.danger : isDown ? colors.success : colors.mutedSoft}
-                      />
+                    <View style={styles.heroChangeBadge}>
                       <Text
+                        allowFontScaling
                         style={[
                           styles.heroChangeBadgeText,
                           { color: isUp ? colors.danger : isDown ? colors.success : colors.mutedSoft },
@@ -281,15 +243,17 @@ export default function AnaSayfa() {
                     </View>
                   </View>
 
-                  {/* BÜYÜK VE NET FİYAT */}
                   <View style={styles.heroFuelBody}>
-                    <Text style={styles.heroFuelPrice}>{fuel.price}</Text>
+                    <Text allowFontScaling style={styles.heroFuelPrice}>
+                      {amount}
+                      <Text style={styles.heroFuelUnit}> {unit}</Text>
+                    </Text>
                   </View>
 
-                  {/* ALT BİLGİ ŞERİDİ (Son Güncelleme Tarihi ve Değişim Tutarı) */}
                   <View style={styles.heroFuelFooter}>
-                    <Text style={styles.heroFuelDateText}>Son veri · {fuel.dateLabel}</Text>
+                    <Text allowFontScaling style={styles.heroFuelDateText}>{fuel.dateLabel}</Text>
                     <Text
+                      allowFontScaling
                       style={[
                         styles.heroFuelDiffSub,
                         { color: isUp ? colors.danger : isDown ? colors.success : colors.mutedSoft },
@@ -309,7 +273,7 @@ export default function AnaSayfa() {
           <View style={styles.predHeader}>
             <View style={styles.predHeaderLeft}>
               <View style={[styles.predRadarIconBox, { backgroundColor: colors.surfaceAlt }]}>
-                <MaterialCommunityIcons name="trending-up" size={18} color={colors.accent} />
+                <MaterialCommunityIcons name="trending-up" size={18} color={colors.muted} />
               </View>
               <View style={styles.predHeaderCopy}>
                 <Text style={styles.predTitle}>Beklenen Fiyat Değişimleri</Text>
@@ -382,7 +346,7 @@ export default function AnaSayfa() {
             {favoriteCityPrices.map((item) => (
               <View key={item.city} style={styles.favCityTile}>
                 <View style={styles.favCityHeader}>
-                  <MaterialCommunityIcons name="map-marker-outline" size={15} color={colors.accent} />
+                  <MaterialCommunityIcons name="map-marker-outline" size={15} color={colors.muted} />
                   <Text style={styles.favCityName}>{item.city}</Text>
                 </View>
                 <View style={styles.favCityPricesRow}>
@@ -501,9 +465,30 @@ const styles = StyleSheet.create({
   },
   content: {
     backgroundColor: colors.bg,
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: spacing.screen,
+    paddingTop: spacing.sm,
     paddingBottom: 96,
+  },
+  screenHeader: {
+    marginBottom: spacing.section,
+  },
+  screenHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  screenTitle: {
+    color: colors.text,
+    fontSize: typography.title,
+    fontWeight: '700',
+    textAlign: 'left',
+  },
+  screenSubtitle: {
+    color: colors.muted,
+    fontSize: typography.caption,
+    fontWeight: '400',
+    marginTop: spacing.xs,
+    textAlign: 'left',
   },
   heroHeader: {
     flexDirection: 'row',
@@ -561,13 +546,12 @@ const styles = StyleSheet.create({
   heroRefreshBtn: {
     width: 40,
     height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceAlt,
+    borderRadius: radii.card,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.soft,
   },
   heroMetaBar: {
     flexDirection: 'row',
@@ -597,7 +581,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   fuelHeroSection: {
-    marginBottom: 16,
+    marginBottom: spacing.section,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -621,11 +605,17 @@ const styles = StyleSheet.create({
   },
   heroFuelTile: {
     width: 172,
-    borderRadius: 16,
+    borderRadius: radii.card,
     borderWidth: 1,
-    padding: 14,
-    gap: 8,
+    borderLeftWidth: 3,
+    padding: spacing.cardPadding,
+    gap: spacing.sm,
     ...shadows.card,
+  },
+  fuelStripeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   heroFuelTop: {
     flexDirection: 'row',
@@ -638,42 +628,33 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   heroFuelBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: typography.caption,
+    fontWeight: '600',
+    color: colors.text,
   },
   heroChangeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 6,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  heroChangeBadgeUp: {
-    backgroundColor: colors.dangerDark,
-    borderColor: colors.danger,
-  },
-  heroChangeBadgeDown: {
-    backgroundColor: colors.successDark,
-    borderColor: colors.success,
-  },
-  heroChangeBadgeFlat: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
     backgroundColor: colors.surfaceAlt,
-    borderColor: colors.border,
   },
   heroChangeBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: typography.micro,
+    fontWeight: '600',
   },
   heroFuelBody: {
     paddingVertical: 2,
   },
   heroFuelPrice: {
-    color: colors.white,
-    fontSize: 27,
-    fontWeight: '900',
-    letterSpacing: -0.5,
+    color: colors.text,
+    fontSize: typography.display,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  heroFuelUnit: {
+    fontSize: typography.caption,
+    fontWeight: '400',
+    color: colors.muted,
   },
   heroFuelFooter: {
     flexDirection: 'row',

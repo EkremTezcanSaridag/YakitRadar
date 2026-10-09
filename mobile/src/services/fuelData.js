@@ -415,6 +415,10 @@ function formatSyncTime(date = new Date()) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
 }
 
+function formatSyncTimeHm(date = new Date()) {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
 function formatSignalTime(dateValue) {
   const date = new Date(dateValue)
 
@@ -1044,8 +1048,8 @@ function buildHomeFuels(prices, history) {
       changePct: benzinChange > 0 ? `+${benzinPct}%` : benzinChange < 0 ? `-${benzinPct}%` : '0.0%',
       rawChange: benzinChange,
       tone: getTone(benzinChange),
-      accentColor: colors.accent,
-      cardBg: colors.surfaceAlt,
+      stripeColor: colors.fuelStripeBenzin,
+      cardBg: colors.surface,
       cardBorder: colors.border,
       icon: 'gas-station',
       dateLabel,
@@ -1057,8 +1061,8 @@ function buildHomeFuels(prices, history) {
       changePct: motorinChange > 0 ? `+${motorinPct}%` : motorinChange < 0 ? `-${motorinPct}%` : '0.0%',
       rawChange: motorinChange,
       tone: getTone(motorinChange),
-      accentColor: colors.info,
-      cardBg: colors.surfaceAlt,
+      stripeColor: colors.fuelStripeMotorin,
+      cardBg: colors.surface,
       cardBorder: colors.border,
       icon: 'truck-outline',
       dateLabel,
@@ -1070,8 +1074,8 @@ function buildHomeFuels(prices, history) {
       changePct: lpgChange > 0 ? `+${lpgPct}%` : lpgChange < 0 ? `-${lpgPct}%` : '0.0%',
       rawChange: lpgChange,
       tone: getTone(lpgChange),
-      accentColor: colors.warning,
-      cardBg: colors.surfaceAlt,
+      stripeColor: colors.fuelStripeLpg,
+      cardBg: colors.surface,
       cardBorder: colors.border,
       icon: 'fire',
       dateLabel,
@@ -1128,21 +1132,21 @@ function buildHomeTrendSeries(history, prices = []) {
   return [
     {
       key: 'Benzin',
-      color: colors.accent,
+      color: colors.fuelStripeBenzin,
       values: benzinVals,
       strokeWidth: 3,
       opacity: 1,
     },
     {
       key: 'Motorin',
-      color: colors.info,
+      color: colors.fuelStripeMotorin,
       values: motorinVals,
       strokeWidth: 3,
       opacity: 1,
     },
     {
       key: 'LPG',
-      color: colors.warning,
+      color: colors.fuelStripeLpg,
       values: lpgVals,
       strokeWidth: 3,
       opacity: 1,
@@ -1340,6 +1344,7 @@ function buildFuelData({
     homeFuels: buildHomeFuels(prices, history),
     homeTrendSeries: buildHomeTrendSeries(history, prices),
     lastUpdatedLabel: formatSyncTime(syncedAt),
+    lastUpdatedHm: formatSyncTimeHm(syncedAt),
     marketSignal,
     prices,
     recentChanges: buildRecentChanges(history, priceChangeEvents),

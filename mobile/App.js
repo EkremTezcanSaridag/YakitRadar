@@ -47,10 +47,10 @@ const tabs = {
 
 const tabIcons = {
   [tabs.home]: { active: 'home', inactive: 'home-outline' },
-  [tabs.cities]: { active: 'map-marker', inactive: 'map-marker-outline' },
-  [tabs.history]: { active: 'chart-timeline-variant', inactive: 'chart-timeline-variant' },
+  [tabs.cities]: { active: 'map', inactive: 'map-outline' },
+  [tabs.history]: { active: 'time', inactive: 'time-outline' },
   [tabs.vehicle]: { active: 'car', inactive: 'car-outline' },
-  [tabs.alerts]: { active: 'bell', inactive: 'bell-outline' },
+  [tabs.alerts]: { active: 'notifications', inactive: 'notifications-outline' },
 }
 
 const startupNotificationMeta = {
@@ -122,8 +122,8 @@ function MainTabs() {
           transitionSpec,
           sceneStyleInterpolator: reduceMotion ? undefined : sakinSolmaSceneInterpolator,
           tabBarLabelStyle: {
-            fontSize: 10,
-            fontWeight: '800',
+            fontSize: 11,
+            fontWeight: '600',
             marginTop: 2,
             marginBottom: 0,
             lineHeight: 12,
@@ -132,6 +132,7 @@ function MainTabs() {
           tabBarItemStyle: {
             alignItems: 'center',
             justifyContent: 'center',
+            minHeight: 48,
             paddingTop: 4,
             paddingBottom: 2,
           },
