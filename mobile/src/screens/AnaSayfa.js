@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   heroFuelTile: {
     width: 172,
     borderRadius: 16,
-    borderWidth: 1.5,
+    borderWidth: 1,
     padding: 14,
     gap: 8,
     ...shadows.card,
@@ -680,7 +680,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    borderTopColor: colors.border,
     paddingTop: 8,
     marginTop: 2,
   },
@@ -1046,7 +1046,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   chartBackdropTop: {
-    backgroundColor: 'rgba(26, 45, 72, 0.42)',
+    backgroundColor: colors.surfaceAlt,
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
     height: '46%',
@@ -1056,7 +1056,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   chartBackdropBottom: {
-    backgroundColor: 'rgba(7, 211, 156, 0.08)',
+    backgroundColor: colors.bgSoft,
     bottom: 0,
     height: '42%',
     left: 0,
@@ -1180,7 +1180,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   trendBadgeUp: { backgroundColor: colors.dangerDark },
-  trendBadgeDown: { backgroundColor: colors.accentDark },
+  trendBadgeDown: { backgroundColor: colors.successDark },
   trendBadgeFlat: { backgroundColor: colors.bgSoft },
   trendBadgeText: { fontSize: 11, fontWeight: '900' },
 
@@ -1555,7 +1555,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    borderTopColor: colors.border,
     paddingTop: 8,
   },
   predTransitionText: {

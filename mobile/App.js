@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
 import AnaSayfa from './src/screens/AnaSayfa'
 import Iller from './src/screens/Iller'
 import Gecmis from './src/screens/Gecmis'
@@ -35,8 +36,13 @@ configureNotificationHandler()
 
 const Tab = createBottomTabNavigator()
 
-const TAB_TRANSITION_MS = 180
-const TAB_PILL_FADE_MS = 120
+const TAB_ANIM_SLOW = Math.max(
+  1,
+  Number(typeof process !== 'undefined' ? process.env.EXPO_PUBLIC_TAB_ANIM_SLOW : 1) || 1,
+)
+
+const BASE_TAB_TRANSITION_MS = 180
+const BASE_TAB_PILL_FADE_MS = 120
 
 const tabs = {
   home: 'Ana Sayfa',
@@ -59,7 +65,7 @@ const startupNotificationMeta = {
   trackedFuels: defaultNotificationSettings.trackedFuels,
 }
 
-function AnimatedTabIcon({ focused, routeName, reduceMotion }) {
+function AnimatedTabIcon({ focused, routeName, reduceMotion, transitionMs, pillFadeMs }) {
   const iconMeta = tabIcons[routeName] ?? { active: 'circle', inactive: 'circle-outline' }
   const pillOpacity = useRef(new Animated.Value(focused ? 1 : 0)).current
   const pillScale = useRef(new Animated.Value(focused ? 1 : 0.85)).current
@@ -79,25 +85,25 @@ function AnimatedTabIcon({ focused, routeName, reduceMotion }) {
       Animated.parallel([
         Animated.timing(pillOpacity, {
           toValue: 1,
-          duration: TAB_TRANSITION_MS,
+          duration: transitionMs,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(pillScale, {
           toValue: 1,
-          duration: TAB_TRANSITION_MS,
+          duration: transitionMs,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(outlineOpacity, {
           toValue: 0,
-          duration: TAB_PILL_FADE_MS,
+          duration: pillFadeMs,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(filledOpacity, {
           toValue: 1,
-          duration: TAB_PILL_FADE_MS,
+          duration: pillFadeMs,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
@@ -106,31 +112,31 @@ function AnimatedTabIcon({ focused, routeName, reduceMotion }) {
       Animated.parallel([
         Animated.timing(pillOpacity, {
           toValue: 0,
-          duration: TAB_PILL_FADE_MS,
+          duration: pillFadeMs,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(pillScale, {
           toValue: 0.85,
-          duration: TAB_PILL_FADE_MS,
+          duration: pillFadeMs,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(outlineOpacity, {
           toValue: 1,
-          duration: TAB_PILL_FADE_MS,
+          duration: pillFadeMs,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(filledOpacity, {
           toValue: 0,
-          duration: TAB_PILL_FADE_MS,
+          duration: pillFadeMs,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]).start()
     }
-  }, [focused, filledOpacity, outlineOpacity, pillOpacity, pillScale, reduceMotion])
+  }, [focused, filledOpacity, outlineOpacity, pillFadeMs, pillOpacity, pillScale, reduceMotion, transitionMs])
 
   return (
     <View style={styles.tabIconWrap}>
@@ -165,9 +171,111 @@ const sakinSolmaSceneInterpolator = ({ current }) => ({
   },
 })
 
-export default function App() {
+function MainTabs() {
+  const insets = useSafeAreaInsets()
   const [reduceMotion, setReduceMotion] = useState(false)
 
+  const transitionMs = BASE_TAB_TRANSITION_MS * TAB_ANIM_SLOW
+  const pillFadeMs = BASE_TAB_PILL_FADE_MS * TAB_ANIM_SLOW
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(setReduceMotion)
+      .catch(() => {})
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion)
+    return () => {
+      subscription?.remove?.()
+    }
+  }, [])
+
+  const transitionSpec = reduceMotion
+    ? undefined
+    : {
+        animation: 'timing',
+        config: {
+          duration: transitionMs,
+          easing: Easing.out(Easing.cubic),
+        },
+      }
+
+  const safeBottom = Math.max(insets.bottom, Platform.OS === 'web' ? 0 : 8)
+  const tabBarFloat = safeBottom + (Platform.OS === 'ios' ? 6 : 4)
+
+  return (
+    <NavigationContainer>
+      <Tab.Navigator
+        screenListeners={{
+          tabPress: () => {
+            trackAdInteraction()
+          },
+        }}
+        safeAreaInsets={{ bottom: insets.bottom }}
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          tabBarShowLabel: true,
+          animation: reduceMotion ? 'none' : undefined,
+          transitionSpec,
+          sceneStyleInterpolator: reduceMotion ? undefined : sakinSolmaSceneInterpolator,
+          tabBarIcon: ({ focused }) => (
+            <AnimatedTabIcon
+              focused={focused}
+              pillFadeMs={pillFadeMs}
+              reduceMotion={reduceMotion}
+              routeName={route.name}
+              transitionMs={transitionMs}
+            />
+          ),
+          tabBarLabelStyle: {
+            fontSize: 10,
+            fontWeight: '800',
+            marginTop: 2,
+            marginBottom: 0,
+            lineHeight: 12,
+            includeFontPadding: false,
+          },
+          tabBarItemStyle: {
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingTop: 4,
+            paddingBottom: 2,
+          },
+          tabBarStyle: {
+            position: 'absolute',
+            bottom: tabBarFloat,
+            left: 14,
+            right: 14,
+            minHeight: 68,
+            backgroundColor: colors.tabBar,
+            borderRadius: 22,
+            borderWidth: 1,
+            borderColor: colors.border,
+            paddingHorizontal: 6,
+            paddingTop: 8,
+            paddingBottom: 10,
+            shadowColor: colors.bg,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0,
+            shadowRadius: 0,
+            elevation: 0,
+          },
+          tabBarActiveTintColor: colors.accent,
+          tabBarInactiveTintColor: colors.muted,
+          sceneStyle: {
+            backgroundColor: colors.bg,
+          },
+        })}
+      >
+        <Tab.Screen name={tabs.home} component={AnaSayfa} />
+        <Tab.Screen name={tabs.cities} component={Iller} />
+        <Tab.Screen name={tabs.history} component={Gecmis} />
+        <Tab.Screen name={tabs.vehicle} component={Aracim} />
+        <Tab.Screen name={tabs.alerts} component={Bildirimler} />
+      </Tab.Navigator>
+    </NavigationContainer>
+  )
+}
+
+export default function App() {
   useEffect(() => {
     initAds().catch(() => {})
     setupNotificationChannels().catch(() => {})
@@ -185,88 +293,12 @@ export default function App() {
     return unsubscribe
   }, [])
 
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then(setReduceMotion)
-      .catch(() => {})
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion)
-    return () => {
-      subscription?.remove?.()
-    }
-  }, [])
-
-  const transitionSpec = reduceMotion
-    ? undefined
-    : {
-        animation: 'timing',
-        config: {
-          duration: TAB_TRANSITION_MS,
-          easing: Easing.out(Easing.cubic),
-        },
-      }
-
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <NavigationContainer>
-        <Tab.Navigator
-          screenListeners={{
-            tabPress: () => {
-              trackAdInteraction()
-            },
-          }}
-          screenOptions={({ route }) => ({
-            headerShown: false,
-            tabBarShowLabel: true,
-            animation: reduceMotion ? 'none' : undefined,
-            transitionSpec,
-            sceneStyleInterpolator: reduceMotion ? undefined : sakinSolmaSceneInterpolator,
-            tabBarIcon: ({ focused }) => (
-              <AnimatedTabIcon focused={focused} routeName={route.name} reduceMotion={reduceMotion} />
-            ),
-            tabBarLabelStyle: {
-              fontSize: 10,
-              fontWeight: '800',
-              marginTop: 1,
-            },
-            tabBarItemStyle: {
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingVertical: 2,
-            },
-            tabBarStyle: {
-              position: 'absolute',
-              bottom: Platform.OS === 'ios' ? 24 : 12,
-              left: 14,
-              right: 14,
-              height: 64,
-              backgroundColor: colors.tabBar,
-              borderRadius: 22,
-              borderWidth: 1,
-              borderColor: colors.border,
-              paddingHorizontal: 6,
-              paddingTop: 6,
-              paddingBottom: 6,
-              shadowColor: '#000000',
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0,
-              shadowRadius: 0,
-              elevation: 0,
-            },
-            tabBarActiveTintColor: colors.accent,
-            tabBarInactiveTintColor: colors.muted,
-            sceneStyle: {
-              backgroundColor: colors.bg,
-            },
-          })}
-        >
-          <Tab.Screen name={tabs.home} component={AnaSayfa} />
-          <Tab.Screen name={tabs.cities} component={Iller} />
-          <Tab.Screen name={tabs.history} component={Gecmis} />
-          <Tab.Screen name={tabs.vehicle} component={Aracim} />
-          <Tab.Screen name={tabs.alerts} component={Bildirimler} />
-        </Tab.Navigator>
-      </NavigationContainer>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+        <MainTabs />
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   )
 }
 

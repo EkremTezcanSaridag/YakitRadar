@@ -119,20 +119,44 @@ const signalToneConfig = {
     tone: 'bad',
   },
   decrease: {
-    color: colors.accent,
+    color: colors.success,
     icon: 'trending-down',
-    softColor: colors.accentDark,
+    softColor: colors.successDark,
     title: 'İndirim baskısı',
     tone: 'good',
   },
   neutral: {
     color: colors.info,
     icon: 'swap-horizontal',
-    softColor: '#26364F',
+    softColor: colors.surfaceAlt,
     title: 'Nötr sinyal',
     tone: 'flat',
   },
 }
+
+function predictionPillTokens(isInc, isDec) {
+  if (isInc) {
+    return {
+      pillBg: colors.dangerDark,
+      pillBorder: colors.danger,
+      textColor: colors.danger,
+    }
+  }
+  if (isDec) {
+    return {
+      pillBg: colors.successDark,
+      pillBorder: colors.success,
+      textColor: colors.success,
+    }
+  }
+  return {
+    pillBg: colors.selected,
+    pillBorder: colors.border,
+    textColor: colors.muted,
+  }
+}
+
+const neutralPredictionPill = predictionPillTokens(false, false)
 const confidenceLabels = {
   high: 'Yüksek',
   medium: 'Orta',
@@ -177,9 +201,7 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
       icon: 'gas-station',
       direction: benzinDir,
       statusText: isBenzinInc ? 'ZAM BEKLENİYOR' : isBenzinDec ? 'İNDİRİM BEKLENİYOR' : 'SABİT / DEĞİŞİM YOK',
-      pillBg: isBenzinInc ? '#3A0D18' : isBenzinDec ? '#064E3B' : '#1E293B',
-      pillBorder: isBenzinInc ? '#F43F5E' : isBenzinDec ? '#34D399' : '#475569',
-      textColor: isBenzinInc ? '#F43F5E' : isBenzinDec ? '#34D399' : '#94A3B8',
+      ...predictionPillTokens(isBenzinInc, isBenzinDec),
       amountText: isBenzinInc ? `+${benzinAmt.toFixed(2)} ₺` : isBenzinDec ? `-${benzinAmt.toFixed(2)} ₺` : '0.00 ₺',
       targetDate: isBenzinInc || isBenzinDec ? (benzinSignal?.timing || 'Bu Gece 00:00') : 'Gündemde Değişim Yok',
       currentPrice: `${avgBenzin.toFixed(2)} ₺`,
@@ -191,9 +213,7 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
       icon: 'truck-outline',
       direction: motorinDir,
       statusText: isMotorinInc ? 'ZAM BEKLENİYOR' : isMotorinDec ? 'İNDİRİM BEKLENİYOR' : 'SABİT / DEĞİŞİM YOK',
-      pillBg: isMotorinInc ? '#3A0D18' : isMotorinDec ? '#064E3B' : '#1E293B',
-      pillBorder: isMotorinInc ? '#F43F5E' : isMotorinDec ? '#34D399' : '#475569',
-      textColor: isMotorinInc ? '#F43F5E' : isMotorinDec ? '#34D399' : '#94A3B8',
+      ...predictionPillTokens(isMotorinInc, isMotorinDec),
       amountText: isMotorinInc ? `+${motorinAmt.toFixed(2)} ₺` : isMotorinDec ? `-${motorinAmt.toFixed(2)} ₺` : '0.00 ₺',
       targetDate: isMotorinInc || isMotorinDec ? (motorinSignal?.timing || 'Bu Gece 00:00') : 'Gündemde Değişim Yok',
       currentPrice: `${avgMotorin.toFixed(2)} ₺`,
@@ -205,9 +225,7 @@ export function buildDetailedFuelPredictions(direction, score, confidence, price
       icon: 'fire',
       direction: lpgDir,
       statusText: 'SABİT / DEĞİŞİM YOK',
-      pillBg: '#1E293B',
-      pillBorder: '#475569',
-      textColor: '#94A3B8',
+      ...neutralPredictionPill,
       amountText: '0.00 ₺',
       targetDate: 'Gündemde Değişim Yok',
       currentPrice: `${avgLpg.toFixed(2)} ₺`,
@@ -233,9 +251,7 @@ const fallbackMarketSignal = {
       icon: 'gas-station',
       direction: 'neutral',
       statusText: 'SABİT / DEĞİŞİM YOK',
-      pillBg: '#1E293B',
-      pillBorder: '#475569',
-      textColor: '#94A3B8',
+      ...neutralPredictionPill,
       amountText: '0.00 ₺',
       targetDate: 'Gündemde Değişim Yok',
       currentPrice: '44.50 ₺',
@@ -247,9 +263,7 @@ const fallbackMarketSignal = {
       icon: 'truck-outline',
       direction: 'neutral',
       statusText: 'SABİT / DEĞİŞİM YOK',
-      pillBg: '#1E293B',
-      pillBorder: '#475569',
-      textColor: '#94A3B8',
+      ...neutralPredictionPill,
       amountText: '0.00 ₺',
       targetDate: 'Gündemde Değişim Yok',
       currentPrice: '45.20 ₺',
@@ -261,9 +275,7 @@ const fallbackMarketSignal = {
       icon: 'fire',
       direction: 'neutral',
       statusText: 'SABİT / DEĞİŞİM YOK',
-      pillBg: '#1E293B',
-      pillBorder: '#475569',
-      textColor: '#94A3B8',
+      ...neutralPredictionPill,
       amountText: '0.00 ₺',
       targetDate: 'Gündemde Değişim Yok',
       currentPrice: '26.10 ₺',
@@ -1032,9 +1044,9 @@ function buildHomeFuels(prices, history) {
       changePct: benzinChange > 0 ? `+${benzinPct}%` : benzinChange < 0 ? `-${benzinPct}%` : '0.0%',
       rawChange: benzinChange,
       tone: getTone(benzinChange),
-      accentColor: '#38BDF8',
-      cardBg: '#0C192E',
-      cardBorder: 'rgba(56, 189, 248, 0.28)',
+      accentColor: colors.accent,
+      cardBg: colors.surfaceAlt,
+      cardBorder: colors.border,
       icon: 'gas-station',
       dateLabel,
     },
@@ -1045,9 +1057,9 @@ function buildHomeFuels(prices, history) {
       changePct: motorinChange > 0 ? `+${motorinPct}%` : motorinChange < 0 ? `-${motorinPct}%` : '0.0%',
       rawChange: motorinChange,
       tone: getTone(motorinChange),
-      accentColor: '#F59E0B',
-      cardBg: '#1E1606',
-      cardBorder: 'rgba(245, 158, 11, 0.28)',
+      accentColor: colors.info,
+      cardBg: colors.surfaceAlt,
+      cardBorder: colors.border,
       icon: 'truck-outline',
       dateLabel,
     },
@@ -1058,9 +1070,9 @@ function buildHomeFuels(prices, history) {
       changePct: lpgChange > 0 ? `+${lpgPct}%` : lpgChange < 0 ? `-${lpgPct}%` : '0.0%',
       rawChange: lpgChange,
       tone: getTone(lpgChange),
-      accentColor: '#10B981',
-      cardBg: '#061D15',
-      cardBorder: 'rgba(16, 185, 129, 0.28)',
+      accentColor: colors.warning,
+      cardBg: colors.surfaceAlt,
+      cardBorder: colors.border,
       icon: 'fire',
       dateLabel,
     },
@@ -1123,14 +1135,14 @@ function buildHomeTrendSeries(history, prices = []) {
     },
     {
       key: 'Motorin',
-      color: colors.warning,
+      color: colors.info,
       values: motorinVals,
       strokeWidth: 3,
       opacity: 1,
     },
     {
       key: 'LPG',
-      color: colors.purpleGlow,
+      color: colors.warning,
       values: lpgVals,
       strokeWidth: 3,
       opacity: 1,
@@ -1392,11 +1404,13 @@ async function fetchRemoteFuelData({ triggerBackend = false } = {}) {
       )
       .order('calculated_at', { ascending: false })
       .limit(1),
-    supabase
-      .from('price_change_events')
-      .select('city, fuel, old_price, new_price, diff, direction, event_at, created_at')
-      .order('event_at', { ascending: false })
-      .limit(100),
+    process.env.EXPO_PUBLIC_SKIP_PRICE_EVENTS === '1'
+      ? Promise.resolve({ data: [], error: null })
+      : supabase
+          .from('price_change_events')
+          .select('city, fuel, old_price, new_price, diff, direction, event_at, created_at')
+          .order('event_at', { ascending: false })
+          .limit(100),
   ])
 
   if (pricesResult.error) {
