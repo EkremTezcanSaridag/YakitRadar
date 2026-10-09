@@ -252,7 +252,6 @@ export default function Aracim() {
             <Text style={styles.priceStripLabel}>{selectedCity?.city ?? profile.city} · {selectedFuel.title}</Text>
             <Text style={styles.priceStripValue}>{formatCurrency(price)} / L</Text>
           </View>
-          <Text style={styles.liveLabel}>{refreshing ? 'YENİLENİYOR' : 'CANLI'}</Text>
         </View>
 
         {/* Action Buttons Row */}
@@ -541,7 +540,7 @@ const styles = StyleSheet.create({
   headerText: { flex: 1, marginLeft: 10 }, brand: { color: colors.text, fontSize: 20, fontWeight: '800' }, subtitle: { color: colors.muted, fontSize: 12, marginTop: 2 },
   iconButton: { width: 38, height: 38, borderRadius: 8, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center' }, pressed: { opacity: 0.72 },
   priceStrip: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border, borderRadius: 8, minHeight: 64, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', ...shadows.soft },
-  priceStripIcon: { width: 34, height: 34, borderRadius: 8, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' }, priceStripText: { flex: 1, marginLeft: 10 }, priceStripLabel: { color: colors.mutedSoft, fontSize: 12, fontWeight: '700' }, priceStripValue: { color: colors.text, fontSize: 16, fontWeight: '800', marginTop: 3 }, liveLabel: { color: colors.accent, fontSize: 10, fontWeight: '800' },
+  priceStripIcon: { width: 34, height: 34, borderRadius: 8, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' }, priceStripText: { flex: 1, marginLeft: 10 }, priceStripLabel: { color: colors.mutedSoft, fontSize: 12, fontWeight: '700' }, priceStripValue: { color: colors.text, fontSize: 16, fontWeight: '800', marginTop: 3 },
   actionRow: { marginTop: 14, marginBottom: 4 },
   receiptActionButton: { minHeight: 46, borderRadius: 8, backgroundColor: colors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...shadows.soft },
   receiptActionButtonText: { color: colors.bg, fontSize: 14, fontWeight: '900' },

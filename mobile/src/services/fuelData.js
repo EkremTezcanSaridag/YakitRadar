@@ -419,6 +419,40 @@ function formatSyncTimeHm(date = new Date()) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
+function buildLastUpdatedMeta(prices, syncedAt) {
+  let latestMs = null
+
+  for (const row of prices) {
+    if (!row.dataUpdatedAt) {
+      continue
+    }
+
+    const parsed = new Date(row.dataUpdatedAt)
+
+    if (Number.isNaN(parsed.getTime())) {
+      continue
+    }
+
+    const ms = parsed.getTime()
+
+    if (latestMs === null || ms > latestMs) {
+      latestMs = ms
+    }
+  }
+
+  if (latestMs !== null) {
+    return {
+      lastUpdatedLabel: 'Son güncelleme',
+      lastUpdatedHm: formatSyncTimeHm(new Date(latestMs)),
+    }
+  }
+
+  return {
+    lastUpdatedLabel: 'Son kontrol',
+    lastUpdatedHm: formatSyncTimeHm(syncedAt),
+  }
+}
+
 function formatSignalTime(dateValue) {
   const date = new Date(dateValue)
 
@@ -866,6 +900,7 @@ function normalizePriceRecord(record, index) {
     change: parseFuelValue(record.degisim ?? record.change) ?? fallback.change,
     stations: Number(record.istasyon ?? record.stations) || fallback.stations,
     updatedAt: record.guncelleme ?? record.updated_at ?? fallbackUpdatedAt,
+    dataUpdatedAt: record.guncelleme ?? record.updated_at ?? null,
   }
 }
 
@@ -1330,6 +1365,7 @@ function buildFuelData({
   syncedAt = new Date(),
 }) {
   const cityRows = buildCityRows(prices)
+  const lastUpdated = buildLastUpdatedMeta(prices, syncedAt)
 
   return {
     bestCity: cityRows[0],
@@ -1343,8 +1379,8 @@ function buildFuelData({
     historyTrendSeries: buildHistoryTrendSeries(history),
     homeFuels: buildHomeFuels(prices, history),
     homeTrendSeries: buildHomeTrendSeries(history, prices),
-    lastUpdatedLabel: formatSyncTime(syncedAt),
-    lastUpdatedHm: formatSyncTimeHm(syncedAt),
+    lastUpdatedLabel: lastUpdated.lastUpdatedLabel,
+    lastUpdatedHm: lastUpdated.lastUpdatedHm,
     marketSignal,
     prices,
     recentChanges: buildRecentChanges(history, priceChangeEvents),

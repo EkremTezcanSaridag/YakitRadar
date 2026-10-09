@@ -171,7 +171,9 @@ export default function AnaSayfa() {
             <View>
               <Text allowFontScaling style={styles.screenTitle}>Ana Sayfa</Text>
               <Text allowFontScaling style={styles.screenSubtitle}>
-                {refreshing ? 'Yenileniyor…' : `Son güncelleme: ${data.lastUpdatedHm ?? '--:--'}`}
+                {refreshing
+                  ? 'Yenileniyor…'
+                  : `${data.lastUpdatedLabel ?? 'Son kontrol'}: ${data.lastUpdatedHm ?? '--:--'}`}
               </Text>
             </View>
             <Pressable
