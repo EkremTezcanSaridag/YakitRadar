@@ -23,17 +23,27 @@ function normalizeSearch(value) {
     .replace(/[üÜ]/g, 'u')
 }
 
-export default function CityPickerModal({ onClose, onSelect, prices, selectedCity, visible }) {
+export default function CityPickerModal({
+  excludeCities = [],
+  onClose,
+  onSelect,
+  prices,
+  selectedCity,
+  visible,
+}) {
   const [query, setQuery] = useState('')
 
   const cities = useMemo(() => {
     const realRows = getRealPriceRows(prices)
     const normalizedQuery = normalizeSearch(query.trim())
 
+    const excluded = new Set(excludeCities)
+
     return realRows
+      .filter((row) => !excluded.has(row.city))
       .filter((row) => !normalizedQuery || normalizeSearch(row.city).includes(normalizedQuery))
       .sort((a, b) => a.city.localeCompare(b.city, 'tr'))
-  }, [prices, query])
+  }, [excludeCities, prices, query])
 
   function handleSelect(cityName) {
     setQuery('')

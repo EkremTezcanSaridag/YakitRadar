@@ -5,6 +5,7 @@ const configuredKey = '@yakit-radar/primary-city-configured'
 const locationMetaKey = '@yakit-radar/primary-city-source'
 
 export const defaultFavoriteCities = ['İstanbul', 'Ankara', 'İzmir']
+export const maxComparisonCities = 5
 
 export async function loadFavoriteCities() {
   try {
@@ -98,5 +99,45 @@ export async function setPrimaryCityManual(cityName) {
   await clearLocationCityMeta()
   const next = await setPrimaryCity(cityName)
   await AsyncStorage.setItem(configuredKey, '1')
+  return next
+}
+
+export async function removeComparisonCity(cityName) {
+  const current = await loadFavoriteCities()
+  if (!current.length || current[0] === cityName) {
+    return current
+  }
+  const next = current.filter((city) => city !== cityName)
+  await saveFavoriteCities(next)
+  return next
+}
+
+export async function moveComparisonCity(cityName, direction) {
+  const current = await loadFavoriteCities()
+  const index = current.indexOf(cityName)
+  if (index < 0) {
+    return current
+  }
+  const targetIndex = direction === 'up' ? index - 1 : index + 1
+  if (targetIndex < 1 || targetIndex >= current.length) {
+    return current
+  }
+  const next = [...current]
+  const [item] = next.splice(index, 1)
+  next.splice(targetIndex, 0, item)
+  await saveFavoriteCities(next)
+  return next
+}
+
+export async function addComparisonCity(cityName) {
+  const current = await loadFavoriteCities()
+  if (current.includes(cityName)) {
+    return current
+  }
+  if (current.length >= maxComparisonCities) {
+    return current
+  }
+  const next = [...current, cityName]
+  await saveFavoriteCities(next)
   return next
 }

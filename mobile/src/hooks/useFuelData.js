@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { checkAndTriggerCustomAlerts } from '../services/customAlerts'
-import { emptyFuelData, getRealPriceRows, loadFuelData } from '../services/fuelData'
+import { emptyFuelData, getRealPriceRows, loadFuelData, refreshMarketSignalFromRemote } from '../services/fuelData'
 import { scheduleWeeklySummaryNotification } from '../services/notifications'
 
 function triggerAlertsAndSchedule(freshData) {
@@ -17,6 +17,7 @@ export function useFuelData() {
     data: emptyFuelData,
     loading: true,
     refreshing: false,
+    marketSignalRefreshing: false,
   })
 
   const refresh = useCallback(async () => {
@@ -27,11 +28,12 @@ export function useFuelData() {
 
     const data = await loadFuelData({ refresh: true })
 
-    setState({
+    setState((current) => ({
+      ...current,
       data,
       loading: false,
       refreshing: false,
-    })
+    }))
 
     triggerAlertsAndSchedule(data)
 
@@ -47,14 +49,39 @@ export function useFuelData() {
           return
         }
 
-        setState({
+        setState((current) => ({
+          ...current,
           data: nextData,
           loading: false,
           refreshing: false,
-        })
+        }))
         triggerAlertsAndSchedule(nextData)
       }, 45 * 1000)
     }
+  }, [])
+
+  const refreshMarketSignal = useCallback(async () => {
+    setState((current) => ({
+      ...current,
+      marketSignalRefreshing: true,
+    }))
+
+    const signal = await refreshMarketSignalFromRemote()
+
+    if (!mountedRef.current) {
+      return signal
+    }
+
+    setState((current) => ({
+      ...current,
+      data: {
+        ...current.data,
+        marketSignal: signal,
+      },
+      marketSignalRefreshing: false,
+    }))
+
+    return signal
   }, [])
 
   useEffect(() => {
@@ -66,11 +93,12 @@ export function useFuelData() {
         return
       }
 
-      setState({
+      setState((current) => ({
+        ...current,
         data,
         loading: false,
         refreshing: false,
-      })
+      }))
       triggerAlertsAndSchedule(data)
     })
 
@@ -87,5 +115,6 @@ export function useFuelData() {
   return {
     ...state,
     refresh,
+    refreshMarketSignal,
   }
 }

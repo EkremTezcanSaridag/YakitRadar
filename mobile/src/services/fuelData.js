@@ -1340,13 +1340,7 @@ async function fetchRemoteFuelData({ triggerBackend = false } = {}) {
       .select('tarih, benzin_95, motorin, lpg, benzin_degisim, motorin_degisim, lpg_degisim')
       .order('tarih', { ascending: false })
       .limit(365),
-    supabase
-      .from('market_signals')
-      .select(
-        'signal_date, direction, confidence, score, summary, brent_usd, usd_try, brent_try_index, brent_change_3d, usd_change_3d, index_change_3d, index_change_7d, signals, analysis, news_items, calculated_at',
-      )
-      .order('calculated_at', { ascending: false })
-      .limit(1),
+    supabase.from('market_signals').select(marketSignalSelect).order('calculated_at', { ascending: false }).limit(1),
     process.env.EXPO_PUBLIC_SKIP_PRICE_EVENTS === '1'
       ? Promise.resolve({ data: [], error: null })
       : supabase
@@ -1405,6 +1399,36 @@ function createEmptyFuelData(error) {
 export const emptyFuelData = createEmptyFuelData()
 
 let fuelDataCache = null
+
+const marketSignalSelect =
+  'signal_date, direction, confidence, score, summary, brent_usd, usd_try, brent_try_index, brent_change_3d, usd_change_3d, index_change_3d, index_change_7d, signals, analysis, news_items, calculated_at'
+
+export async function refreshMarketSignalFromRemote() {
+  if (!supabase) {
+    return null
+  }
+
+  const { data, error } = await supabase
+    .from('market_signals')
+    .select(marketSignalSelect)
+    .order('calculated_at', { ascending: false })
+    .limit(1)
+
+  if (error || !data?.[0]) {
+    return null
+  }
+
+  const signal = normalizeMarketSignalRecord(data[0])
+
+  if (fuelDataCache) {
+    fuelDataCache = {
+      ...fuelDataCache,
+      marketSignal: signal,
+    }
+  }
+
+  return signal
+}
 
 export async function loadFuelData({ refresh = false, triggerBackend = refresh } = {}) {
   if (fuelDataCache && !refresh) {

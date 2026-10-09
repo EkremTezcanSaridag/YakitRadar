@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
@@ -26,6 +26,7 @@ import {
   loadCustomAlerts,
   toggleCustomAlert,
 } from '../services/customAlerts'
+import { loadShowMarketNote, saveShowMarketNote } from '../services/uiPreferences'
 
 const fuelChips = ['Benzin', 'Motorin', 'LPG']
 
@@ -109,6 +110,7 @@ export default function Bildirimler() {
   const [loading, setLoading] = useState(true)
   const [permissionBusy, setPermissionBusy] = useState(false)
   const [testBusy, setTestBusy] = useState(false)
+  const [showMarketNote, setShowMarketNote] = useState(true)
   const cityChips = data.cities.slice(0, 3).map((city) => city.name)
   const registrationMeta = useMemo(
     () => ({
@@ -137,6 +139,12 @@ export default function Bildirimler() {
     loadCustomAlerts().then((alerts) => {
       if (isMounted) {
         setCustomAlerts(alerts)
+      }
+    })
+
+    loadShowMarketNote().then((enabled) => {
+      if (isMounted) {
+        setShowMarketNote(enabled)
       }
     })
 
@@ -284,22 +292,11 @@ export default function Bildirimler() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <ScreenHeader title="Bildirimler" />
-
-        <View style={styles.titleRow}>
-          <View style={styles.titleCopy}>
-            <Text style={styles.title}>Bildirimler</Text>
-            <Text style={styles.subtitle}>Fiyat değişimlerini ve özel alarmları yönetin.</Text>
-          </View>
-          <View style={[styles.statusBadge, styles[`${permissionCopy.tone}Badge`]]}>
-            <View style={[styles.statusDot, styles[`${permissionCopy.tone}Dot`]]} />
-            <Text style={[styles.statusBadgeText, styles[`${permissionCopy.tone}Text`]]}>{permissionCopy.badge}</Text>
-          </View>
-        </View>
+        <ScreenHeader showRefresh title="Bildirimler" />
 
         <View style={styles.summaryCard}>
           <View style={styles.summaryIcon}>
-            <MaterialCommunityIcons name={permissionCopy.icon} size={22} color={colors.accent} />
+            <Ionicons name={permission.granted ? 'notifications-outline' : 'notifications-off-outline'} size={22} color={colors.muted} />
           </View>
           <View style={styles.summaryText}>
             <Text style={styles.summaryTitle}>{permissionCopy.title}</Text>
@@ -371,6 +368,28 @@ export default function Bildirimler() {
             <MaterialCommunityIcons name="bell-plus-outline" size={18} color={colors.bg} />
             <Text style={styles.fullWidthAddAlertBtnText}>+ Yeni Fiyat Alarmı Oluştur</Text>
           </Pressable>
+        </View>
+
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Görünüm</Text>
+          <View style={[styles.row, styles.rowFirst]}>
+            <View style={styles.rowIcon}>
+              <Ionicons name="pulse-outline" size={18} color={colors.muted} />
+            </View>
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>Piyasa notunu göster</Text>
+              <Text style={styles.rowDesc}>Ana sayfada piyasa analizi özetini gösterir.</Text>
+            </View>
+            <Switch
+              onValueChange={async (value) => {
+                setShowMarketNote(value)
+                await saveShowMarketNote(value)
+              }}
+              thumbColor={showMarketNote ? colors.accent : '#D6DEE9'}
+              trackColor={{ false: '#25364F', true: colors.accentDark }}
+              value={showMarketNote}
+            />
+          </View>
         </View>
 
         <View style={styles.panel}>

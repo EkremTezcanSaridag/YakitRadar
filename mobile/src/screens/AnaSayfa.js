@@ -10,11 +10,16 @@ import { colors, radii, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { computeNationalAverages, getRealPriceRows } from '../services/fuelData'
 import {
+  addComparisonCity,
   defaultFavoriteCities,
   loadFavoriteCities,
   loadLocationCityMeta,
+  maxComparisonCities,
+  moveComparisonCity,
+  removeComparisonCity,
   setPrimaryCityManual,
 } from '../services/favoriteCities'
+import { loadShowMarketNote } from '../services/uiPreferences'
 
 const FUEL_OPTIONS = [
   { key: 'benzin95', label: 'Benzin', icon: 'car-sport-outline' },
@@ -27,15 +32,19 @@ function formatPrice(value) {
 }
 
 export default function AnaSayfa() {
-  const { data, refresh, refreshing } = useFuelData()
+  const { data, refresh, refreshMarketSignal, refreshing, marketSignalRefreshing } = useFuelData()
   const [favCities, setFavCities] = useState(defaultFavoriteCities)
   const [fuelKey, setFuelKey] = useState('benzin95')
   const [cityPickerOpen, setCityPickerOpen] = useState(false)
+  const [addCityPickerOpen, setAddCityPickerOpen] = useState(false)
+  const [comparisonEditMode, setComparisonEditMode] = useState(false)
+  const [showMarketNote, setShowMarketNote] = useState(true)
   const [locationMeta, setLocationMeta] = useState(null)
 
   const reloadFavorites = useCallback(() => {
     loadFavoriteCities().then(setFavCities)
     loadLocationCityMeta().then(setLocationMeta)
+    loadShowMarketNote().then(setShowMarketNote)
   }, [])
 
   useEffect(() => {
@@ -53,6 +62,26 @@ export default function AnaSayfa() {
     setFavCities(next)
     setLocationMeta(null)
   }
+
+  async function handleAddComparisonCity(cityName) {
+    const next = await addComparisonCity(cityName)
+    setFavCities(next)
+    setAddCityPickerOpen(false)
+  }
+
+  async function handleRemoveComparisonCity(cityName) {
+    const next = await removeComparisonCity(cityName)
+    setFavCities(next)
+  }
+
+  async function handleMoveComparisonCity(cityName, direction) {
+    const next = await moveComparisonCity(cityName, direction)
+    setFavCities(next)
+  }
+
+  const comparisonCityNames = favCities
+  const canAddMoreCities = comparisonCityNames.length < maxComparisonCities
+  const primaryCityName = comparisonCityNames[0]
 
   const realPrices = useMemo(() => getRealPriceRows(data.prices), [data.prices])
   const hasRealData = data.hasRealPrices && realPrices.length > 0
@@ -176,33 +205,125 @@ export default function AnaSayfa() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Karşılaştırma</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionLabel}>Karşılaştırma</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setComparisonEditMode((value) => !value)}
+              style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
+            >
+              <Text style={styles.editButtonText}>{comparisonEditMode ? 'Bitti' : 'Düzenle'}</Text>
+            </Pressable>
+          </View>
           <View style={styles.listBlock}>
             <View style={styles.listRow}>
               <Text style={styles.listTitle}>81 il ortalaması</Text>
-              <Text style={styles.listPrice}>{formatPrice(nationalAverage)} ₺/L</Text>
+              <Text style={styles.listPrice}>
+                {hasRealData ? `${formatPrice(nationalAverage)} ₺/L` : 'Veri yok'}
+              </Text>
             </View>
-            {favoriteRows.map((row) => (
-              <View key={row.city} style={[styles.listRow, styles.listRowBorder]}>
-                <View style={styles.listTitleWrap}>
-                  {row.isHero ? (
-                    <Ionicons name="location" size={14} color={colors.accent} style={styles.listIcon} />
+            {favoriteRows.map((row, index) => {
+              const isPrimary = row.city === primaryCityName
+              const canMoveUp = comparisonEditMode && !isPrimary && index > 1
+              const canMoveDown = comparisonEditMode && !isPrimary && index < favoriteRows.length - 1
+
+              return (
+                <View key={row.city} style={[styles.listRow, styles.listRowBorder]}>
+                  {comparisonEditMode ? (
+                    <View style={styles.editControls}>
+                      {!isPrimary ? (
+                        <Pressable
+                          accessibilityLabel={`${row.city} kaldır`}
+                          hitSlop={8}
+                          onPress={() => handleRemoveComparisonCity(row.city)}
+                          style={({ pressed }) => [styles.editIconBtn, pressed && styles.pressed]}
+                        >
+                          <Ionicons color={colors.muted} name="remove-circle-outline" size={22} />
+                        </Pressable>
+                      ) : (
+                        <View style={styles.editIconSpacer} />
+                      )}
+                      <View style={styles.reorderCol}>
+                        <Pressable
+                          accessibilityLabel={`${row.city} yukarı`}
+                          disabled={!canMoveUp}
+                          hitSlop={6}
+                          onPress={() => handleMoveComparisonCity(row.city, 'up')}
+                          style={({ pressed }) => [styles.reorderBtn, pressed && styles.pressed]}
+                        >
+                          <Ionicons
+                            color={canMoveUp ? colors.muted : colors.border}
+                            name="chevron-up"
+                            size={16}
+                          />
+                        </Pressable>
+                        <Pressable
+                          accessibilityLabel={`${row.city} aşağı`}
+                          disabled={!canMoveDown}
+                          hitSlop={6}
+                          onPress={() => handleMoveComparisonCity(row.city, 'down')}
+                          style={({ pressed }) => [styles.reorderBtn, pressed && styles.pressed]}
+                        >
+                          <Ionicons
+                            color={canMoveDown ? colors.muted : colors.border}
+                            name="chevron-down"
+                            size={16}
+                          />
+                        </Pressable>
+                      </View>
+                    </View>
                   ) : null}
-                  <Text style={styles.listTitle}>{row.city}</Text>
+                  <View style={[styles.listTitleWrap, comparisonEditMode && styles.listTitleWrapEdit]}>
+                    {row.isHero ? (
+                      <Ionicons name="location" size={14} color={colors.accent} style={styles.listIcon} />
+                    ) : null}
+                    <Text style={styles.listTitle}>{row.city}</Text>
+                  </View>
+                  <Text style={styles.listPrice}>
+                    {row.price > 0 ? `${formatPrice(row.price)} ₺/L` : 'Veri yok'}
+                  </Text>
                 </View>
-                <Text style={styles.listPrice}>{formatPrice(row.price)} ₺/L</Text>
-              </View>
-            ))}
+              )
+            })}
+            {comparisonEditMode && canAddMoreCities ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setAddCityPickerOpen(true)}
+                style={({ pressed }) => [styles.addCityRow, pressed && styles.pressed]}
+              >
+                <Ionicons color={colors.muted} name="add-circle-outline" size={20} />
+                <Text style={styles.addCityText}>Şehir ekle</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
 
-        {data.marketSignal?.summary ? (
+        {showMarketNote ? (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Piyasa notu</Text>
-            <View style={styles.noteBlock}>
-              <Ionicons name="pulse-outline" size={20} color={colors.muted} />
-              <Text style={styles.noteText}>{data.marketSignal.summary}</Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionLabel}>Piyasa notu</Text>
+              <Pressable
+                accessibilityRole="button"
+                disabled={marketSignalRefreshing}
+                onPress={() => refreshMarketSignal()}
+                style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.editButtonText}>{marketSignalRefreshing ? '…' : 'Yenile'}</Text>
+              </Pressable>
             </View>
+            {data.marketSignal?.summary ? (
+              <View style={styles.noteBlock}>
+                <Ionicons name="pulse-outline" size={20} color={colors.muted} />
+                <View style={styles.noteCopy}>
+                  <Text style={styles.noteText}>{data.marketSignal.summary}</Text>
+                  {data.marketSignal.updatedAt ? (
+                    <Text style={styles.noteMeta}>Analiz: {data.marketSignal.updatedAt}</Text>
+                  ) : null}
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.noteEmpty}>Piyasa notu bulunamadı. Yenile ile tekrar deneyin.</Text>
+            )}
           </View>
         ) : null}
           </>
@@ -215,6 +336,13 @@ export default function AnaSayfa() {
         prices={data.prices}
         selectedCity={heroCity?.city}
         visible={cityPickerOpen}
+      />
+      <CityPickerModal
+        excludeCities={comparisonCityNames}
+        onClose={() => setAddCityPickerOpen(false)}
+        onSelect={handleAddComparisonCity}
+        prices={data.prices}
+        visible={addCityPickerOpen}
       />
     </SafeAreaView>
   )
@@ -346,13 +474,28 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: spacing.section,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
   sectionLabel: {
     color: colors.mutedSoft,
     fontSize: typography.micro,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: spacing.md,
+    marginBottom: 0,
+  },
+  editButton: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  editButtonText: {
+    color: colors.muted,
+    fontSize: typography.caption,
+    fontWeight: '600',
   },
   listBlock: {
     borderTopWidth: 1,
@@ -363,12 +506,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: spacing.lg,
+    gap: spacing.sm,
+  },
+  editControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  editIconBtn: {
+    width: 28,
+    alignItems: 'center',
+  },
+  editIconSpacer: {
+    width: 28,
+  },
+  reorderCol: {
+    alignItems: 'center',
+    marginRight: spacing.xs,
+  },
+  reorderBtn: {
+    paddingVertical: 2,
+  },
+  listTitleWrapEdit: {
+    flex: 1,
   },
   listRowBorder: {
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   listTitleWrap: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -386,17 +553,42 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
+  addCityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  addCityText: {
+    color: colors.muted,
+    fontSize: typography.body,
+    fontWeight: '500',
+  },
   noteBlock: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.md,
     paddingVertical: spacing.md,
   },
-  noteText: {
+  noteCopy: {
     flex: 1,
+    gap: spacing.xs,
+  },
+  noteText: {
     color: colors.muted,
     fontSize: typography.body,
     lineHeight: 22,
+  },
+  noteMeta: {
+    color: colors.mutedSoft,
+    fontSize: typography.caption,
+  },
+  noteEmpty: {
+    color: colors.mutedSoft,
+    fontSize: typography.body,
+    paddingVertical: spacing.md,
   },
   pressed: {
     opacity: 0.88,
