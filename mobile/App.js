@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { enableScreens } from 'react-native-screens'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
@@ -21,12 +21,22 @@ import {
 import { initAds, trackAdInteraction } from './src/services/adManager'
 import { colors } from './src/theme'
 
-import { Platform, StyleSheet, View } from 'react-native'
+import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
+  Platform,
+  StyleSheet,
+  View,
+} from 'react-native'
 
 enableScreens()
 configureNotificationHandler()
 
 const Tab = createBottomTabNavigator()
+
+const TAB_TRANSITION_MS = 180
+const TAB_PILL_FADE_MS = 120
 
 const tabs = {
   home: 'Ana Sayfa',
@@ -49,7 +59,115 @@ const startupNotificationMeta = {
   trackedFuels: defaultNotificationSettings.trackedFuels,
 }
 
+function AnimatedTabIcon({ focused, routeName, reduceMotion }) {
+  const iconMeta = tabIcons[routeName] ?? { active: 'circle', inactive: 'circle-outline' }
+  const pillOpacity = useRef(new Animated.Value(focused ? 1 : 0)).current
+  const pillScale = useRef(new Animated.Value(focused ? 1 : 0.85)).current
+  const outlineOpacity = useRef(new Animated.Value(focused ? 0 : 1)).current
+  const filledOpacity = useRef(new Animated.Value(focused ? 1 : 0)).current
+
+  useEffect(() => {
+    if (reduceMotion) {
+      pillOpacity.setValue(focused ? 1 : 0)
+      pillScale.setValue(focused ? 1 : 0.85)
+      outlineOpacity.setValue(focused ? 0 : 1)
+      filledOpacity.setValue(focused ? 1 : 0)
+      return
+    }
+
+    if (focused) {
+      Animated.parallel([
+        Animated.timing(pillOpacity, {
+          toValue: 1,
+          duration: TAB_TRANSITION_MS,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pillScale, {
+          toValue: 1,
+          duration: TAB_TRANSITION_MS,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(outlineOpacity, {
+          toValue: 0,
+          duration: TAB_PILL_FADE_MS,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(filledOpacity, {
+          toValue: 1,
+          duration: TAB_PILL_FADE_MS,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start()
+    } else {
+      Animated.parallel([
+        Animated.timing(pillOpacity, {
+          toValue: 0,
+          duration: TAB_PILL_FADE_MS,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pillScale, {
+          toValue: 0.85,
+          duration: TAB_PILL_FADE_MS,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(outlineOpacity, {
+          toValue: 1,
+          duration: TAB_PILL_FADE_MS,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(filledOpacity, {
+          toValue: 0,
+          duration: TAB_PILL_FADE_MS,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start()
+    }
+  }, [focused, filledOpacity, outlineOpacity, pillOpacity, pillScale, reduceMotion])
+
+  return (
+    <View style={styles.tabIconWrap}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.tabIconPill,
+          {
+            opacity: pillOpacity,
+            transform: [{ scale: pillScale }],
+          },
+        ]}
+      />
+      <View style={styles.tabIconStack}>
+        <Animated.View style={[styles.tabIconLayer, { opacity: outlineOpacity }]}>
+          <MaterialCommunityIcons name={iconMeta.inactive} color={colors.muted} size={20} />
+        </Animated.View>
+        <Animated.View style={[styles.tabIconLayer, styles.tabIconLayerFilled, { opacity: filledOpacity }]}>
+          <MaterialCommunityIcons name={iconMeta.active} color={colors.accent} size={20} />
+        </Animated.View>
+      </View>
+    </View>
+  )
+}
+
+const sakinSolmaSceneInterpolator = ({ current }) => ({
+  sceneStyle: {
+    opacity: current.progress.interpolate({
+      inputRange: [-1, 0, 1],
+      outputRange: [0, 1, 0],
+    }),
+  },
+})
+
 export default function App() {
+  const [reduceMotion, setReduceMotion] = useState(false)
+
   useEffect(() => {
     initAds().catch(() => {})
     setupNotificationChannels().catch(() => {})
@@ -67,6 +185,26 @@ export default function App() {
     return unsubscribe
   }, [])
 
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(setReduceMotion)
+      .catch(() => {})
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion)
+    return () => {
+      subscription?.remove?.()
+    }
+  }, [])
+
+  const transitionSpec = reduceMotion
+    ? undefined
+    : {
+        animation: 'timing',
+        config: {
+          duration: TAB_TRANSITION_MS,
+          easing: Easing.out(Easing.cubic),
+        },
+      }
+
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <NavigationContainer>
@@ -79,18 +217,12 @@ export default function App() {
           screenOptions={({ route }) => ({
             headerShown: false,
             tabBarShowLabel: true,
-            tabBarIcon: ({ focused }) => {
-              const iconMeta = tabIcons[route.name] ?? { active: 'circle', inactive: 'circle-outline' }
-              return (
-                <View style={[styles.tabIconWrap, focused && styles.tabIconWrapActive]}>
-                  <MaterialCommunityIcons
-                    name={focused ? iconMeta.active : iconMeta.inactive}
-                    color={focused ? colors.accent : colors.muted}
-                    size={20}
-                  />
-                </View>
-              )
-            },
+            animation: reduceMotion ? 'none' : undefined,
+            transitionSpec,
+            sceneStyleInterpolator: reduceMotion ? undefined : sakinSolmaSceneInterpolator,
+            tabBarIcon: ({ focused }) => (
+              <AnimatedTabIcon focused={focused} routeName={route.name} reduceMotion={reduceMotion} />
+            ),
             tabBarLabelStyle: {
               fontSize: 10,
               fontWeight: '800',
@@ -107,18 +239,18 @@ export default function App() {
               left: 14,
               right: 14,
               height: 64,
-              backgroundColor: '#111827',
+              backgroundColor: colors.tabBar,
               borderRadius: 22,
-              borderWidth: 1.5,
-              borderColor: '#243352',
+              borderWidth: 1,
+              borderColor: colors.border,
               paddingHorizontal: 6,
               paddingTop: 6,
               paddingBottom: 6,
               shadowColor: '#000000',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.45,
-              shadowRadius: 16,
-              elevation: 16,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0,
+              shadowRadius: 0,
+              elevation: 0,
             },
             tabBarActiveTintColor: colors.accent,
             tabBarInactiveTintColor: colors.muted,
@@ -146,7 +278,26 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
   },
-  tabIconWrapActive: {
-    backgroundColor: 'rgba(56, 189, 248, 0.14)',
+  tabIconPill: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.accentSoft,
+    borderRadius: 14,
+  },
+  tabIconStack: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabIconLayer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabIconLayerFilled: {
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 })

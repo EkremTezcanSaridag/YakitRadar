@@ -222,7 +222,7 @@ export default function AnaSayfa() {
         {triggeredAlerts.length > 0 ? (
           <View style={styles.triggeredBanner}>
             <View style={styles.triggeredBannerIcon}>
-              <MaterialCommunityIcons name="bell-ring-outline" size={18} color="#FBBF24" />
+              <MaterialCommunityIcons name="bell-ring-outline" size={18} color={colors.warning} />
             </View>
             <View style={styles.triggeredBannerCopy}>
               <Text style={styles.triggeredBannerTitle}>Piyasa Zam/İndirim Sinyali</Text>
@@ -268,12 +268,12 @@ export default function AnaSayfa() {
                       <MaterialCommunityIcons
                         name={isUp ? 'arrow-up-bold' : isDown ? 'arrow-down-bold' : 'minus'}
                         size={10}
-                        color={isUp ? colors.danger : isDown ? '#34D399' : colors.mutedSoft}
+                        color={isUp ? colors.danger : isDown ? colors.success : colors.mutedSoft}
                       />
                       <Text
                         style={[
                           styles.heroChangeBadgeText,
-                          { color: isUp ? colors.danger : isDown ? '#34D399' : colors.mutedSoft },
+                          { color: isUp ? colors.danger : isDown ? colors.success : colors.mutedSoft },
                         ]}
                       >
                         {fuel.changePct}
@@ -292,7 +292,7 @@ export default function AnaSayfa() {
                     <Text
                       style={[
                         styles.heroFuelDiffSub,
-                        { color: isUp ? colors.danger : isDown ? '#34D399' : colors.mutedSoft },
+                        { color: isUp ? colors.danger : isDown ? colors.success : colors.mutedSoft },
                       ]}
                     >
                       {fuel.change}
@@ -372,7 +372,7 @@ export default function AnaSayfa() {
         <View style={styles.favCitiesCard}>
           <View style={styles.sectionHeader}>
             <View style={styles.favCitiesTitleGroup}>
-              <MaterialCommunityIcons name="heart" size={18} color="#FF4D4D" />
+              <MaterialCommunityIcons name="heart" size={18} color={colors.danger} />
               <Text style={styles.sectionTitle}>Favori Şehir Fiyat Kıyaslaması</Text>
             </View>
             <Text style={styles.favCitiesSubText}>{favCities.length} şehir takipte</Text>
@@ -521,9 +521,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#0F223D',
-    borderColor: 'rgba(56, 189, 248, 0.45)',
-    borderWidth: 1.5,
+    backgroundColor: colors.accentDark,
+    borderColor: colors.borderLight,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.soft,
@@ -651,12 +651,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   heroChangeBadgeUp: {
-    backgroundColor: '#3A0D18',
-    borderColor: 'rgba(244, 63, 94, 0.4)',
+    backgroundColor: colors.dangerDark,
+    borderColor: colors.danger,
   },
   heroChangeBadgeDown: {
-    backgroundColor: '#064E3B',
-    borderColor: 'rgba(52, 211, 153, 0.4)',
+    backgroundColor: colors.successDark,
+    borderColor: colors.success,
   },
   heroChangeBadgeFlat: {
     backgroundColor: colors.surfaceAlt,
@@ -783,7 +783,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dangerDark,
   },
   flat: {
-    backgroundColor: '#26364F',
+    backgroundColor: colors.surfaceAlt,
   },
   changeText: {
     color: colors.white,
@@ -1033,8 +1033,8 @@ const styles = StyleSheet.create({
   },
   chartArea: {
     alignItems: 'center',
-    backgroundColor: '#071527',
-    borderColor: '#223752',
+    backgroundColor: colors.bgSoft,
+    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     overflow: 'hidden',
@@ -1071,7 +1071,7 @@ const styles = StyleSheet.create({
     right: 0,
   },
   gridLine: {
-    backgroundColor: '#2A4161',
+    backgroundColor: colors.borderLight,
     flex: 1,
     height: 1,
     opacity: 0.72,
@@ -1084,7 +1084,7 @@ const styles = StyleSheet.create({
     width: 32,
   },
   verticalGridLine: {
-    backgroundColor: '#1C2D45',
+    backgroundColor: colors.border,
     bottom: 0,
     opacity: 0.36,
     position: 'absolute',
@@ -1251,13 +1251,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 9,
   },
-  barFillToday: {
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-    elevation: 4,
-  },
+  barFillToday: {},
   barDayText: {
     color: colors.muted,
     fontSize: 10,
@@ -1437,7 +1431,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
