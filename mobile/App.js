@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
+import { ErrorBoundary } from './src/components/ErrorBoundary'
 import AnaSayfa from './src/screens/AnaSayfa'
 import Iller from './src/screens/Iller'
 import Gecmis from './src/screens/Gecmis'
@@ -68,9 +69,10 @@ export default function App() {
   }, [])
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <NavigationContainer>
-        <Tab.Navigator
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+        <NavigationContainer>
+          <Tab.Navigator
           screenListeners={{
             tabPress: () => {
               trackAdInteraction()
@@ -135,6 +137,7 @@ export default function App() {
         </Tab.Navigator>
       </NavigationContainer>
     </GestureHandlerRootView>
+    </ErrorBoundary>
   )
 }
 
