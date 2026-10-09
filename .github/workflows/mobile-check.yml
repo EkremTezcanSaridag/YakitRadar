@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Supabase URL normalizer tests
+        run: npm run test:normalize-supabase-url
+
       - name: Export Android bundle
         env:
           EXPO_PUBLIC_SUPABASE_URL: https://ci-placeholder.invalid
