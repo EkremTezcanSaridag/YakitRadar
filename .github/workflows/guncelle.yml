@@ -23,6 +23,10 @@ on:
 jobs:
   guncelle:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: guncelle-price-update
+      cancel-in-progress: false
 
     steps:
       - name: Kodu çek
@@ -41,8 +45,6 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           SEND_TEST_NOTIFICATION: ${{ inputs.test_notification }}
           TEST_NOTIFICATION_INSTALLATION_ID: ${{ inputs.test_installation_id }}

@@ -1,4 +1,4 @@
 beautifulsoup4
 python-dotenv
 requests
-supabase
+supabase>=2.17,<3

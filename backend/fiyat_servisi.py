@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from supabase import create_client
 
+from http_client import SCRAPER_REQUEST_TIMEOUT, make_request_with_retry
 from market_signals import build_market_signal
 
 load_dotenv()
@@ -21,6 +22,7 @@ EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 FUEL_PRICES_URL = "https://www.aytemiz.com.tr/akaryakit-fiyatlari/benzin-fiyatlari"
 LPG_PRICES_URL = "https://www.aytemiz.com.tr/akaryakit-fiyatlari/lpg-fiyatlari"
 MIN_EXPECTED_CITY_COUNT = 80
+AYTEMIZ_HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
 def resolve_istanbul_timezone():
@@ -77,9 +79,11 @@ def liste_degeri(deger):
 
 
 def akaryakit_fiyatlarini_cek():
-    headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(FUEL_PRICES_URL, headers=headers, timeout=20)
-    response.raise_for_status()
+    try:
+        response = make_request_with_retry(FUEL_PRICES_URL, headers=AYTEMIZ_HEADERS)
+    except Exception as e:
+        print(f"HATA: Akaryakit fiyatlari cekilemedi: {e}")
+        raise RuntimeError(f"Akaryakit sayfasindan fiyatlar cekilemedi: {e}")
 
     soup = BeautifulSoup(response.text, "html.parser")
     duz_metin = soup.get_text(separator=" ")
@@ -110,9 +114,11 @@ def akaryakit_fiyatlarini_cek():
 
 
 def lpg_fiyatlarini_cek():
-    headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(LPG_PRICES_URL, headers=headers, timeout=20)
-    response.raise_for_status()
+    try:
+        response = make_request_with_retry(LPG_PRICES_URL, headers=AYTEMIZ_HEADERS)
+    except Exception as e:
+        print(f"HATA: LPG fiyatlari cekilemedi: {e}")
+        raise RuntimeError(f"LPG sayfasindan fiyatlar cekilemedi: {e}")
     soup = BeautifulSoup(response.text, "html.parser")
     lpg_tablosu = next(
         (tablo for tablo in soup.find_all("table") if "oto lpg" in tablo.get_text(" ", strip=True).lower()),
@@ -623,7 +629,12 @@ def test_bildirimi_gonder(installation_id):
     ]
 
     try:
-        response = requests.post(EXPO_PUSH_URL, headers={"Accept": "application/json", "Content-Type": "application/json"}, json=mesajlar, timeout=30)
+        response = requests.post(
+            EXPO_PUSH_URL,
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            json=mesajlar,
+            timeout=SCRAPER_REQUEST_TIMEOUT
+        )
         response.raise_for_status()
         bildirim_log_kaydet(len(mesajlar), 0, status="sent", reason="test_notification", token_count=len(hedefler), candidate_count=len(mesajlar), details={"expo_responses": [response.json()]})
         print(f"{len(mesajlar)} test bildirimi Expo Push API'ye gonderildi")
@@ -745,7 +756,7 @@ def fiyat_bildirimleri_gonder(degisimler, price_memory=None):
                     "Content-Type": "application/json",
                 },
                 json=parca,
-                timeout=30,
+                timeout=SCRAPER_REQUEST_TIMEOUT,
             )
             response.raise_for_status()
             expo_response = response.json()

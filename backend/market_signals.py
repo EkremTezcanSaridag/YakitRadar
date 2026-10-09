@@ -10,6 +10,12 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from xml.etree import ElementTree
 
 import requests
+from dotenv import load_dotenv
+
+from http_client import SCRAPER_REQUEST_TIMEOUT, make_request_with_retry
+
+load_dotenv()
+
 
 def resolve_istanbul_timezone():
     try:
@@ -203,14 +209,12 @@ def multiply_values(first, second):
 
 
 def fetch_csv_text(url):
-    response = requests.get(
-        url,
-        headers={"User-Agent": "YakitRadar/1.0"},
-        timeout=30,
-    )
-    response.raise_for_status()
-
-    return response.text
+    try:
+        response = make_request_with_retry(url)
+        return response.text
+    except Exception as e:
+        print(f"HATA: CSV verisi cekilemedi ({url}): {e}")
+        raise
 
 
 def fetch_brent_history(limit=12):
@@ -262,12 +266,11 @@ def tcmb_url_for_date(day):
 
 
 def fetch_usd_try_for_date(day):
-    response = requests.get(
-        tcmb_url_for_date(day),
-        headers={"User-Agent": "YakitRadar/1.0"},
-        timeout=20,
-    )
-    response.raise_for_status()
+    try:
+        response = make_request_with_retry(tcmb_url_for_date(day))
+    except Exception as e:
+        print(f"HATA: TCMB kur verisi cekilemedi ({day}): {e}")
+        raise
 
     root = ElementTree.fromstring(response.content)
     usd_node = root.find("./Currency[@CurrencyCode='USD']")
@@ -437,16 +440,14 @@ def fetch_news_items(limit=8):
 
     for feed in NEWS_FEEDS:
         try:
-            response = requests.get(
+            response = make_request_with_retry(
                 feed["url"],
                 headers={
                     "User-Agent": "YakitRadar/1.0",
                     "Cache-Control": "no-cache",
                     "Pragma": "no-cache",
-                },
-                timeout=20,
+                }
             )
-            response.raise_for_status()
             root = ElementTree.fromstring(response.content)
 
             for node in root.findall("./channel/item"):
@@ -949,92 +950,20 @@ def build_rule_based_ai_summary(direction, confidence, news_analysis, news_items
     )
 
 
-def extract_gemini_text(response_data):
-    for candidate in response_data.get("candidates", []):
-        content = candidate.get("content") or {}
+def resolve_analysis_mode(ai_result):
+    if ai_result and "groq" in (ai_result.get("model") or ""):
+        return "groq"
 
-        for part in content.get("parts", []):
-            text = part.get("text")
-
-            if text:
-                return text
-
-    return None
-
-
-def call_gemini_analysis(payload):
-    api_key = os.getenv("GEMINI_API_KEY")
-
-    if not api_key:
-        return None
-
-    model = os.getenv("GEMINI_MODEL") or "gemini-2.5-flash"
-    schema = {
-        "type": "object",
-        "properties": {
-            "summary": {"type": "string"},
-            "watch_level": {"type": "string", "enum": ["low", "medium", "high"]},
-            "key_reason": {"type": "string"},
-        },
-        "required": ["summary", "watch_level", "key_reason"],
-    }
-
-    try:
-        response = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-            headers={
-                "x-goog-api-key": api_key,
-                "Content-Type": "application/json",
-            },
-            json={
-                "contents": [
-                    {
-                        "role": "user",
-                        "parts": [
-                            {
-                                "text": (
-                                    "Turkiye akaryakit piyasasi icin kisa, temkinli ve kanita dayali analiz yaz.\n"
-                                    "KURALLAR:\n"
-                                    "1. Soru isareti (?) iceren veya 'zam mi geliyor?', 'indirim var mi?' gibi spekulatif basliklari kesinlikle resmi zam/indirim karari olarak kabul etme.\n"
-                                    "2. Yalnizca 'bu gece yarisi', 'tabelalara yansidi' veya netlesmis resmi ifadeleri zam/indirim olarak ozetle; aksi halde temkinli ol.\n"
-                                    "3. Net tutar yoksa rakam uydurma. Teyitli degisiklik yoksa watch_level degerini 'low' yap.\n"
-                                    "Sadece JSON uret. Veri:\n"
-                                    f"{json.dumps(payload, ensure_ascii=False)}"
-                                )
-                            }
-                        ],
-                    },
-                ],
-                "generationConfig": {
-                    "responseMimeType": "application/json",
-                    "responseSchema": schema,
-                },
-            },
-            timeout=45,
-        )
-        response.raise_for_status()
-        output_text = extract_gemini_text(response.json())
-
-        if not output_text:
-            return None
-
-        parsed = json.loads(output_text)
-
-        return {
-            "model": model,
-            "summary": parsed["summary"],
-            "watch_level": parsed["watch_level"],
-            "key_reason": parsed["key_reason"],
-        }
-    except Exception as error:
-        print(f"Gemini analizi kullanilamadi, kural tabanli analize donuldu: {error}")
-        return None
+    return "rules"
 
 
 def call_groq_analysis(payload):
     api_key = os.getenv("GROQ_API_KEY")
 
     if not api_key:
+        print(
+            "UYARI: GROQ_API_KEY tanimli degil; Groq analizi atlanacak, kural tabanli analiz kullanilacak."
+        )
         return None
 
     model = os.getenv("GROQ_MODEL") or "openai/gpt-oss-120b"
@@ -1075,7 +1004,7 @@ def call_groq_analysis(payload):
                 "temperature": 0.1,
                 "response_format": {"type": "json_object"},
             },
-            timeout=25,
+            timeout=SCRAPER_REQUEST_TIMEOUT,
         )
         response.raise_for_status()
         result = response.json()
@@ -1131,7 +1060,7 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
         "news": news_items[:10],
         "news_analysis": news_analysis,
     }
-    ai_result = call_groq_analysis(ai_payload) or call_gemini_analysis(ai_payload)
+    ai_result = call_groq_analysis(ai_payload)
     target_fuel = ai_result.get("target_fuel") if ai_result else None
     expected_amount = ai_result.get("expected_amount") if ai_result else None
     timing = ai_result.get("timing") if ai_result else None
@@ -1151,7 +1080,7 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
         else build_rule_based_ai_summary(direction, confidence, news_analysis, news_items)
     )
 
-    mode = "groq" if (ai_result and "groq" in ai_result.get("model", "")) else ("gemini" if ai_result else "rules")
+    mode = resolve_analysis_mode(ai_result)
 
     return {
         "signal_date": calculated_at.strftime("%Y-%m-%d"),
