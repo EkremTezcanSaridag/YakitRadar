@@ -3,7 +3,6 @@ import io
 import json
 import os
 import re
-import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from html import unescape
@@ -13,12 +12,11 @@ from xml.etree import ElementTree
 import requests
 from dotenv import load_dotenv
 
+from http_client import SCRAPER_REQUEST_TIMEOUT, make_request_with_retry
+
 load_dotenv()
 
-SCRAPER_RATE_LIMIT_DELAY = float(os.getenv("SCRAPER_RATE_LIMIT_DELAY", "1.0"))
-SCRAPER_REQUEST_TIMEOUT = int(os.getenv("SCRAPER_REQUEST_TIMEOUT", "30"))
-SCRAPER_MAX_RETRIES = int(os.getenv("SCRAPER_MAX_RETRIES", "3"))
-SCRAPER_RETRY_BASE_DELAY = float(os.getenv("SCRAPER_RETRY_BASE_DELAY", "2.0"))
+GEMINI_REQUEST_TIMEOUT = 45
 
 
 def resolve_istanbul_timezone():
@@ -29,43 +27,6 @@ def resolve_istanbul_timezone():
 
 
 ISTANBUL_TZ = resolve_istanbul_timezone()
-
-
-def make_request_with_retry(url, headers=None, timeout=None):
-    """Make HTTP request with exponential backoff retry logic."""
-    if headers is None:
-        headers = {"User-Agent": "YakitRadar/1.0"}
-    if timeout is None:
-        timeout = SCRAPER_REQUEST_TIMEOUT
-    
-    last_error = None
-    for attempt in range(SCRAPER_MAX_RETRIES):
-        try:
-            response = requests.get(url, headers=headers, timeout=timeout)
-            response.raise_for_status()
-            
-            if SCRAPER_RATE_LIMIT_DELAY > 0:
-                time.sleep(SCRAPER_RATE_LIMIT_DELAY)
-            
-            return response
-        except requests.exceptions.Timeout as e:
-            last_error = e
-            print(f"Timeout on attempt {attempt + 1}/{SCRAPER_MAX_RETRIES} for {url}")
-        except requests.exceptions.RequestException as e:
-            last_error = e
-            status_code = getattr(e.response, 'status_code', None) if hasattr(e, 'response') else None
-            
-            if status_code and 400 <= status_code < 500 and status_code != 429:
-                raise
-            
-            print(f"Request failed on attempt {attempt + 1}/{SCRAPER_MAX_RETRIES} for {url}: {e}")
-        
-        if attempt < SCRAPER_MAX_RETRIES - 1:
-            delay = SCRAPER_RETRY_BASE_DELAY * (2 ** attempt)
-            print(f"Retrying in {delay} seconds...")
-            time.sleep(delay)
-    
-    raise RuntimeError(f"Failed to fetch {url} after {SCRAPER_MAX_RETRIES} attempts: {last_error}")
 
 BRENT_SOURCES = [
     {
@@ -1052,7 +1013,7 @@ def call_gemini_analysis(payload):
                     "responseSchema": schema,
                 },
             },
-            timeout=SCRAPER_REQUEST_TIMEOUT,
+            timeout=GEMINI_REQUEST_TIMEOUT,
         )
         response.raise_for_status()
         output_text = extract_gemini_text(response.json())

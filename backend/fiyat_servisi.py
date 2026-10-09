@@ -1,7 +1,6 @@
 import json
 import os
 import re
-import time
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -10,6 +9,7 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from supabase import create_client
 
+from http_client import SCRAPER_REQUEST_TIMEOUT, make_request_with_retry
 from market_signals import build_market_signal
 
 load_dotenv()
@@ -22,11 +22,7 @@ EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 FUEL_PRICES_URL = "https://www.aytemiz.com.tr/akaryakit-fiyatlari/benzin-fiyatlari"
 LPG_PRICES_URL = "https://www.aytemiz.com.tr/akaryakit-fiyatlari/lpg-fiyatlari"
 MIN_EXPECTED_CITY_COUNT = 80
-
-SCRAPER_RATE_LIMIT_DELAY = float(os.getenv("SCRAPER_RATE_LIMIT_DELAY", "1.0"))
-SCRAPER_REQUEST_TIMEOUT = int(os.getenv("SCRAPER_REQUEST_TIMEOUT", "30"))
-SCRAPER_MAX_RETRIES = int(os.getenv("SCRAPER_MAX_RETRIES", "3"))
-SCRAPER_RETRY_BASE_DELAY = float(os.getenv("SCRAPER_RETRY_BASE_DELAY", "2.0"))
+AYTEMIZ_HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
 def resolve_istanbul_timezone():
@@ -82,46 +78,9 @@ def liste_degeri(deger):
     return []
 
 
-def make_request_with_retry(url, headers=None, timeout=None):
-    """Make HTTP request with exponential backoff retry logic."""
-    if headers is None:
-        headers = {"User-Agent": "Mozilla/5.0"}
-    if timeout is None:
-        timeout = SCRAPER_REQUEST_TIMEOUT
-    
-    last_error = None
-    for attempt in range(SCRAPER_MAX_RETRIES):
-        try:
-            response = requests.get(url, headers=headers, timeout=timeout)
-            response.raise_for_status()
-            
-            if SCRAPER_RATE_LIMIT_DELAY > 0:
-                time.sleep(SCRAPER_RATE_LIMIT_DELAY)
-            
-            return response
-        except requests.exceptions.Timeout as e:
-            last_error = e
-            print(f"Timeout on attempt {attempt + 1}/{SCRAPER_MAX_RETRIES} for {url}")
-        except requests.exceptions.RequestException as e:
-            last_error = e
-            status_code = getattr(e.response, 'status_code', None) if hasattr(e, 'response') else None
-            
-            if status_code and 400 <= status_code < 500 and status_code != 429:
-                raise
-            
-            print(f"Request failed on attempt {attempt + 1}/{SCRAPER_MAX_RETRIES} for {url}: {e}")
-        
-        if attempt < SCRAPER_MAX_RETRIES - 1:
-            delay = SCRAPER_RETRY_BASE_DELAY * (2 ** attempt)
-            print(f"Retrying in {delay} seconds...")
-            time.sleep(delay)
-    
-    raise RuntimeError(f"Failed to fetch {url} after {SCRAPER_MAX_RETRIES} attempts: {last_error}")
-
-
 def akaryakit_fiyatlarini_cek():
     try:
-        response = make_request_with_retry(FUEL_PRICES_URL)
+        response = make_request_with_retry(FUEL_PRICES_URL, headers=AYTEMIZ_HEADERS)
     except Exception as e:
         print(f"HATA: Akaryakit fiyatlari cekilemedi: {e}")
         raise RuntimeError(f"Akaryakit sayfasindan fiyatlar cekilemedi: {e}")
@@ -156,7 +115,7 @@ def akaryakit_fiyatlarini_cek():
 
 def lpg_fiyatlarini_cek():
     try:
-        response = make_request_with_retry(LPG_PRICES_URL)
+        response = make_request_with_retry(LPG_PRICES_URL, headers=AYTEMIZ_HEADERS)
     except Exception as e:
         print(f"HATA: LPG fiyatlari cekilemedi: {e}")
         raise RuntimeError(f"LPG sayfasindan fiyatlar cekilemedi: {e}")
