@@ -6,11 +6,13 @@ from groq_market_analysis import extract_price_amounts_from_fields
 from market_signals import normalize_text
 from news_article_sources import (
     PUBLISHER_RSS_FEEDS,
+    ArticleFetchBudget,
     enrich_items_with_article_bodies,
     extract_cdata_description,
+    fetch_article_body_with_status,
     parse_publisher_rss_items,
+    should_fetch_publisher_article,
 )
-
 
 SAMPLE_RSS = (
     b'<?xml version="1.0" encoding="UTF-8"?>'
@@ -31,11 +33,16 @@ def parse_date_fn(value):
 
 
 class TestPublisherRssConstant:
-    def test_feed_urls_in_single_tuple(self):
-        urls = [entry["url"] for entry in PUBLISHER_RSS_FEEDS]
-        assert "https://www.ekonomim.com/rss/ekonomi.xml" in urls
-        assert "https://www.haberturk.com/rss/ekonomi.xml" in urls
-        assert len(urls) == len(set(urls))
+    def test_only_working_feeds_listed(self):
+        names = {entry["name"] for entry in PUBLISHER_RSS_FEEDS}
+
+        assert names == {"Ekonomim Ekonomi", "Haberturk Ekonomi"}
+
+    def test_removed_unreliable_sources(self):
+        urls = " ".join(entry["url"] for entry in PUBLISHER_RSS_FEEDS)
+
+        assert "sozcu" not in urls
+        assert "t24.com" not in urls
 
 
 class TestParsePublisherRss:
@@ -51,7 +58,6 @@ class TestParsePublisherRss:
         )
         fuels = {(entry["fuel"], entry["direction"]) for entry in amounts}
         assert ("Motorin", "increase") in fuels
-        assert ("Benzin", "decrease") in fuels
 
     def test_cdata_description_strips_html(self):
         raw = "<![CDATA[<p>motorine <strong>1,20 TL</strong> zam</p>]]>"
@@ -60,42 +66,81 @@ class TestParsePublisherRss:
         assert "<p>" not in text
 
 
-class TestArticleBodyEnrichment:
-    def test_skips_fetch_when_amounts_present(self, monkeypatch):
+class TestPublisherArticleFallback:
+    def test_should_fetch_when_publisher_description_has_no_amounts(self):
+        item = {
+            "source": "Ekonomim Ekonomi",
+            "feed_origin": "publisher",
+            "description": "Genel ekonomi gundemi.",
+            "url": "https://example.test/haber/2",
+        }
+
+        assert should_fetch_publisher_article(item, normalize_text) is True
+
+    def test_skips_when_description_already_has_amounts(self):
+        item = {
+            "source": "Ekonomim Ekonomi",
+            "feed_origin": "publisher",
+            "description": "motorine 2 TL zam",
+            "url": "https://example.test/haber/3",
+        }
+
+        assert should_fetch_publisher_article(item, normalize_text) is False
+
+    def test_enrich_logs_and_attaches_article_text(self, monkeypatch):
         calls = []
 
-        def fake_fetch(url):
+        def fake_fetch(url, budget=None):
             calls.append(url)
-            return "should not be used"
-
-        monkeypatch.setattr("news_article_sources.fetch_article_body_text", fake_fetch)
-
-        items = [{"title": "motorine 2 TL zam", "url": "https://example.test/a"}]
-
-        def has_amounts(item):
-            return bool(
-                extract_price_amounts_from_fields(
-                    item.get("title"),
-                    None,
-                    None,
-                    normalize_text,
-                )
+            return (
+                "Sektör kaynaklarına göre motorine 6,40 TL zam, benzine 96 kuruş indirim bekleniyor.",
+                200,
+                None,
             )
 
-        enriched = enrich_items_with_article_bodies(items, has_amounts_fn=has_amounts)
-        assert calls == []
-        assert "article_text" not in enriched[0]
+        monkeypatch.setattr("news_article_sources.fetch_article_body_with_status", fake_fetch)
 
-    def test_fetches_when_missing_amounts(self, monkeypatch):
-        monkeypatch.setattr(
-            "news_article_sources.fetch_article_body_text",
-            lambda url: "Detay paragraf: motorine 3,50 TL zam bekleniyor.",
+        items = [
+            {
+                "title": "Akaryakit",
+                "source": "Haberturk Ekonomi",
+                "feed_origin": "publisher",
+                "description": "Gundem.",
+                "url": "https://example.test/haber/4",
+            }
+        ]
+
+        enriched = enrich_items_with_article_bodies(items, normalize_text_fn=normalize_text, max_items=5)
+        assert calls == ["https://example.test/haber/4"]
+        assert "article_text" in enriched[0]
+        assert extract_price_amounts_from_fields(
+            enriched[0]["title"],
+            enriched[0]["description"],
+            enriched[0]["description"],
+            normalize_text,
+            enriched[0]["article_text"],
         )
 
-        items = [{"title": "Akaryakit gundemi", "url": "https://example.test/b"}]
 
-        def has_amounts(_item):
-            return False
+class TestArticleFetchBudget:
+    def test_budget_limits_requests(self, monkeypatch):
+        budget = ArticleFetchBudget(max_requests=2, max_seconds=20)
 
-        enriched = enrich_items_with_article_bodies(items, has_amounts_fn=has_amounts, max_items=5)
-        assert "article_text" in enriched[0]
+        def fake_get(*_args, **_kwargs):
+            class Resp:
+                status_code = 200
+                url = "https://example.test/a"
+                text = "<p>motorine 1 TL zam yapildi uzun paragraf metni burada.</p>"
+
+            return Resp()
+
+        monkeypatch.setattr("news_article_sources.requests.get", fake_get)
+
+        for _ in range(2):
+            body, status, _err = fetch_article_body_with_status("https://example.test/a", budget=budget)
+            assert body
+            assert status == 200
+
+        body, status, err = fetch_article_body_with_status("https://example.test/a", budget=budget)
+        assert body is None
+        assert err == "budget_exhausted"

@@ -93,7 +93,12 @@ TURKISH_KURUS_WORDS = {
 }
 
 RE_NUMERIC_TL = re.compile(
-    r"(?:litre\s+basina\s+)?(?P<num>\d{1,2}(?:[.,]\d{1,2})?)\s*(?:tl|₺|lira(?:lik|luk)?)",
+    r"(?:litre\s+basina\s+)?(?P<num>\d{1,2}(?:[.,]\d{1,2})?)\s*(?:tl|₺|lira(?:lik|luk|lık|lığı)?)",
+    re.IGNORECASE,
+)
+RE_LIRA_KURUS_WRITTEN = re.compile(
+    r"(?P<lira_word>bir|iki|uc|dort|bes|alti|yedi|sekiz|dokuz|on|\d{1,2})\s+lira\s+"
+    r"(?P<kurus_word>elli|on|yirmi|otuz|kirk|bes|alti|yedi|sekiz|dokuz|\d{1,2})\s+kurus(?:luk|lugü|lüğü)?",
     re.IGNORECASE,
 )
 RE_LIRA_KURUS = re.compile(
@@ -194,25 +199,116 @@ def find_fuel_near(normalized_text: str, position: int) -> str | None:
     return best_fuel
 
 
+def is_decimal_comma(normalized_text: str, comma_index: int) -> bool:
+    if comma_index < 0 or comma_index >= len(normalized_text):
+        return False
+
+    if normalized_text[comma_index] != ",":
+        return False
+
+    left = normalized_text[max(0, comma_index - 3) : comma_index]
+    right = normalized_text[comma_index + 1 : comma_index + 4]
+
+    return bool(re.search(r"\d$", left)) and bool(re.search(r"^\d", right))
+
+
+def _list_comma_left(normalized_text: str, start: int) -> int:
+    pos = start
+
+    while pos > 0:
+        comma_index = normalized_text.rfind(",", 0, pos)
+
+        if comma_index < 0:
+            return -1
+
+        if is_decimal_comma(normalized_text, comma_index):
+            pos = comma_index
+            continue
+
+        return comma_index
+
+    return -1
+
+
+def _list_comma_right(normalized_text: str, end: int) -> int:
+    pos = end
+
+    while pos < len(normalized_text):
+        comma_index = normalized_text.find(",", pos)
+
+        if comma_index < 0:
+            return -1
+
+        if is_decimal_comma(normalized_text, comma_index):
+            pos = comma_index + 1
+            continue
+
+        return comma_index
+
+    return -1
+
+
 def local_clause_window(normalized_text: str, start: int, end: int) -> tuple[int, int]:
-    comma_left = normalized_text.rfind(",", 0, start)
-    ise_left = normalized_text.rfind(" ise ", 0, start)
-    left_break = max(comma_left, ise_left)
+    sentence_left = normalized_text.rfind(". ", 0, start)
+    clause_start = sentence_left + 2 if sentence_left >= 0 else 0
 
-    if left_break >= 0:
-        clause_start = left_break + (1 if normalized_text[left_break] == "," else len(" ise "))
-    else:
-        clause_start = 0
+    comma_left = _list_comma_left(normalized_text, start)
 
-    comma_right = normalized_text.find(",", end)
+    if comma_left >= 0 and comma_left + 1 > clause_start:
+        clause_start = comma_left + 1
+
+    ise_left = normalized_text.rfind(" ise ", clause_start, start)
+
+    if ise_left >= 0:
+        clause_start = max(clause_start, ise_left + len(" ise "))
+
+    comma_right = _list_comma_right(normalized_text, end)
     ise_right = normalized_text.find(" ise ", end)
     right_candidates = [value for value in (comma_right, ise_right) if value != -1]
     clause_end = min(right_candidates) if right_candidates else len(normalized_text)
 
+    sentence_right = normalized_text.find(". ", end)
+
+    if sentence_right != -1 and sentence_right < clause_end:
+        clause_end = sentence_right
+
     return clause_start, clause_end
 
 
+def list_segment_bounds(normalized_text: str, position: int) -> tuple[int, int]:
+    sentence_start = normalized_text.rfind(". ", 0, position)
+    seg_start = sentence_start + 2 if sentence_start >= 0 else 0
+    sentence_end = normalized_text.find(". ", position)
+    seg_limit = sentence_end if sentence_end != -1 else len(normalized_text)
+
+    for index in range(seg_start, seg_limit):
+        char = normalized_text[index]
+
+        if char != "," or is_decimal_comma(normalized_text, index):
+            continue
+
+        if index >= position:
+            return seg_start, index
+
+        seg_start = index + 1
+
+    return seg_start, seg_limit
+
+
 def find_fuel_for_amount(normalized_text: str, start: int, end: int) -> tuple[str | None, int | None]:
+    seg_start, seg_end = list_segment_bounds(normalized_text, start)
+    segment_mentions = [
+        (index, fuel)
+        for index, fuel in iter_fuel_mentions(normalized_text)
+        if seg_start <= index < seg_end
+    ]
+
+    before = [mention for mention in segment_mentions if mention[0] <= start]
+
+    if before:
+        index, fuel = before[-1]
+        return fuel, index
+
     clause_start, clause_end = local_clause_window(normalized_text, start, end)
     clause_mentions = [
         (index, fuel)
@@ -258,16 +354,60 @@ def find_direction_near(
     end: int,
     fuel_position: int | None = None,
 ) -> str:
-    clause_start, clause_end = local_clause_window(normalized_text, start, end)
-    window = normalized_text[clause_start:clause_end]
+    anchor = fuel_position if fuel_position is not None else start
+    window_start = max(0, anchor - DIRECTION_WINDOW_CHARS)
+    window_end = min(len(normalized_text), end + DIRECTION_WINDOW_CHARS)
+    window = normalized_text[window_start:window_end]
+    immediate_after = normalized_text[end : min(len(normalized_text), end + 28)]
+    immediate_before = normalized_text[max(0, start - 28) : start]
 
-    increase_score = sum(1 for hint in INCREASE_HINTS if hint in window)
-    decrease_score = sum(1 for hint in DECREASE_HINTS if hint in window)
-
-    if increase_score > decrease_score:
+    if any(hint in immediate_after for hint in INCREASE_HINTS) and not any(
+        hint in immediate_after for hint in DECREASE_HINTS
+    ):
         return "increase"
 
-    if decrease_score > increase_score:
+    if any(hint in immediate_after for hint in DECREASE_HINTS) and not any(
+        hint in immediate_after for hint in INCREASE_HINTS
+    ):
+        return "decrease"
+
+    if any(hint in immediate_before for hint in INCREASE_HINTS) and not any(
+        hint in immediate_before for hint in DECREASE_HINTS
+    ):
+        return "increase"
+
+    if any(hint in immediate_before for hint in DECREASE_HINTS) and not any(
+        hint in immediate_before for hint in INCREASE_HINTS
+    ):
+        return "decrease"
+
+    def hint_distance(hint: str) -> int | None:
+        index = window.find(hint)
+
+        if index < 0:
+            return None
+
+        return abs((window_start + index) - start)
+
+    increase_distances = [dist for hint in INCREASE_HINTS for dist in [hint_distance(hint)] if dist is not None]
+    decrease_distances = [dist for hint in DECREASE_HINTS for dist in [hint_distance(hint)] if dist is not None]
+
+    if increase_distances and decrease_distances:
+        nearest_increase = min(increase_distances)
+        nearest_decrease = min(decrease_distances)
+
+        if nearest_increase < nearest_decrease:
+            return "increase"
+
+        if nearest_decrease < nearest_increase:
+            return "decrease"
+
+        return "neutral"
+
+    if increase_distances:
+        return "increase"
+
+    if decrease_distances:
         return "decrease"
 
     return "neutral"
@@ -347,6 +487,14 @@ def extract_price_amounts(text: str, normalize_text_fn=None) -> list[dict[str, A
         if lira is not None and kurus is not None:
             register(lira + kurus / 100.0, match.start(), match.end())
 
+    for match in RE_LIRA_KURUS_WRITTEN.finditer(normalized):
+        lira_word = match.group("lira_word")
+        lira = parse_numeric_token(lira_word) if lira_word.isdigit() else word_to_number(lira_word)
+        kurus_value = kurus_word_to_int(match.group("kurus_word"))
+
+        if lira is not None and kurus_value is not None:
+            register(lira + kurus_value / 100.0, match.start(), match.end())
+
     for match in RE_KURUS_ONLY.finditer(normalized):
         if any(start <= match.start() and match.end() <= end for start, end in lira_kurus_spans):
             continue
@@ -416,6 +564,52 @@ def extract_price_amounts_from_fields(
             merged.append(entry)
 
     return merged
+
+
+def explain_empty_extracted_amounts(
+    title: str | None,
+    summary: str | None,
+    description: str | None,
+    normalize_text_fn,
+    article_text: str | None = None,
+) -> list[str]:
+    reasons: list[str] = []
+    fields = {
+        "title": title,
+        "summary": summary,
+        "description": description,
+        "article_text": article_text,
+    }
+
+    for field_name, field_value in fields.items():
+        if not field_value or not str(field_value).strip():
+            reasons.append(f"{field_name}:bos")
+            continue
+
+        normalized = normalize_text_fn(str(field_value))
+        findings = extract_price_amounts(field_value, normalize_text_fn)
+
+        if findings:
+            continue
+
+        if not iter_fuel_mentions(normalized):
+            reasons.append(f"{field_name}:yakit_eslesmesi_yok")
+            continue
+
+        if not (
+            RE_NUMERIC_TL.search(normalized)
+            or RE_LIRA_KURUS.search(normalized)
+            or RE_LIRA_KURUS_WRITTEN.search(normalized)
+            or RE_KURUS_ONLY.search(normalized)
+            or RE_WRITTEN_LIRA.search(normalized)
+            or RE_WRITTEN_LIRA_KURUS.search(normalized)
+        ):
+            reasons.append(f"{field_name}:tutar_kaliplari_yok")
+            continue
+
+        reasons.append(f"{field_name}:tutar_yon_eslesmedi")
+
+    return reasons
 
 
 def build_haberlerde_gecen_tutarlar(news_items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -642,6 +836,21 @@ def enrich_news_item(item: dict[str, Any], now: datetime, normalize_text_fn) -> 
         normalize_text_fn,
         item.get("article_text"),
     )
+
+    if not enriched["extracted_amounts"]:
+        reasons = explain_empty_extracted_amounts(
+            title,
+            item.get("summary"),
+            item.get("description"),
+            normalize_text_fn,
+            item.get("article_text"),
+        )
+        enriched["amount_extraction_notes"] = reasons
+        print(
+            "Haber tutar cikarimi bos: "
+            f"kaynak={item.get('source')!r} baslik={title[:80]!r} nedenler={','.join(reasons)}"
+        )
+
     return enriched
 
 
