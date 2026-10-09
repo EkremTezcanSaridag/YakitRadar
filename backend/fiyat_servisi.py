@@ -11,6 +11,7 @@ from supabase import create_client
 
 from http_client import SCRAPER_REQUEST_TIMEOUT, make_request_with_retry
 from market_signals import build_market_signal
+from price_memory_validation import sanitize_price_memory_items
 
 load_dotenv()
 
@@ -533,7 +534,7 @@ def gunluk_pompa_hafizasi_oku():
         "score": price_score,
         "direction": analysis.get("price_direction", "neutral"),
         "summary": analysis.get("price_summary"),
-        "items": analysis.get("price_items", []),
+        "items": sanitize_price_memory_items(analysis.get("price_items", [])),
         "remembered_at": analysis.get("price_memory", {}).get("remembered_at")
         or datetime.now(ISTANBUL_TZ).isoformat(),
     }
@@ -564,7 +565,7 @@ def hafiza_degisimi_olustur(price_memory):
 
     degisimler = []
 
-    for item in price_memory.get("items") or []:
+    for item in sanitize_price_memory_items(price_memory.get("items") or []):
         average_diff = float(item.get("average_diff") or 0)
 
         if average_diff == 0:
@@ -573,7 +574,7 @@ def hafiza_degisimi_olustur(price_memory):
         degisimler.append(
             {
                 "city": "Turkiye geneli",
-                "fuel": item.get("fuel", "Yakit"),
+                "fuel": item.get("fuel", "Benzin"),
                 "field": None,
                 "old_price": None,
                 "new_price": None,

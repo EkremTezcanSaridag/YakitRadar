@@ -13,6 +13,7 @@ import requests
 from dotenv import load_dotenv
 
 from http_client import SCRAPER_REQUEST_TIMEOUT, make_request_with_retry
+from price_memory_validation import sanitize_price_memory_items
 
 load_dotenv()
 
@@ -629,6 +630,7 @@ def merge_price_memory(current_analysis, previous_price_memory=None):
     if current_analysis["score"] != 0:
         return {
             **current_analysis,
+            "items": sanitize_price_memory_items(current_analysis.get("items", [])),
             "memory_source": "current_run",
             "remembered_at": datetime.now(ISTANBUL_TZ).isoformat(),
         }
@@ -649,7 +651,7 @@ def merge_price_memory(current_analysis, previous_price_memory=None):
         "score": previous_score,
         "direction": previous_price_memory.get("direction", "neutral"),
         "summary": summary,
-        "items": previous_price_memory.get("items", []),
+        "items": sanitize_price_memory_items(previous_price_memory.get("items", [])),
         "memory_source": "same_day_memory",
         "remembered_at": remembered_at,
     }
