@@ -1,8 +1,9 @@
 import { Linking } from 'react-native'
+import { colors } from '../theme'
 
 export const stationBrands = [
   { id: 'all', name: 'Tüm Markalar', icon: 'gas-station' },
-  { id: 'shell', name: 'Shell', color: '#FFD700', icon: 'gas-station-outline' },
+  { id: 'shell', name: 'Shell', color: colors.stationShell, icon: 'gas-station-outline' },
   { id: 'opet', name: 'Opet', color: '#00529B', icon: 'alpha-o-circle' },
   { id: 'po', name: 'Petrol Ofisi', color: '#E30613', icon: 'alpha-p-circle' },
   { id: 'aytemiz', name: 'Aytemiz', color: '#ED1C24', icon: 'alpha-a-circle' },

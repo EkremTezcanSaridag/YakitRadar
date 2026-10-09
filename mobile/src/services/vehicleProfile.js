@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { colors } from '../theme'
 
 const storageKey = '@yakit-radar/vehicle-profile'
 const expenseHistoryStorageKey = '@yakit-radar/vehicle-expense-history'
@@ -35,7 +36,7 @@ export async function loadVehicleExpenseHistory() {
 }
 
 export const fuelStations = [
-  { id: 'shell', name: 'Shell', icon: 'gas-station', color: '#FFD700' },
+  { id: 'shell', name: 'Shell', icon: 'gas-station', color: colors.stationShell },
   { id: 'opet', name: 'Opet', icon: 'gas-station', color: '#0055A5' },
   { id: 'po', name: 'Petrol Ofisi', icon: 'gas-station', color: '#E30613' },
   { id: 'aytemiz', name: 'Aytemiz', icon: 'gas-station', color: '#FF6600' },
