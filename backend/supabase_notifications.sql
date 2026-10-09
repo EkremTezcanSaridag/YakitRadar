@@ -71,6 +71,7 @@ drop policy if exists "notification_logs_delete_authenticated" on public.notific
 drop policy if exists "notification_logs_select_authenticated" on public.notification_logs;
 drop policy if exists "notification_logs_all_authenticated" on public.notification_logs;
 
+-- Push token kaydı: SECURITY DEFINER (postgres) ile tabloya yazilir; istemci dogrudan push_tokens'a erisemez.
 create or replace function public.register_push_token(payload jsonb)
 returns void
 language plpgsql
@@ -132,4 +133,6 @@ end;
 $$;
 
 revoke all on function public.register_push_token(jsonb) from public;
-grant execute on function public.register_push_token(jsonb) to anon, authenticated;
+revoke execute on function public.register_push_token(jsonb) from public;
+grant execute on function public.register_push_token(jsonb) to anon;
+grant execute on function public.register_push_token(jsonb) to authenticated;
