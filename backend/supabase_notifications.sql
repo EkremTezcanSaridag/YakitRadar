@@ -44,14 +44,32 @@ alter table public.notification_logs add column if not exists details jsonb not 
 alter table public.push_tokens enable row level security;
 alter table public.notification_logs enable row level security;
 
+-- Backend writes via service_role; mobil push kaydı register_push_token RPC ile yapılır.
+revoke all on public.push_tokens from anon, authenticated;
+revoke all on public.notification_logs from anon, authenticated;
+revoke all on sequence public.notification_logs_id_seq from anon, authenticated;
+
 grant all on public.push_tokens to service_role;
 grant all on public.notification_logs to service_role;
 grant usage, select on sequence public.notification_logs_id_seq to service_role;
 
-revoke insert, update on public.push_tokens from anon, authenticated;
-
 drop policy if exists "push_tokens_insert_anon" on public.push_tokens;
 drop policy if exists "push_tokens_update_anon" on public.push_tokens;
+drop policy if exists "push_tokens_select_anon" on public.push_tokens;
+drop policy if exists "push_tokens_delete_anon" on public.push_tokens;
+drop policy if exists "push_tokens_all_anon" on public.push_tokens;
+drop policy if exists "push_tokens_insert_authenticated" on public.push_tokens;
+drop policy if exists "push_tokens_update_authenticated" on public.push_tokens;
+drop policy if exists "notification_logs_insert_anon" on public.notification_logs;
+drop policy if exists "notification_logs_update_anon" on public.notification_logs;
+drop policy if exists "notification_logs_delete_anon" on public.notification_logs;
+drop policy if exists "notification_logs_select_anon" on public.notification_logs;
+drop policy if exists "notification_logs_all_anon" on public.notification_logs;
+drop policy if exists "notification_logs_insert_authenticated" on public.notification_logs;
+drop policy if exists "notification_logs_update_authenticated" on public.notification_logs;
+drop policy if exists "notification_logs_delete_authenticated" on public.notification_logs;
+drop policy if exists "notification_logs_select_authenticated" on public.notification_logs;
+drop policy if exists "notification_logs_all_authenticated" on public.notification_logs;
 
 create or replace function public.register_push_token(payload jsonb)
 returns void
