@@ -55,7 +55,7 @@ Deno.serve(async (request) => {
   }
 
   const cooldownDecision = await evaluateWorkflowCooldown(githubConfig, {
-    bypassCooldown: testNotification,
+    testNotification,
   })
 
   if (cooldownDecision.skip) {

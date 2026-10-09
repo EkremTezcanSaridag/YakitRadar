@@ -54,7 +54,7 @@ jobs:
           deno-version: v2.x
 
       - name: Deno test (refresh-prices cooldown)
-        run: deno test --allow-env supabase/functions/refresh-prices/cooldown_logic_test.ts
+        run: deno test --allow-env supabase/functions/refresh-prices/
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4

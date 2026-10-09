@@ -1,6 +1,10 @@
 import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts'
 
-import { COOLDOWN_MS, shouldSkipWorkflowDispatch } from './cooldown_logic.ts'
+import {
+  REFRESH_COOLDOWN_MS,
+  shouldSkipWorkflowDispatch,
+  TEST_NOTIFICATION_COOLDOWN_MS,
+} from './cooldown_logic.ts'
 
 const baseTime = Date.parse('2026-10-09T12:00:00.000Z')
 
@@ -86,6 +90,56 @@ Deno.test('respects custom cooldown duration', () => {
   assertEquals(result, { skip: false })
 })
 
-Deno.test('cooldown window is ten minutes by default', () => {
-  assertEquals(COOLDOWN_MS, 600_000)
+Deno.test('refresh cooldown window is ten minutes', () => {
+  assertEquals(REFRESH_COOLDOWN_MS, 600_000)
+})
+
+Deno.test('test notification cooldown window is two minutes', () => {
+  assertEquals(TEST_NOTIFICATION_COOLDOWN_MS, 120_000)
+})
+
+Deno.test('test notification cooldown skips within two minutes but allows after', () => {
+  const recent = shouldSkipWorkflowDispatch(
+    [
+      {
+        status: 'completed',
+        created_at: '2026-10-09T11:59:30.000Z',
+        run_started_at: '2026-10-09T11:59:30.000Z',
+      },
+    ],
+    baseTime,
+    TEST_NOTIFICATION_COOLDOWN_MS,
+  )
+
+  assertEquals(recent, { skip: true, reason: 'cooldown' })
+
+  const older = shouldSkipWorkflowDispatch(
+    [
+      {
+        status: 'completed',
+        created_at: '2026-10-09T11:57:00.000Z',
+        run_started_at: '2026-10-09T11:57:00.000Z',
+      },
+    ],
+    baseTime,
+    TEST_NOTIFICATION_COOLDOWN_MS,
+  )
+
+  assertEquals(older, { skip: false })
+})
+
+Deno.test('active runs block test notification dispatch too', () => {
+  const result = shouldSkipWorkflowDispatch(
+    [
+      {
+        status: 'queued',
+        created_at: '2026-10-09T11:59:00.000Z',
+        run_started_at: null,
+      },
+    ],
+    baseTime,
+    TEST_NOTIFICATION_COOLDOWN_MS,
+  )
+
+  assertEquals(result, { skip: true, reason: 'cooldown' })
 })

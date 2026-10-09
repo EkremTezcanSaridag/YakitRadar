@@ -1,4 +1,9 @@
-import { shouldSkipWorkflowDispatch, type WorkflowRunSummary } from './cooldown_logic.ts'
+import {
+  REFRESH_COOLDOWN_MS,
+  shouldSkipWorkflowDispatch,
+  TEST_NOTIFICATION_COOLDOWN_MS,
+  type WorkflowRunSummary,
+} from './cooldown_logic.ts'
 
 export type GitHubConfig = {
   owner: string
@@ -40,15 +45,13 @@ export async function fetchRecentWorkflowRuns(
  */
 export async function evaluateWorkflowCooldown(
   config: GitHubConfig,
-  options: { nowMs?: number; bypassCooldown?: boolean; fetchImpl?: typeof fetch } = {},
+  options: { nowMs?: number; testNotification?: boolean; fetchImpl?: typeof fetch } = {},
 ): Promise<{ skip: boolean; reason?: 'cooldown' | 'runs_lookup_failed' }> {
-  if (options.bypassCooldown) {
-    return { skip: false }
-  }
+  const cooldownMs = options.testNotification ? TEST_NOTIFICATION_COOLDOWN_MS : REFRESH_COOLDOWN_MS
 
   try {
     const runs = await fetchRecentWorkflowRuns(config, options.fetchImpl)
-    const decision = shouldSkipWorkflowDispatch(runs, options.nowMs ?? Date.now())
+    const decision = shouldSkipWorkflowDispatch(runs, options.nowMs ?? Date.now(), cooldownMs)
 
     return decision
   } catch {

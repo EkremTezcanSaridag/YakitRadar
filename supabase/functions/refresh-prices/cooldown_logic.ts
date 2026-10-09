@@ -1,4 +1,5 @@
-export const COOLDOWN_MS = 10 * 60 * 1000
+export const REFRESH_COOLDOWN_MS = 10 * 60 * 1000
+export const TEST_NOTIFICATION_COOLDOWN_MS = 2 * 60 * 1000
 
 const ACTIVE_RUN_STATUSES = new Set(['queued', 'in_progress', 'waiting', 'pending'])
 
@@ -11,7 +12,7 @@ export type WorkflowRunSummary = {
 export function shouldSkipWorkflowDispatch(
   runs: WorkflowRunSummary[],
   nowMs: number,
-  cooldownMs = COOLDOWN_MS,
+  cooldownMs = REFRESH_COOLDOWN_MS,
 ): { skip: boolean; reason?: 'cooldown' } {
   if (!runs.length) {
     return { skip: false }
