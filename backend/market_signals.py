@@ -13,6 +13,19 @@ import requests
 from dotenv import load_dotenv
 
 from http_client import SCRAPER_REQUEST_TIMEOUT, make_request_with_retry
+from groq_market_analysis import (
+    DEFAULT_CONFIDENCE,
+    DEFAULT_TIMING,
+    build_macro_snapshot,
+    build_mobile_fuel_signals,
+    build_numeric_summary_from_signals,
+    compute_pump_averages,
+    derive_overall_direction,
+    enrich_news_item,
+    format_gecmis_trend,
+    parse_groq_fuel_signals,
+    strip_news_title_source_suffix,
+)
 
 load_dotenv()
 
@@ -65,7 +78,7 @@ NEWS_FEEDS = [
         "url": "https://news.google.com/rss/search?q=brent%20petrol%20dolar%20akaryak%C4%B1t%20when%3A2d&hl=tr&gl=TR&ceid=TR:tr",
     },
 ]
-NEWS_MAX_AGE_HOURS = int(os.getenv("NEWS_MAX_AGE_HOURS", "48"))
+NEWS_MAX_AGE_HOURS = int(os.getenv("NEWS_MAX_AGE_HOURS", "24"))
 NEWS_PRICE_PATTERN = re.compile(r"(?<!\d)(\d{1,3}(?:[.,]\d{1,2})?)\s*(?:(?:TL|lira)\b|₺)", re.IGNORECASE)
 NEWS_BLOCKED_SOURCES = {
     "instagram.com",
@@ -291,6 +304,69 @@ def fetch_usd_try_for_date(day):
     }
 
 
+def get_supabase_client():
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+
+    if not url or not key:
+        return None
+
+    try:
+        from supabase import create_client
+
+        return create_client(url, key)
+    except Exception as error:
+        print(f"Supabase istemcisi olusturulamadi: {error}")
+        return None
+
+
+def fetch_pump_price_rows():
+    client = get_supabase_client()
+
+    if not client:
+        return []
+
+    try:
+        result = client.table("fiyatlar").select("il, benzin_95, motorin, lpg").execute()
+        return result.data or []
+    except Exception as error:
+        print(f"Pompa fiyatlari okunamadi: {error}")
+        return []
+
+
+def fetch_gecmis_rows(limit=7):
+    client = get_supabase_client()
+
+    if not client:
+        return []
+
+    try:
+        result = (
+            client.table("gecmis")
+            .select(
+                "tarih, benzin_95, motorin, lpg, benzin_degisim, motorin_degisim, lpg_degisim"
+            )
+            .order("tarih", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        rows = result.data or []
+        return list(reversed(rows))
+    except Exception as error:
+        print(f"Gecmis fiyatlari okunamadi: {error}")
+        return []
+
+
+def serialize_news_for_groq(news_items):
+    serialized = []
+
+    for item in news_items:
+        entry = {key: value for key, value in item.items() if key != "published_at_parsed"}
+        serialized.append(entry)
+
+    return serialized
+
+
 def fetch_usd_try_history(limit=12):
     records = []
     today = datetime.now(ISTANBUL_TZ).date()
@@ -457,7 +533,11 @@ def fetch_news_items(limit=8):
                 if not title:
                     continue
 
+                title = strip_news_title_source_suffix(title)
                 normalized_title = normalize_text(title)
+
+                if normalized_title in seen_titles:
+                    continue
 
                 if any(blocked in normalized_title for blocked in NEWS_BLOCKED_KEYWORDS):
                     continue
@@ -477,6 +557,7 @@ def fetch_news_items(limit=8):
                         "source": clean_source,
                         "url": (node.findtext("link") or "").strip(),
                         "published_at": published_at.isoformat() if published_at else None,
+                        "published_at_parsed": published_at,
                         "price_mentions": extract_news_price_mentions(title, description),
                     }
                 )
@@ -484,8 +565,6 @@ def fetch_news_items(limit=8):
             print(f"Haber akisi okunamadi ({feed['name']}): {error}")
 
     items.sort(key=lambda item: item.get("published_at") or "", reverse=True)
-    return items[:15]
-
     return items[:limit]
 
 
@@ -511,7 +590,9 @@ def score_news_items(news_items):
         is_question = "?" in title or any(normalize_text(keyword) in normalized for keyword in NEWS_QUESTION_KEYWORDS)
         item_score = 0
 
-        has_already_applied = any(normalize_text(keyword) in normalized for keyword in NEWS_ALREADY_APPLIED_KEYWORDS)
+        has_already_applied = item.get("bu_gece_already_applied") or any(
+            normalize_text(keyword) in normalized for keyword in NEWS_ALREADY_APPLIED_KEYWORDS
+        )
 
         if not is_question:
             if has_already_applied and not (has_strong_action or has_action):
@@ -967,28 +1048,41 @@ def call_groq_analysis(payload):
         return None
 
     model = os.getenv("GROQ_MODEL") or "openai/gpt-oss-120b"
+    pump_averages = payload.get("pump_averages_tl_per_l") or {}
+    current_prices = {
+        "Benzin": pump_averages.get("Benzin"),
+        "Motorin": pump_averages.get("Motorin"),
+        "LPG": pump_averages.get("LPG"),
+    }
 
     prompt = (
-        "Türkiye akaryakıt piyasası için son haber verilerini inceleyerek en gerçekçi piyasa beklentisi analizini yap.\n"
-        "TÜRKİYE AKARYAKIT PİYASASI KURALLARI:\n"
-        "1. GEÇMİŞ ZAMAN (UYGULANMIŞ İNDİRİM/ZAM) vs GELECEK ZAMAN (YENİ BEKLENTİ) AYRIMI (ÇOK KRİTİK):\n"
-        "   - Eğer haberlerde 'indirim geldi', 'zam geldi', 'tabela değişti', 'pompaya yansıdı', 'fiyatlar güncellendi', 'indirim sonrası liste' yazıyorsa, bu indirim/zam ZATEN GEÇMİŞTE KALMIŞTIR VE POMPAYA YANSIMIŞTIR! Gelecek için yeni bir beklenti DEĞİLDİR.\n"
-        "   - Bu durumda direction='neutral', target_fuel='Yok', expected_amount=0 olmalı ve özetinde 'Motorine/benzine uygulanan indirim/zam pompa fiyatlarına yansıdı. Şu an için piyasada yeni bir fiyat değişikliği beklenmemektedir.' denmelidir!\n"
-        "2. Yalnızca henüz pompaya yansımamış ileriye dönük somut yeni bir beklenti varsa ('bu gece yarısı bekleniyor', 'yarından itibaren geçerli olacak', 'tabelalar bu gece değişecek') direction='decrease' veya 'increase', target_fuel ve expected_amount tespit edilmelidir.\n"
-        "3. Türkiye'de akaryakıt zam ve indirimleri resmi kurumlarca (EPDK/EPGİS) önceden bültenle açıklanmaz; daima 'sektör kaynaklarından edinilen bilgiye göre' ekonomi basınına (Ekonomim, Habertürk, NTV, Sözcü vb.) yansır ve gece yarısı pompaya uygulanır.\n"
-        "4. Ancak hiçbir tutar veya somut beklenti içermeyen, sadece 'fiyatlar ne kadar?', 'kaç TL oldu?' gibi genel günlük fiyat listesi sorgusu başlıklarını tek başına zam/indirim sayma.\n"
-        "5. Eğer piyasada teyitli veya somut yeni bir beklenti yoksa direction='neutral', target_fuel='Yok', expected_amount=0 yap.\n"
-        "Format: Sadece geçerli bir JSON üret:\n"
+        "Türkiye akaryakıt piyasası için verilen haberleri ve sayısal bağlamı kullanarak ileriye dönük pompa beklentisi çıkar.\n"
+        "VERİ KAYNAKLARI (güvenilir, kod tarafından sağlandı):\n"
+        "- pump_averages_tl_per_l: bugünkü 81 il pompa ortalamaları (₺/L)\n"
+        "- gecmis_last_7_days: son 7 günün gecmis tablosu (ortalama fiyat ve günlük değişim TL)\n"
+        "- macro: Brent (USD) ve USD/TRY ile son kayıt ve bir önceki kayda göre % değişim (varsa)\n"
+        "- news: son haber başlıkları; age_hours ve bu_gece_already_applied alanlarına dikkat et\n"
+        "KURALLAR:\n"
+        "1. Geçmişte uygulanmış zam/indirim ('geldi', 'yansıdı', 'tabela değişti') gelecek beklenti DEĞİLDİR → ilgili yakıt neutral.\n"
+        "2. 'bu gece' içeren başlıkta bu_gece_already_applied=true ise o beklenti artık geçmişte kabul edilir → neutral.\n"
+        "3. expected_amount_tl: haberde açıkça geçen TL/litre tutarı (zam pozitif, indirim negatif). Haberde rakam yoksa null yaz; ASLA uydurma.\n"
+        "4. current_price ve expected_price alanlarını JSON'a yazma; bunlar sistemde hesaplanır.\n"
+        "5. Somut yeni beklenti yoksa tüm yakıtlar neutral, expected_amount_tl null.\n"
+        "6. timing: somut beklenti yoksa \"Gündemde değişim yok\"; varsa \"Bu gece yarısı\" veya \"Yarından itibaren\".\n"
+        "7. confidence: kanıt gücüne göre high|medium|low; belirsizse low.\n"
+        "Yanıt: yalnızca geçerli JSON:\n"
         "{\n"
         "  \"direction\": \"neutral|increase|decrease\",\n"
-        "  \"target_fuel\": \"Motorin|Benzin|LPG|Genel|Yok\",\n"
-        "  \"expected_amount\": 0,\n"
         "  \"timing\": \"Gündemde değişim yok | Bu gece yarısı | Yarından itibaren\",\n"
-        "  \"summary\": \"Motorin litre fiyatına uygulanan indirim pompa tabelalarına yansıdı. Şu an için yeni bir zam veya indirim kararı bulunmamaktadır, fiyatlar dengelidir.\",\n"
         "  \"confidence\": \"high|medium|low\",\n"
-        "  \"key_reason\": \"...\"\n"
-        "}\n\n"
-        f"Haber Verisi:\n{json.dumps(payload, ensure_ascii=False)}"
+        "  \"key_reason\": \"kısa gerekçe\",\n"
+        "  \"signals\": [\n"
+        "    {\"fuel\": \"Benzin|Motorin|LPG\", \"direction\": \"neutral|increase|decrease\", "
+        "\"expected_amount_tl\": null, \"reason\": \"haber kaynağı veya kısa açıklama\"}\n"
+        "  ]\n"
+        "}\n"
+        "Her Benzin, Motorin ve LPG için bir signals öğesi olmalı.\n\n"
+        f"Analiz verisi:\n{json.dumps(payload, ensure_ascii=False)}"
     )
 
     try:
@@ -1011,24 +1105,42 @@ def call_groq_analysis(payload):
         output_text = result["choices"][0]["message"]["content"]
         parsed = json.loads(output_text)
 
-        expected_amount = None
-        try:
-            raw_amt = parsed.get("expected_amount")
-            if raw_amt is not None:
-                expected_amount = float(str(raw_amt).replace(",", ".").strip())
-        except (ValueError, TypeError):
-            expected_amount = None
+        fuel_signals = parse_groq_fuel_signals(parsed, current_prices)
+        direction = derive_overall_direction(fuel_signals)
+        timing = parsed.get("timing") or DEFAULT_TIMING
+        confidence = parsed.get("confidence") or DEFAULT_CONFIDENCE
+
+        if direction == "neutral":
+            timing = DEFAULT_TIMING
+            confidence = DEFAULT_CONFIDENCE
+
+        numeric_summary = build_numeric_summary_from_signals(fuel_signals)
+        summary = numeric_summary or (
+            "Piyasada yeni somut bir zam veya indirim beklentisi tespit edilmedi; güncel pompa ortalamaları referans alındı."
+        )
+
+        primary_signal = next(
+            (
+                signal
+                for signal in fuel_signals
+                if signal.get("direction") in {"increase", "decrease"}
+                and signal.get("expected_amount_tl") is not None
+            ),
+            None,
+        )
 
         return {
             "model": f"groq:{model}",
-            "direction": parsed.get("direction", "neutral"),
-            "target_fuel": parsed.get("target_fuel", "Genel"),
-            "expected_amount": expected_amount,
-            "timing": parsed.get("timing", "Bu gece yarısı"),
-            "summary": parsed.get("summary", ""),
-            "confidence": parsed.get("confidence", "high"),
-            "watch_level": parsed.get("watch_level", "high" if parsed.get("direction") != "neutral" else "low"),
+            "direction": direction,
+            "target_fuel": primary_signal.get("fuel") if primary_signal else "Yok",
+            "expected_amount": primary_signal.get("expected_amount_tl") if primary_signal else None,
+            "timing": timing,
+            "summary": summary,
+            "confidence": confidence,
+            "watch_level": "high" if direction != "neutral" else "low",
             "key_reason": parsed.get("key_reason", ""),
+            "fuel_signals": fuel_signals,
+            "groq_raw": parsed,
         }
     except Exception as error:
         print(f"Groq analizi hatasi: {error}")
@@ -1036,10 +1148,14 @@ def call_groq_analysis(payload):
 
 
 def build_market_signal(price_changes=None, previous_price_memory=None):
+    calculated_at = datetime.now(ISTANBUL_TZ)
     news_items = fetch_news_items()
+    news_items = [
+        enrich_news_item(item, calculated_at, normalize_text)
+        for item in news_items
+    ]
     price_analysis = merge_price_memory(summarize_price_changes(price_changes or []), previous_price_memory)
     news_analysis = score_news_items(news_items)
-    calculated_at = datetime.now(ISTANBUL_TZ)
     direction = news_analysis["direction"]
     confidence = resolve_news_confidence(news_analysis["score"])
     score = abs(news_analysis["score"])
@@ -1050,14 +1166,45 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
         news_items,
         calculated_at,
     )
+
+    price_rows = fetch_pump_price_rows()
+    pump_averages = compute_pump_averages(price_rows, parse_float)
+    gecmis_trend = format_gecmis_trend(fetch_gecmis_rows(7), parse_float)
+
+    brent_history = []
+    usd_history = []
+
+    try:
+        brent_history = fetch_brent_history(5)
+    except Exception as error:
+        print(f"Brent verisi analiz baglamina eklenemedi: {error}")
+
+    try:
+        usd_history = fetch_usd_try_history(5)
+    except Exception as error:
+        print(f"USD/TRY verisi analiz baglamina eklenemedi: {error}")
+
+    macro = build_macro_snapshot(brent_history, usd_history)
+
     ai_payload = {
-        "analysis_basis": "news_only",
+        "analysis_basis": "news_and_market_context",
         "news_lookback_hours": NEWS_MAX_AGE_HOURS,
         "calculated_at": calculated_at.isoformat(),
-        "direction": direction,
-        "confidence": confidence,
-        "score": score,
-        "news": news_items[:10],
+        "timezone": "Europe/Istanbul",
+        "pump_averages_tl_per_l": {
+            "Benzin": pump_averages.get("Benzin"),
+            "Motorin": pump_averages.get("Motorin"),
+            "LPG": pump_averages.get("LPG"),
+            "city_count": pump_averages.get("city_count"),
+        },
+        "gecmis_last_7_days": gecmis_trend,
+        "macro": macro,
+        "news_scoring_hint": {
+            "direction": direction,
+            "confidence": confidence,
+            "score": news_analysis["score"],
+        },
+        "news": serialize_news_for_groq(news_items[:10]),
         "news_analysis": news_analysis,
     }
     ai_result = call_groq_analysis(ai_payload)
@@ -1069,10 +1216,10 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
         direction = ai_result["direction"]
         if direction == "neutral":
             score = 0
-            confidence = "high"
+            confidence = DEFAULT_CONFIDENCE
         else:
             score = max(score, 85)
-            confidence = ai_result.get("confidence", "high")
+            confidence = ai_result.get("confidence", DEFAULT_CONFIDENCE)
 
     ai_summary = (
         ai_result["summary"]
@@ -1082,30 +1229,42 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
 
     mode = resolve_analysis_mode(ai_result)
 
-    return {
-        "signal_date": calculated_at.strftime("%Y-%m-%d"),
-        "direction": direction,
-        "confidence": confidence,
-        "score": score,
-        "summary": ai_summary,
-        "brent_usd": None,
-        "usd_try": None,
-        "brent_try_index": None,
-        "brent_change_3d": None,
-        "usd_change_3d": None,
-        "index_change_3d": None,
-        "index_change_7d": None,
-        "signals": build_fuel_signals(
+    if ai_result and ai_result.get("fuel_signals"):
+        fuel_signals = build_mobile_fuel_signals(
+            ai_result["fuel_signals"],
+            confidence,
+            score,
+            timing=timing,
+        )
+    else:
+        fuel_signals = build_fuel_signals(
             direction,
             confidence,
             score,
             target_fuel=target_fuel,
             expected_amount=expected_amount,
             timing=timing,
-        ),
+        )
+
+    public_news_items = serialize_news_for_groq(news_items)
+
+    return {
+        "signal_date": calculated_at.strftime("%Y-%m-%d"),
+        "direction": direction,
+        "confidence": confidence,
+        "score": score,
+        "summary": ai_summary,
+        "brent_usd": macro.get("brent_usd"),
+        "usd_try": macro.get("usd_try"),
+        "brent_try_index": None,
+        "brent_change_3d": macro.get("brent_change_pct"),
+        "usd_change_3d": macro.get("usd_try_change_pct"),
+        "index_change_3d": None,
+        "index_change_7d": None,
+        "signals": fuel_signals,
         "analysis": {
             "mode": mode,
-            "analysis_basis": "news_only",
+            "analysis_basis": "news_and_market_context",
             "lookback_hours": NEWS_MAX_AGE_HOURS,
             "news_score": news_analysis["score"],
             "news_direction": news_analysis["direction"],
@@ -1118,10 +1277,13 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
                 "source": price_analysis.get("memory_source", "none"),
                 "remembered_at": price_analysis.get("remembered_at"),
             },
+            "pump_averages_tl_per_l": ai_payload["pump_averages_tl_per_l"],
+            "gecmis_last_7_days": gecmis_trend,
+            "macro": macro,
             "factors": analysis_factors,
             "ai": ai_result,
         },
-        "news_items": news_items,
+        "news_items": public_news_items,
         "sources": {
             "news_feeds": [feed["name"] for feed in NEWS_FEEDS],
             "news_lookback_hours": NEWS_MAX_AGE_HOURS,
