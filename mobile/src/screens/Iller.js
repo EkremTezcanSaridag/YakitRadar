@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { StatusBar } from 'expo-status-bar'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Pressable, RefreshControl, ScrollView, Text, TextInput, View, StyleSheet } from 'react-native'
+import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View, StyleSheet } from 'react-native'
 import ScreenHeader from '../components/ScreenHeader'
 import { colors, shadows } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { fuelTabs } from '../services/fuelData'
-import { defaultFavoriteCities, loadFavoriteCities, toggleFavoriteCity } from '../services/favoriteCities'
+import { defaultFavoriteCities, loadFavoriteCities, setPrimaryCity, toggleFavoriteCity } from '../services/favoriteCities'
 
 function formatCurrency(value) {
   return `${value.toFixed(2)} ₺`
@@ -48,6 +48,18 @@ export default function Iller() {
   async function handleToggleFavorite(cityName) {
     const updated = await toggleFavoriteCity(cityName)
     setFavoriteCities(updated)
+  }
+
+  function handleMakePrimaryCity(cityName) {
+    Alert.alert(cityName, undefined, [
+      { style: 'cancel', text: 'İptal' },
+      {
+        text: 'Benim şehrim yap',
+        onPress: async () => {
+          await setPrimaryCity(cityName)
+        },
+      },
+    ])
   }
 
   const cities = useMemo(
@@ -207,7 +219,11 @@ export default function Iller() {
           const trendUp = city.change.startsWith('+')
 
           return (
-            <View key={city.name} style={styles.cityCard}>
+            <Pressable
+              key={city.name}
+              onLongPress={() => handleMakePrimaryCity(city.name)}
+              style={({ pressed }) => [styles.cityCard, pressed && styles.pressed]}
+            >
               <View style={styles.rankBox}>
                 <Text style={styles.rankText}>{index + 1}</Text>
               </View>
@@ -239,7 +255,7 @@ export default function Iller() {
                 <Text style={styles.price}>{city.price}</Text>
                 <Text style={styles.priceUnit}>/ litre</Text>
               </View>
-            </View>
+            </Pressable>
           )
         })}
       </ScrollView>

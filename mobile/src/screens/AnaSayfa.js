@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useFocusEffect } from '@react-navigation/native'
 import { StatusBar } from 'expo-status-bar'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
+import CityPickerModal from '../components/CityPickerModal'
 import ScreenHeader from '../components/ScreenHeader'
 import { colors, radii, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
-import { defaultFavoriteCities, loadFavoriteCities } from '../services/favoriteCities'
+import { defaultFavoriteCities, loadFavoriteCities, setPrimaryCity } from '../services/favoriteCities'
 
 const FUEL_OPTIONS = [
   { key: 'benzin95', label: 'Benzin', icon: 'car-sport-outline' },
@@ -22,10 +24,26 @@ export default function AnaSayfa() {
   const { data, refresh, refreshing } = useFuelData()
   const [favCities, setFavCities] = useState(defaultFavoriteCities)
   const [fuelKey, setFuelKey] = useState('benzin95')
+  const [cityPickerOpen, setCityPickerOpen] = useState(false)
 
-  useEffect(() => {
+  const reloadFavorites = useCallback(() => {
     loadFavoriteCities().then(setFavCities)
   }, [])
+
+  useEffect(() => {
+    reloadFavorites()
+  }, [reloadFavorites])
+
+  useFocusEffect(
+    useCallback(() => {
+      reloadFavorites()
+    }, [reloadFavorites]),
+  )
+
+  async function handleSelectCity(cityName) {
+    const next = await setPrimaryCity(cityName)
+    setFavCities(next)
+  }
 
   const heroCityName = favCities[0] ?? 'İstanbul'
 
@@ -78,7 +96,15 @@ export default function AnaSayfa() {
 
         <View style={styles.heroBlock}>
           <Text allowFontScaling style={styles.heroEyebrow}>Senin şehrin</Text>
-          <Text allowFontScaling style={styles.heroCity}>{heroCity?.city ?? 'İstanbul'}</Text>
+          <Pressable
+            accessibilityHint="Şehir listesini aç"
+            accessibilityRole="button"
+            onPress={() => setCityPickerOpen(true)}
+            style={({ pressed }) => [styles.heroCityButton, pressed && styles.pressed]}
+          >
+            <Text allowFontScaling style={styles.heroCity}>{heroCity?.city ?? 'İstanbul'}</Text>
+            <Ionicons color={colors.muted} name="chevron-down" size={22} style={styles.heroCityChevron} />
+          </Pressable>
           <View style={styles.heroPriceRow}>
             <Text allowFontScaling style={styles.heroPrice}>{formatPrice(heroPrice)}</Text>
             <Text allowFontScaling style={styles.heroUnit}>₺/L</Text>
@@ -145,6 +171,14 @@ export default function AnaSayfa() {
           </View>
         ) : null}
       </ScrollView>
+
+      <CityPickerModal
+        onClose={() => setCityPickerOpen(false)}
+        onSelect={handleSelectCity}
+        prices={data.prices}
+        selectedCity={heroCity?.city}
+        visible={cityPickerOpen}
+      />
     </SafeAreaView>
   )
 }
@@ -170,10 +204,19 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
+  heroCityButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+  },
   heroCity: {
     color: colors.text,
     fontSize: typography.display,
     fontWeight: '700',
+  },
+  heroCityChevron: {
     marginTop: spacing.sm,
   },
   heroPriceRow: {

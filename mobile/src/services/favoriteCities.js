@@ -35,3 +35,12 @@ export async function toggleFavoriteCity(cityName) {
   await saveFavoriteCities(next)
   return next
 }
+
+/** Hero şehir = listenin ilk elemanı; seçim kalıcı olarak AsyncStorage'a yazılır. */
+export async function setPrimaryCity(cityName) {
+  const current = await loadFavoriteCities()
+  const rest = current.filter((city) => city !== cityName)
+  const next = [cityName, ...rest]
+  await saveFavoriteCities(next)
+  return next
+}
