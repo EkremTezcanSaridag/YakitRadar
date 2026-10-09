@@ -54,6 +54,7 @@ export default function AnaSayfa() {
   useFocusEffect(
     useCallback(() => {
       reloadFavorites()
+      loadShowMarketNote().then(setShowMarketNote)
     }, [reloadFavorites]),
   )
 

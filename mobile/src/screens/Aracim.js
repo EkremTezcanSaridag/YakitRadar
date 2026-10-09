@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { StatusBar } from 'expo-status-bar'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { fuelTabs, getRealPriceRows } from '../services/fuelData'
@@ -15,7 +15,13 @@ import {
 } from '../services/vehicleProfile'
 import ScreenHeader from '../components/ScreenHeader'
 import { useFuelData } from '../hooks/useFuelData'
-import { colors, shadows } from '../theme'
+import { colors, shadows, spacing, typography } from '../theme'
+
+const fuelIonicon = {
+  'gas-station': 'car-sport-outline',
+  'truck-outline': 'bus-outline',
+  fire: 'flame-outline',
+}
 
 function toNumber(value) {
   const parsed = Number.parseFloat(String(value).replace(',', '.'))
@@ -60,7 +66,7 @@ function ResultRow({ icon, label, value }) {
   return (
     <View style={styles.resultRow}>
       <View style={styles.resultRowStart}>
-        <MaterialCommunityIcons name={icon} size={18} color={colors.accent} />
+        <Ionicons name={icon} size={18} color={colors.muted} />
         <Text style={styles.resultRowLabel}>{label}</Text>
       </View>
       <Text style={styles.resultRowValue}>{value}</Text>
@@ -103,6 +109,7 @@ export default function Aracim() {
   const selectedFuel = fuelTabs.find((fuel) => fuel.key === profile.fuelKey) ?? fuelTabs[0]
   const realPrices = getRealPriceRows(data.prices)
   const selectedCity = realPrices.find((item) => item.city === profile.city) ?? realPrices[0] ?? null
+  const hasRealData = realPrices.length > 0
   const price = Number(selectedCity?.[profile.fuelKey]) || 0
   const spentAmount = toNumber(profile.spentAmount)
   const distanceKm = toNumber(profile.distanceKm)
@@ -242,30 +249,38 @@ export default function Aracim() {
         <ScreenHeader showRefresh title="Aracım" />
 
         <View style={styles.priceStrip}>
-          <View style={styles.priceStripIcon}><MaterialCommunityIcons name={selectedFuel.icon} size={17} color={colors.accent} /></View>
+          <View style={styles.priceStripIcon}>
+            <Ionicons name={fuelIonicon[selectedFuel.icon] ?? 'car-sport-outline'} size={18} color={colors.muted} />
+          </View>
           <View style={styles.priceStripText}>
             <Text style={styles.priceStripLabel}>{selectedCity?.city ?? profile.city} · {selectedFuel.title}</Text>
-            <Text style={styles.priceStripValue}>{formatCurrency(price)} / L</Text>
+            <Text style={styles.priceStripValue}>
+              {hasRealData && price > 0 ? `${formatCurrency(price)} / L` : 'Veri yok'}
+            </Text>
           </View>
         </View>
 
         {/* Action Buttons Row */}
         <View style={styles.actionRow}>
           <Pressable onPress={() => setReceiptModalOpen(true)} style={({ pressed }) => [styles.receiptActionButton, pressed && styles.pressed]}>
-            <MaterialCommunityIcons name="receipt" size={18} color={colors.bg} />
+            <Ionicons name="receipt-outline" size={18} color={colors.onAccent} />
             <Text style={styles.receiptActionButtonText}>+ Yakıt Fişi / Alımı Ekle</Text>
           </Pressable>
         </View>
 
         <Text style={styles.sectionTitle}>Sürüş hesabı</Text>
-        <View style={styles.formCard}>
+        <View style={styles.formBlock}>
           <Text style={styles.fieldLabel}>Yakıt türü</Text>
           <View style={styles.fuelSelector}>
             {fuelTabs.map((fuel) => {
               const selected = fuel.key === profile.fuelKey
               return (
                 <Pressable key={fuel.key} onPress={() => updateProfile('fuelKey', fuel.key)} style={({ pressed }) => [styles.fuelOption, selected && styles.fuelOptionActive, pressed && styles.pressed]}>
-                  <MaterialCommunityIcons name={fuel.icon} size={17} color={selected ? colors.bg : colors.mutedSoft} />
+                  <Ionicons
+                    name={fuelIonicon[fuel.icon] ?? 'car-sport-outline'}
+                    size={17}
+                    color={selected ? colors.onAccent : colors.mutedSoft}
+                  />
                   <Text style={[styles.fuelOptionText, selected && styles.fuelOptionTextActive]}>{fuel.label}</Text>
                 </Pressable>
               )
@@ -274,10 +289,10 @@ export default function Aracim() {
           <Text style={styles.fieldLabel}>Şehir</Text>
           <Pressable accessibilityLabel="Şehir seç" onPress={() => setCityPickerOpen(true)} style={({ pressed }) => [styles.cityButton, pressed && styles.pressed]}>
             <View style={styles.cityButtonStart}>
-              <MaterialCommunityIcons name="map-marker-outline" size={19} color={colors.accent} />
+              <Ionicons name="location-outline" size={19} color={colors.muted} />
               <Text style={styles.cityButtonText}>{selectedCity?.city ?? profile.city}</Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={21} color={colors.muted} />
+            <Ionicons name="chevron-forward" size={21} color={colors.muted} />
           </Pressable>
           <Text style={styles.fieldLabel}>Harcanan tutar</Text>
           <View style={styles.inputShell}>
@@ -291,7 +306,7 @@ export default function Aracim() {
           </View>
         </View>
         <Pressable onPress={handleSave} style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}>
-          <MaterialCommunityIcons name="calculator-variant-outline" size={18} color={colors.bg} />
+          <Ionicons name="calculator-outline" size={18} color={colors.onAccent} />
           <Text style={styles.saveButtonText}>Hesapla & Kaydet</Text>
         </Pressable>
 
@@ -309,7 +324,7 @@ export default function Aracim() {
         <View style={styles.expenseChartCard}>
           <View style={styles.expenseChartTop}>
             <View style={styles.expenseChartTitleRow}>
-              <MaterialCommunityIcons name="chart-bar" size={18} color={colors.accent} />
+              <Ionicons name="bar-chart-outline" size={18} color={colors.muted} />
               <Text style={styles.expenseChartTitle}>Yakıt Gideri Trendi</Text>
             </View>
             <Text style={styles.expenseChartSubText}>Son 6 Ay</Text>
@@ -513,9 +528,9 @@ export default function Aracim() {
               <Text style={styles.primaryResultValue}>{formatCurrency(calculations.costPerKm)}</Text>
             </View>
             <View style={styles.resultRows}>
-              <ResultRow icon="speedometer" label="100 km maliyeti" value={formatCurrency(calculations.costPer100Km)} />
-              <ResultRow icon="gas-station" label="Alınan yakıt" value={`${formatNumber(calculations.purchasedLiters)} L`} />
-              <ResultRow icon="chart-line" label="Hesaplanan tüketim" value={`${formatNumber(calculations.estimatedConsumption)} L / 100 km`} />
+              <ResultRow icon="speedometer-outline" label="100 km maliyeti" value={formatCurrency(calculations.costPer100Km)} />
+              <ResultRow icon="car-sport-outline" label="Alınan yakıt" value={`${formatNumber(calculations.purchasedLiters)} L`} />
+              <ResultRow icon="analytics-outline" label="Hesaplanan tüketim" value={`${formatNumber(calculations.estimatedConsumption)} L / 100 km`} />
             </View>
             <Pressable onPress={() => setResultOpen(false)} style={({ pressed }) => [styles.resultCloseAction, pressed && styles.pressed]}>
               <Text style={styles.resultCloseActionText}>Kapat</Text>
@@ -539,7 +554,9 @@ const styles = StyleSheet.create({
   actionRow: { marginTop: 14, marginBottom: 4 },
   receiptActionButton: { minHeight: 46, borderRadius: 8, backgroundColor: colors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...shadows.soft },
   receiptActionButtonText: { color: colors.bg, fontSize: 14, fontWeight: '900' },
-  sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '800', marginTop: 20, marginBottom: 10 }, formCard: { backgroundColor: colors.surface, borderRadius: 8, borderWidth: 1, borderColor: colors.border, padding: 14, ...shadows.card }, fieldLabel: { color: colors.mutedSoft, fontSize: 12, fontWeight: '700', marginBottom: 7 },
+  sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '800', marginTop: 20, marginBottom: 10 },
+  formBlock: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
+  fieldLabel: { color: colors.mutedSoft, fontSize: 12, fontWeight: '700', marginBottom: 7 },
   fuelSelector: { flexDirection: 'row', gap: 7, marginBottom: 17 }, fuelOption: { flex: 1, minHeight: 40, borderRadius: 7, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5 }, fuelOptionActive: { borderColor: colors.accent, backgroundColor: colors.accent }, fuelOptionText: { color: colors.mutedSoft, fontSize: 12, fontWeight: '800' }, fuelOptionTextActive: { color: colors.bg },
   cityButton: { height: 48, backgroundColor: colors.bgSoft, borderRadius: 7, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 17 }, cityButtonStart: { flexDirection: 'row', alignItems: 'center', gap: 8 }, cityButtonText: { color: colors.text, fontSize: 14, fontWeight: '700' },
   inputRow: { flexDirection: 'row', gap: 10 }, inputGroup: { flex: 1 }, inputShell: { minHeight: 47, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgSoft, paddingLeft: 11, paddingRight: 10, flexDirection: 'row', alignItems: 'center', marginBottom: 17 }, input: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '700', paddingVertical: 9 }, unit: { color: colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'right' },
