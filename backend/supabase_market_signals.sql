@@ -25,17 +25,29 @@ alter table public.market_signals add column if not exists news_items jsonb not 
 
 alter table public.market_signals enable row level security;
 
-grant select, insert, update on public.market_signals to anon;
+-- Mobil yalnızca okur; yazma backend'de service_role ile yapılır.
+revoke all on public.market_signals from anon, authenticated;
+grant select on public.market_signals to anon, authenticated;
 grant all on public.market_signals to service_role;
+revoke all on sequence public.market_signals_id_seq from anon, authenticated;
 grant usage, select on sequence public.market_signals_id_seq to service_role;
-grant usage, select on sequence public.market_signals_id_seq to anon;
 
-drop policy if exists "market_signals_select_anon" on public.market_signals;
+create index if not exists market_signals_calculated_at_idx
+  on public.market_signals (calculated_at desc);
+
 drop policy if exists "market_signals_all_anon" on public.market_signals;
+drop policy if exists "market_signals_select_anon" on public.market_signals;
+drop policy if exists "market_signals_insert_anon" on public.market_signals;
+drop policy if exists "market_signals_update_anon" on public.market_signals;
+drop policy if exists "market_signals_delete_anon" on public.market_signals;
+drop policy if exists "market_signals_select_authenticated" on public.market_signals;
+drop policy if exists "market_signals_insert_authenticated" on public.market_signals;
+drop policy if exists "market_signals_update_authenticated" on public.market_signals;
+drop policy if exists "market_signals_delete_authenticated" on public.market_signals;
+drop policy if exists "market_signals_all_authenticated" on public.market_signals;
 
-create policy "market_signals_all_anon"
+create policy "market_signals_select_anon"
 on public.market_signals
-for all
+for select
 to anon
-using (true)
-with check (true);
+using (true);

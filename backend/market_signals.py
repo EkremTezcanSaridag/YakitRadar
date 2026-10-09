@@ -13,20 +13,24 @@ import requests
 from dotenv import load_dotenv
 
 from http_client import SCRAPER_REQUEST_TIMEOUT, make_request_with_retry
+from price_memory_validation import (
+    sanitize_mobile_fuel_signals,
+    sanitize_price_memory_items,
+)
 from groq_market_analysis import (
     DEFAULT_CONFIDENCE,
     DEFAULT_TIMING,
+    SOURCE_DISAGREEMENT_NOTE,
+    aggregate_news_amount_extractions,
     build_haberlerde_gecen_tutarlar,
     build_macro_snapshot,
     build_mobile_fuel_signals,
-    SOURCE_DISAGREEMENT_NOTE,
-    resolve_market_summary,
     compute_pump_averages,
     derive_overall_direction,
     enrich_news_item,
-    aggregate_news_amount_extractions,
     format_gecmis_trend,
     parse_groq_fuel_signals,
+    resolve_market_summary,
     strip_news_title_source_suffix,
 )
 
@@ -717,6 +721,7 @@ def merge_price_memory(current_analysis, previous_price_memory=None):
     if current_analysis["score"] != 0:
         return {
             **current_analysis,
+            "items": sanitize_price_memory_items(current_analysis.get("items", [])),
             "memory_source": "current_run",
             "remembered_at": datetime.now(ISTANBUL_TZ).isoformat(),
         }
@@ -737,7 +742,7 @@ def merge_price_memory(current_analysis, previous_price_memory=None):
         "score": previous_score,
         "direction": previous_price_memory.get("direction", "neutral"),
         "summary": summary,
-        "items": previous_price_memory.get("items", []),
+        "items": sanitize_price_memory_items(previous_price_memory.get("items", [])),
         "memory_source": "same_day_memory",
         "remembered_at": remembered_at,
     }
@@ -1277,6 +1282,7 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
             timing=timing,
         )
 
+    fuel_signals = sanitize_mobile_fuel_signals(fuel_signals)
     public_news_items = serialize_news_for_groq(news_items)
 
     return {

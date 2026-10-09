@@ -18,11 +18,22 @@ on public.price_change_events (city, fuel, event_at desc);
 
 alter table public.price_change_events enable row level security;
 
-grant select on public.price_change_events to anon;
+revoke all on public.price_change_events from anon, authenticated;
+grant select on public.price_change_events to anon, authenticated;
 grant all on public.price_change_events to service_role;
+revoke all on sequence public.price_change_events_id_seq from anon, authenticated;
 grant usage, select on sequence public.price_change_events_id_seq to service_role;
 
 drop policy if exists "price_change_events_select_anon" on public.price_change_events;
+drop policy if exists "price_change_events_insert_anon" on public.price_change_events;
+drop policy if exists "price_change_events_update_anon" on public.price_change_events;
+drop policy if exists "price_change_events_delete_anon" on public.price_change_events;
+drop policy if exists "price_change_events_all_anon" on public.price_change_events;
+drop policy if exists "price_change_events_select_authenticated" on public.price_change_events;
+drop policy if exists "price_change_events_insert_authenticated" on public.price_change_events;
+drop policy if exists "price_change_events_update_authenticated" on public.price_change_events;
+drop policy if exists "price_change_events_delete_authenticated" on public.price_change_events;
+drop policy if exists "price_change_events_all_authenticated" on public.price_change_events;
 
 create policy "price_change_events_select_anon"
 on public.price_change_events
