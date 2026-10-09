@@ -1211,20 +1211,9 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
     calculated_at = datetime.now(ISTANBUL_TZ)
     news_items = fetch_news_items()
 
-    def _item_has_extracted_amounts(item: dict) -> bool:
-        return bool(
-            extract_price_amounts_from_fields(
-                item.get("title"),
-                item.get("summary"),
-                item.get("description"),
-                normalize_text,
-                item.get("article_text"),
-            )
-        )
-
     news_items = enrich_items_with_article_bodies(
         news_items,
-        has_amounts_fn=_item_has_extracted_amounts,
+        normalize_text_fn=normalize_text,
     )
     news_items = [
         enrich_news_item(item, calculated_at, normalize_text)
