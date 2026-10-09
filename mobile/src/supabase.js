@@ -1,29 +1,20 @@
 import { createClient } from '@supabase/supabase-js'
 
-const env = typeof process !== 'undefined' ? process.env ?? {} : {}
-const SUPABASE_URL = env.EXPO_PUBLIC_SUPABASE_URL
-const SUPABASE_KEY = env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+const SUPABASE_CONFIG_ERROR =
+  'Supabase yapılandırması eksik: EXPO_PUBLIC_SUPABASE_URL ve EXPO_PUBLIC_SUPABASE_ANON_KEY ortam değişkenlerini ayarlayın.\n\n' +
+  'Yerel geliştirme: mobile/.env.example dosyasını .env olarak kopyalayıp değerleri girin, sonra Metro/Expo’yu yeniden başlatın.\n\n' +
+  'EAS Build (preview / production): Expo dashboard veya `eas env:create` ile bu değişkenleri ilgili ortamda tanımlayın (eas.json içindeki profile environment alanına bakın).'
 
-export const hasSupabaseConfig = Boolean(SUPABASE_URL && SUPABASE_KEY)
-
-if (__DEV__ && !hasSupabaseConfig) {
-  console.error(
-    '🔴 Supabase yapılandırması eksik!\n\n' +
-    'EXPO_PUBLIC_SUPABASE_URL ve EXPO_PUBLIC_SUPABASE_ANON_KEY ortam değişkenlerini ayarlamanız gerekiyor.\n\n' +
-    'Geliştirme için:\n' +
-    '1. .env.example dosyasını .env olarak kopyalayın\n' +
-    '2. .env dosyasına gerçek Supabase değerlerinizi girin\n' +
-    '3. Uygulamayı yeniden başlatın\n\n' +
-    'EAS Build için:\n' +
-    'eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_URL --value "your-url"\n' +
-    'eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "your-key"'
-  )
+if (!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) {
+  throw new Error(SUPABASE_CONFIG_ERROR)
 }
 
-export const supabase = hasSupabaseConfig
-  ? createClient(SUPABASE_URL, SUPABASE_KEY, {
-      auth: {
-        persistSession: false,
-      },
-    })
-  : null
+export const supabase = createClient(
+  process.env.EXPO_PUBLIC_SUPABASE_URL,
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  {
+    auth: {
+      persistSession: false,
+    },
+  },
+)
