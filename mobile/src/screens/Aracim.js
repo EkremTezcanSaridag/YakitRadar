@@ -16,6 +16,7 @@ import {
 import ScreenHeader from '../components/ScreenHeader'
 import { useFuelData } from '../hooks/useFuelData'
 import { colors, shadows, spacing, typography } from '../theme'
+import { formatCurrencyTr, formatDecimalTr } from '../utils/priceFormat'
 
 const fuelIonicon = {
   'gas-station': 'car-sport-outline',
@@ -26,10 +27,6 @@ const fuelIonicon = {
 function toNumber(value) {
   const parsed = Number.parseFloat(String(value).replace(',', '.'))
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
-}
-
-function formatCurrency(value) {
-  return `${value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`
 }
 
 function formatNumber(value) {
@@ -255,7 +252,7 @@ export default function Aracim() {
           <View style={styles.priceStripText}>
             <Text style={styles.priceStripLabel}>{selectedCity?.city ?? profile.city} · {selectedFuel.title}</Text>
             <Text style={styles.priceStripValue}>
-              {hasRealData && price > 0 ? `${formatCurrency(price)} / L` : 'Veri yok'}
+              {hasRealData && price > 0 ? `${formatDecimalTr(price)} ₺ / L` : 'Veri yok'}
             </Text>
           </View>
         </View>
@@ -317,7 +314,7 @@ export default function Aracim() {
           </View>
           <View style={styles.monthTotal}>
             <Text style={styles.monthTotalLabel}>Bu Ay</Text>
-            <Text style={styles.monthTotalValue}>{formatCurrency(currentMonthExpense)}</Text>
+            <Text style={styles.monthTotalValue}>{formatCurrencyTr(currentMonthExpense)}</Text>
           </View>
         </View>
 
@@ -373,7 +370,7 @@ export default function Aracim() {
                     {record.notes ? <Text style={styles.historyNotes}>"{record.notes}"</Text> : null}
                   </View>
                   <View style={styles.historyEnd}>
-                    <Text style={styles.historyAmountValue}>{formatCurrency(Number(record.spentAmount) || 0)}</Text>
+                    <Text style={styles.historyAmountValue}>{formatCurrencyTr(Number(record.spentAmount) || 0)}</Text>
                     <Pressable onPress={() => handleDeleteRecord(record.id)} style={styles.deleteButton}>
                       <MaterialCommunityIcons name="trash-can-outline" size={16} color={colors.danger} />
                     </Pressable>
@@ -450,7 +447,7 @@ export default function Aracim() {
 
               {computedReceiptPricePerLiter > 0 ? (
                 <View style={styles.calcBadge}>
-                  <Text style={styles.calcBadgeText}>Hesaplanan Birim Fiyat: <Text style={{ color: colors.accent, fontWeight: '900' }}>{formatCurrency(computedReceiptPricePerLiter)} / L</Text></Text>
+                  <Text style={styles.calcBadgeText}>Hesaplanan Birim Fiyat: <Text style={{ color: colors.accent, fontWeight: '900' }}>{formatCurrencyTr(computedReceiptPricePerLiter)} / L</Text></Text>
                 </View>
               ) : null}
 
@@ -499,7 +496,7 @@ export default function Aracim() {
                 <Pressable key={city.city} onPress={() => selectCity(city.city)} style={styles.cityOption}>
                   <Text style={styles.cityOptionName}>{city.city}</Text>
                   <View style={styles.cityOptionEnd}>
-                    <Text style={styles.cityOptionPrice}>{formatCurrency(Number(city[profile.fuelKey]) || 0)}</Text>
+                    <Text style={styles.cityOptionPrice}>{formatCurrencyTr(Number(city[profile.fuelKey]) || 0)}</Text>
                     {city.city === profile.city ? <MaterialCommunityIcons name="check" size={18} color={colors.accent} /> : null}
                   </View>
                 </Pressable>
@@ -525,10 +522,10 @@ export default function Aracim() {
             </View>
             <View style={styles.primaryResult}>
               <Text style={styles.primaryResultLabel}>Km başına maliyet</Text>
-              <Text style={styles.primaryResultValue}>{formatCurrency(calculations.costPerKm)}</Text>
+              <Text style={styles.primaryResultValue}>{formatCurrencyTr(calculations.costPerKm)}</Text>
             </View>
             <View style={styles.resultRows}>
-              <ResultRow icon="speedometer-outline" label="100 km maliyeti" value={formatCurrency(calculations.costPer100Km)} />
+              <ResultRow icon="speedometer-outline" label="100 km maliyeti" value={formatCurrencyTr(calculations.costPer100Km)} />
               <ResultRow icon="car-sport-outline" label="Alınan yakıt" value={`${formatNumber(calculations.purchasedLiters)} L`} />
               <ResultRow icon="analytics-outline" label="Hesaplanan tüketim" value={`${formatNumber(calculations.estimatedConsumption)} L / 100 km`} />
             </View>

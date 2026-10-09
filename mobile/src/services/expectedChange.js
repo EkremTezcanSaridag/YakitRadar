@@ -1,4 +1,5 @@
 import { colors } from '../theme'
+import { formatDecimalTr } from '../utils/priceFormat'
 
 const FUEL_ORDER = ['benzin95', 'motorin', 'lpg']
 
@@ -53,11 +54,7 @@ export function displayFuelName(fuelName, fuelKey) {
 }
 
 export function formatTlComma(value) {
-  if (!Number.isFinite(value)) {
-    return '--'
-  }
-
-  return value.toFixed(2).replace('.', ',')
+  return formatDecimalTr(value, '--')
 }
 
 export function formatSignedChangeAmount(amountTl, direction) {

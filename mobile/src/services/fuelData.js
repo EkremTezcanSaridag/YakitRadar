@@ -1,6 +1,7 @@
 import { colors } from '../theme'
 import { supabase } from '../supabase'
 import { parseExpectedFuelSignals } from './expectedChange'
+import { formatCurrencyTr, formatSignedCurrencyTr } from '../utils/priceFormat'
 
 export const fuelTabs = [
   { key: 'benzin95', label: 'Benzin', title: 'Benzin 95', icon: 'gas-station' },
@@ -302,11 +303,11 @@ function parseMarketNumber(value) {
 }
 
 function formatCurrency(value) {
-  return `${value.toFixed(2)} ₺`
+  return formatCurrencyTr(value)
 }
 
 function formatChange(value) {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(2)} ₺`
+  return formatSignedCurrencyTr(value)
 }
 
 function formatStationCount(value) {

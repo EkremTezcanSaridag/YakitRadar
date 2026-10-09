@@ -7,6 +7,7 @@ import ScreenHeader from '../components/ScreenHeader'
 import { colors, radii, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { buildHistoryView } from '../services/fuelData'
+import { formatDecimalTr, formatSignedCurrencyTr } from '../utils/priceFormat'
 
 const historyPeriods = [
   { label: '7G', value: 7 },
@@ -126,11 +127,12 @@ export default function Gecmis() {
         </View>
 
         <View style={styles.chartHeader}>
-          <Text style={styles.chartPrice}>{latest ? `${latest.price.toFixed(2)}` : '--'}</Text>
+          <Text style={styles.chartPrice}>{latest ? formatDecimalTr(latest.price) : '--'}</Text>
           <Text style={styles.chartUnit}>₺/L · {activeFuel.label}</Text>
           <Text style={styles.chartMeta}>
-            {historyView.periodDiff >= 0 ? '+' : ''}
-            {historyView.periodDiff?.toFixed(2) ?? '0.00'} ₺ dönem içi
+            {Number.isFinite(historyView.periodDiff)
+              ? `${formatSignedCurrencyTr(historyView.periodDiff)} dönem içi`
+              : '0,00 ₺ dönem içi'}
           </Text>
         </View>
 
@@ -164,15 +166,15 @@ export default function Gecmis() {
         <View style={styles.statsRow}>
           <View style={styles.statCell}>
             <Text style={styles.statLabel}>En düşük</Text>
-            <Text style={styles.statValue}>{historyView.minPrice?.toFixed(2) ?? '--'}</Text>
+            <Text style={styles.statValue}>{formatDecimalTr(historyView.minPrice)}</Text>
           </View>
           <View style={styles.statCell}>
             <Text style={styles.statLabel}>Ortalama</Text>
-            <Text style={styles.statValue}>{historyView.avgPrice?.toFixed(2) ?? '--'}</Text>
+            <Text style={styles.statValue}>{formatDecimalTr(historyView.avgPrice)}</Text>
           </View>
           <View style={styles.statCell}>
             <Text style={styles.statLabel}>En yüksek</Text>
-            <Text style={styles.statValue}>{historyView.maxPrice?.toFixed(2) ?? '--'}</Text>
+            <Text style={styles.statValue}>{formatDecimalTr(historyView.maxPrice)}</Text>
           </View>
         </View>
       </ScrollView>

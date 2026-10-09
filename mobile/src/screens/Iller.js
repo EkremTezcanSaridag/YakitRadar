@@ -7,15 +7,8 @@ import ScreenHeader from '../components/ScreenHeader'
 import { colors, shadows, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { computeNationalAverages, fuelTabs, getRealPriceRows } from '../services/fuelData'
+import { formatCurrencyTr, formatSignedCurrencyTr } from '../utils/priceFormat'
 import { defaultFavoriteCities, loadFavoriteCities, setPrimaryCityManual, toggleFavoriteCity } from '../services/favoriteCities'
-
-function formatCurrency(value) {
-  return `${value.toFixed(2)} ₺`
-}
-
-function formatChange(value) {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(2)} ₺`
-}
 
 const fuelIonicon = {
   'gas-station': 'car-sport-outline',
@@ -83,7 +76,7 @@ export default function Iller() {
 
         return {
           name: city.city,
-          price: formatCurrency(price),
+          price: formatCurrencyTr(price),
           avgDiff,
           isFavorite: favoriteCities.includes(city.city),
         }
@@ -242,7 +235,7 @@ export default function Iller() {
                       color={colors.mutedSoft}
                     />
                     <Text style={styles.cityChange}>
-                      {formatChange(city.avgDiff)} 81 il ort.
+                      {formatSignedCurrencyTr(city.avgDiff)} 81 il ort.
                     </Text>
                   </View>
                 ) : null}

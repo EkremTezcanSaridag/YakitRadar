@@ -22,16 +22,13 @@ import {
 } from '../services/favoriteCities'
 import { enrichExpectedChanges } from '../services/expectedChange'
 import { loadShowMarketNote } from '../services/uiPreferences'
+import { formatDecimalTr, formatPerLiterTr } from '../utils/priceFormat'
 
 const FUEL_OPTIONS = [
   { key: 'benzin95', label: 'Benzin', icon: 'car-sport-outline' },
   { key: 'motorin', label: 'Motorin', icon: 'bus-outline' },
   { key: 'lpg', label: 'LPG', icon: 'flame-outline' },
 ]
-
-function formatPrice(value) {
-  return Number.isFinite(value) ? value.toFixed(2) : '--'
-}
 
 export default function AnaSayfa() {
   const { data, refresh, refreshMarketSignal, refreshing, marketSignalRefreshing } = useFuelData()
@@ -176,7 +173,7 @@ export default function AnaSayfa() {
             <Ionicons color={colors.muted} name="chevron-down" size={22} style={styles.heroCityChevron} />
           </Pressable>
           <View style={styles.heroPriceRow}>
-            <Text allowFontScaling style={styles.heroPrice}>{formatPrice(heroPrice)}</Text>
+            <Text allowFontScaling style={styles.heroPrice}>{formatDecimalTr(heroPrice)}</Text>
             <Text allowFontScaling style={styles.heroUnit}>₺/L</Text>
           </View>
           <Text allowFontScaling style={styles.heroFuelHint}>{fuelLabel}</Text>
@@ -239,7 +236,7 @@ export default function AnaSayfa() {
             <View style={styles.listRow}>
               <Text style={styles.listTitle}>81 il ortalaması</Text>
               <Text style={styles.listPrice}>
-                {hasRealData ? `${formatPrice(nationalAverage)} ₺/L` : 'Veri yok'}
+                {hasRealData ? formatPerLiterTr(nationalAverage) : 'Veri yok'}
               </Text>
             </View>
             {favoriteRows.map((row, index) => {
@@ -300,7 +297,7 @@ export default function AnaSayfa() {
                     <Text style={styles.listTitle}>{row.city}</Text>
                   </View>
                   <Text style={styles.listPrice}>
-                    {row.price > 0 ? `${formatPrice(row.price)} ₺/L` : 'Veri yok'}
+                    {row.price > 0 ? formatPerLiterTr(row.price) : 'Veri yok'}
                   </Text>
                 </View>
               )
