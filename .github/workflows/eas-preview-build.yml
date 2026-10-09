@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: Branch or ref to build
+        description: Test etmek istediğin branch adı
         required: true
         default: main
         type: string
@@ -28,14 +28,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: mobile/package-lock.json
 
       - name: Setup Expo and EAS
         uses: expo/expo-github-action@v8
         with:
-          eas-version: latest
+          eas-version: 24.12.1
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
