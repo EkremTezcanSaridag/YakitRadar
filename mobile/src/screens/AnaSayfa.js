@@ -317,6 +317,13 @@ export default function AnaSayfa() {
                 <Ionicons name="pulse-outline" size={20} color={colors.muted} />
                 <View style={styles.noteCopy}>
                   <Text style={styles.noteText}>{data.marketSignal.summary}</Text>
+                  {data.marketSignal.fuelPriceLines?.length ? (
+                    <View style={styles.noteFuelLines}>
+                      {data.marketSignal.fuelPriceLines.map((line, index) => (
+                        <Text key={`${index}-${line}`} style={styles.noteFuelLine}>{line}</Text>
+                      ))}
+                    </View>
+                  ) : null}
                   {data.marketSignal.updatedAt ? (
                     <Text style={styles.noteMeta}>Analiz: {data.marketSignal.updatedAt}</Text>
                   ) : null}
@@ -581,6 +588,15 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: typography.body,
     lineHeight: 22,
+  },
+  noteFuelLines: {
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  noteFuelLine: {
+    color: colors.mutedSoft,
+    fontSize: typography.caption,
+    lineHeight: 20,
   },
   noteMeta: {
     color: colors.mutedSoft,
