@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -21,6 +22,11 @@ EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 FUEL_PRICES_URL = "https://www.aytemiz.com.tr/akaryakit-fiyatlari/benzin-fiyatlari"
 LPG_PRICES_URL = "https://www.aytemiz.com.tr/akaryakit-fiyatlari/lpg-fiyatlari"
 MIN_EXPECTED_CITY_COUNT = 80
+
+SCRAPER_RATE_LIMIT_DELAY = float(os.getenv("SCRAPER_RATE_LIMIT_DELAY", "1.0"))
+SCRAPER_REQUEST_TIMEOUT = int(os.getenv("SCRAPER_REQUEST_TIMEOUT", "30"))
+SCRAPER_MAX_RETRIES = int(os.getenv("SCRAPER_MAX_RETRIES", "3"))
+SCRAPER_RETRY_BASE_DELAY = float(os.getenv("SCRAPER_RETRY_BASE_DELAY", "2.0"))
 
 
 def resolve_istanbul_timezone():
@@ -76,10 +82,49 @@ def liste_degeri(deger):
     return []
 
 
+def make_request_with_retry(url, headers=None, timeout=None):
+    """Make HTTP request with exponential backoff retry logic."""
+    if headers is None:
+        headers = {"User-Agent": "Mozilla/5.0"}
+    if timeout is None:
+        timeout = SCRAPER_REQUEST_TIMEOUT
+    
+    last_error = None
+    for attempt in range(SCRAPER_MAX_RETRIES):
+        try:
+            response = requests.get(url, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            
+            if SCRAPER_RATE_LIMIT_DELAY > 0:
+                time.sleep(SCRAPER_RATE_LIMIT_DELAY)
+            
+            return response
+        except requests.exceptions.Timeout as e:
+            last_error = e
+            print(f"Timeout on attempt {attempt + 1}/{SCRAPER_MAX_RETRIES} for {url}")
+        except requests.exceptions.RequestException as e:
+            last_error = e
+            status_code = getattr(e.response, 'status_code', None) if hasattr(e, 'response') else None
+            
+            if status_code and 400 <= status_code < 500 and status_code != 429:
+                raise
+            
+            print(f"Request failed on attempt {attempt + 1}/{SCRAPER_MAX_RETRIES} for {url}: {e}")
+        
+        if attempt < SCRAPER_MAX_RETRIES - 1:
+            delay = SCRAPER_RETRY_BASE_DELAY * (2 ** attempt)
+            print(f"Retrying in {delay} seconds...")
+            time.sleep(delay)
+    
+    raise RuntimeError(f"Failed to fetch {url} after {SCRAPER_MAX_RETRIES} attempts: {last_error}")
+
+
 def akaryakit_fiyatlarini_cek():
-    headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(FUEL_PRICES_URL, headers=headers, timeout=20)
-    response.raise_for_status()
+    try:
+        response = make_request_with_retry(FUEL_PRICES_URL)
+    except Exception as e:
+        print(f"HATA: Akaryakit fiyatlari cekilemedi: {e}")
+        raise RuntimeError(f"Akaryakit sayfasindan fiyatlar cekilemedi: {e}")
 
     soup = BeautifulSoup(response.text, "html.parser")
     duz_metin = soup.get_text(separator=" ")
@@ -110,9 +155,11 @@ def akaryakit_fiyatlarini_cek():
 
 
 def lpg_fiyatlarini_cek():
-    headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(LPG_PRICES_URL, headers=headers, timeout=20)
-    response.raise_for_status()
+    try:
+        response = make_request_with_retry(LPG_PRICES_URL)
+    except Exception as e:
+        print(f"HATA: LPG fiyatlari cekilemedi: {e}")
+        raise RuntimeError(f"LPG sayfasindan fiyatlar cekilemedi: {e}")
     soup = BeautifulSoup(response.text, "html.parser")
     lpg_tablosu = next(
         (tablo for tablo in soup.find_all("table") if "oto lpg" in tablo.get_text(" ", strip=True).lower()),
@@ -623,7 +670,12 @@ def test_bildirimi_gonder(installation_id):
     ]
 
     try:
-        response = requests.post(EXPO_PUSH_URL, headers={"Accept": "application/json", "Content-Type": "application/json"}, json=mesajlar, timeout=30)
+        response = requests.post(
+            EXPO_PUSH_URL,
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            json=mesajlar,
+            timeout=SCRAPER_REQUEST_TIMEOUT
+        )
         response.raise_for_status()
         bildirim_log_kaydet(len(mesajlar), 0, status="sent", reason="test_notification", token_count=len(hedefler), candidate_count=len(mesajlar), details={"expo_responses": [response.json()]})
         print(f"{len(mesajlar)} test bildirimi Expo Push API'ye gonderildi")
@@ -745,7 +797,7 @@ def fiyat_bildirimleri_gonder(degisimler, price_memory=None):
                     "Content-Type": "application/json",
                 },
                 json=parca,
-                timeout=30,
+                timeout=SCRAPER_REQUEST_TIMEOUT,
             )
             response.raise_for_status()
             expo_response = response.json()
