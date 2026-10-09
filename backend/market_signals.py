@@ -16,12 +16,15 @@ from http_client import SCRAPER_REQUEST_TIMEOUT, make_request_with_retry
 from groq_market_analysis import (
     DEFAULT_CONFIDENCE,
     DEFAULT_TIMING,
+    build_haberlerde_gecen_tutarlar,
     build_macro_snapshot,
     build_mobile_fuel_signals,
-    build_numeric_summary_from_signals,
+    SOURCE_DISAGREEMENT_NOTE,
+    build_deterministic_market_summary,
     compute_pump_averages,
     derive_overall_direction,
     enrich_news_item,
+    aggregate_news_amount_extractions,
     format_gecmis_trend,
     parse_groq_fuel_signals,
     strip_news_title_source_suffix,
@@ -550,6 +553,8 @@ def fetch_news_items(limit=8):
                 if is_blocked_news_source(clean_source) or not is_recent_news_item(published_at):
                     continue
 
+                clean_description = clean_news_text(description)
+
                 seen_titles.add(normalized_title)
                 items.append(
                     {
@@ -558,6 +563,8 @@ def fetch_news_items(limit=8):
                         "url": (node.findtext("link") or "").strip(),
                         "published_at": published_at.isoformat() if published_at else None,
                         "published_at_parsed": published_at,
+                        "summary": clean_description or None,
+                        "description": clean_description or None,
                         "price_mentions": extract_news_price_mentions(title, description),
                     }
                 )
@@ -1062,10 +1069,11 @@ def call_groq_analysis(payload):
         "- gecmis_last_7_days: son 7 günün gecmis tablosu (ortalama fiyat ve günlük değişim TL)\n"
         "- macro: Brent (USD) ve USD/TRY ile son kayıt ve bir önceki kayda göre % değişim (varsa)\n"
         "- news: son haber başlıkları; age_hours ve bu_gece_already_applied alanlarına dikkat et\n"
+        "- haberlerde_gecen_tutarlar: kodun haber metninden çıkardığı tutarlar (başlık + özet/açıklama); yalnızca bu listeden seçim yap\n"
         "KURALLAR:\n"
         "1. Geçmişte uygulanmış zam/indirim ('geldi', 'yansıdı', 'tabela değişti') gelecek beklenti DEĞİLDİR → ilgili yakıt neutral.\n"
         "2. 'bu gece' içeren başlıkta bu_gece_already_applied=true ise o beklenti artık geçmişte kabul edilir → neutral.\n"
-        "3. expected_amount_tl: haberde açıkça geçen TL/litre tutarı (zam pozitif, indirim negatif). Haberde rakam yoksa null yaz; ASLA uydurma.\n"
+        "3. expected_amount_tl: yalnızca haberlerde_gecen_tutarlar içindeki aynı yakıt ve yön için geçen tutar (zam +, indirim -). Liste dışı veya belirsizse null; ASLA uydurma.\n"
         "4. current_price ve expected_price alanlarını JSON'a yazma; bunlar sistemde hesaplanır.\n"
         "5. Somut yeni beklenti yoksa tüm yakıtlar neutral, expected_amount_tl null.\n"
         "6. timing: somut beklenti yoksa \"Gündemde değişim yok\"; varsa \"Bu gece yarısı\" veya \"Yarından itibaren\".\n"
@@ -1105,7 +1113,8 @@ def call_groq_analysis(payload):
         output_text = result["choices"][0]["message"]["content"]
         parsed = json.loads(output_text)
 
-        fuel_signals = parse_groq_fuel_signals(parsed, current_prices)
+        news_extractions = payload.get("news_amount_extractions") or []
+        fuel_signals = parse_groq_fuel_signals(parsed, current_prices, news_extractions)
         direction = derive_overall_direction(fuel_signals)
         timing = parsed.get("timing") or DEFAULT_TIMING
         confidence = parsed.get("confidence") or DEFAULT_CONFIDENCE
@@ -1114,9 +1123,9 @@ def call_groq_analysis(payload):
             timing = DEFAULT_TIMING
             confidence = DEFAULT_CONFIDENCE
 
-        numeric_summary = build_numeric_summary_from_signals(fuel_signals)
-        summary = numeric_summary or (
-            "Piyasada yeni somut bir zam veya indirim beklentisi tespit edilmedi; güncel pompa ortalamaları referans alındı."
+        summary = build_deterministic_market_summary(fuel_signals)
+        source_disagreement_note = (
+            SOURCE_DISAGREEMENT_NOTE if payload.get("news_amount_source_disagreement") else None
         )
 
         primary_signal = next(
@@ -1136,6 +1145,7 @@ def call_groq_analysis(payload):
             "expected_amount": primary_signal.get("expected_amount_tl") if primary_signal else None,
             "timing": timing,
             "summary": summary,
+            "source_disagreement_note": source_disagreement_note,
             "confidence": confidence,
             "watch_level": "high" if direction != "neutral" else "low",
             "key_reason": parsed.get("key_reason", ""),
@@ -1186,6 +1196,11 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
 
     macro = build_macro_snapshot(brent_history, usd_history)
 
+    news_amount_extractions, news_amount_source_disagreement = aggregate_news_amount_extractions(
+        news_items
+    )
+    haberlerde_gecen_tutarlar = build_haberlerde_gecen_tutarlar(news_items[:10])
+
     ai_payload = {
         "analysis_basis": "news_and_market_context",
         "news_lookback_hours": NEWS_MAX_AGE_HOURS,
@@ -1199,6 +1214,9 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
         },
         "gecmis_last_7_days": gecmis_trend,
         "macro": macro,
+        "haberlerde_gecen_tutarlar": haberlerde_gecen_tutarlar,
+        "news_amount_extractions": news_amount_extractions,
+        "news_amount_source_disagreement": news_amount_source_disagreement,
         "news_scoring_hint": {
             "direction": direction,
             "confidence": confidence,
@@ -1221,11 +1239,16 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
             score = max(score, 85)
             confidence = ai_result.get("confidence", DEFAULT_CONFIDENCE)
 
-    ai_summary = (
-        ai_result["summary"]
-        if ai_result and ai_result.get("summary")
-        else build_rule_based_ai_summary(direction, confidence, news_analysis, news_items)
-    )
+    source_disagreement_note = ai_result.get("source_disagreement_note") if ai_result else None
+
+    if ai_result and ai_result.get("fuel_signals"):
+        ai_summary = ai_result.get("summary") or build_deterministic_market_summary(
+            ai_result["fuel_signals"]
+        )
+    elif ai_result and ai_result.get("summary"):
+        ai_summary = ai_result["summary"]
+    else:
+        ai_summary = build_rule_based_ai_summary(direction, confidence, news_analysis, news_items)
 
     mode = resolve_analysis_mode(ai_result)
 
@@ -1254,6 +1277,7 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
         "confidence": confidence,
         "score": score,
         "summary": ai_summary,
+        "source_disagreement_note": source_disagreement_note,
         "brent_usd": macro.get("brent_usd"),
         "usd_try": macro.get("usd_try"),
         "brent_try_index": None,
