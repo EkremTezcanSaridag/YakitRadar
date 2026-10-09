@@ -67,13 +67,16 @@ jobs:
           fi
 
       - name: Job summary
+        env:
+          REF: ${{ inputs.ref }}
+          BUILD_LINK: ${{ steps.eas_build.outputs.build_link }}
         run: |
           {
             echo "## Android preview APK (EAS)"
             echo ""
-            echo "Branch/ref: \`${{ inputs.ref }}\`"
+            echo "Branch/ref: \`$REF\`"
             echo ""
-            echo "**Build:** ${{ steps.eas_build.outputs.build_link }}"
+            echo "**Build:** $BUILD_LINK"
             echo ""
             echo "When the build finishes on Expo, download the APK from the build page."
           } >> "$GITHUB_STEP_SUMMARY"
