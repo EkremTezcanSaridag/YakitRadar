@@ -1,0 +1,99 @@
+name: EAS Web Preview
+
+on:
+  push:
+    branches:
+      - cursor/zifiri-siyah-dark-redesign-e06e
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-web-preview:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: 24.12.1
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Pull EAS preview environment variables
+        run: |
+          set -euo pipefail
+          eas env:pull preview --non-interactive --path .env --environment preview > /tmp/eas-env-pull.log 2>&1
+          echo "Loaded preview environment variables into .env (values not logged)."
+          rm -f /tmp/eas-env-pull.log
+
+      - name: Export web bundle
+        run: npx expo export --platform web
+
+      - name: Deploy preview to EAS Hosting
+        id: eas_deploy
+        env:
+          DEPLOY_JSON_PATH: /tmp/eas-deploy.json
+        run: |
+          set -euo pipefail
+          eas deploy \
+            --non-interactive \
+            --json \
+            --environment preview \
+            --export-dir dist \
+            > "$DEPLOY_JSON_PATH"
+
+          DEPLOY_URL=$(jq -r '
+            (if type == "array" then .[0] else . end)
+            | .url // .deploymentUrl // .previewUrl // .hostname // empty
+          ' "$DEPLOY_JSON_PATH")
+
+          if [ -z "$DEPLOY_URL" ] || [ "$DEPLOY_URL" = "null" ]; then
+            DEPLOY_URL=$(jq -r '
+              (if type == "array" then .[0] else . end)
+              | .deployments[0].url // .deployment.url // empty
+            ' "$DEPLOY_JSON_PATH")
+          fi
+
+          if [ -z "$DEPLOY_URL" ] || [ "$DEPLOY_URL" = "null" ]; then
+            echo "Could not parse deployment URL from EAS deploy JSON." >&2
+            jq 'keys' "$DEPLOY_JSON_PATH" >&2 || true
+            exit 1
+          fi
+
+          case "$DEPLOY_URL" in
+            http://*|https://*) ;;
+            *) DEPLOY_URL="https://${DEPLOY_URL}" ;;
+          esac
+
+          echo "deploy_url=${DEPLOY_URL}" >> "$GITHUB_OUTPUT"
+          rm -f "$DEPLOY_JSON_PATH"
+
+      - name: Job summary
+        env:
+          DEPLOY_URL: ${{ steps.eas_deploy.outputs.deploy_url }}
+          GIT_REF: ${{ github.ref_name }}
+        run: |
+          {
+            echo "## EAS Web preview deployment"
+            echo ""
+            echo "Branch: \`$GIT_REF\`"
+            echo ""
+            echo "**Preview URL:** $DEPLOY_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
