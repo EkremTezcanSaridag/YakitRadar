@@ -951,6 +951,7 @@ function normalizeMarketSignalRecord(record) {
     title: tone.title,
     updatedAt: formatSignalTime(record.calculated_at ?? record.signal_date),
     expectedFuelSignals: signalsFieldPresent ? parseExpectedFuelSignals(rawFuelSignals) : [],
+    signals: signalsFieldPresent ? rawFuelSignals : [],
     sourceDisagreementNote: analysis.source_disagreement_note ?? null,
   }
 }
