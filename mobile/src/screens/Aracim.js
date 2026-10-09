@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { fuelTabs } from '../services/fuelData'
+import { fuelTabs, getRealPriceRows } from '../services/fuelData'
 import {
   addVehicleExpenseRecord,
   defaultVehicleProfile,
@@ -101,7 +101,8 @@ export default function Aracim() {
   }, [])
 
   const selectedFuel = fuelTabs.find((fuel) => fuel.key === profile.fuelKey) ?? fuelTabs[0]
-  const selectedCity = data.prices.find((item) => item.city === profile.city) ?? data.prices[0]
+  const realPrices = getRealPriceRows(data.prices)
+  const selectedCity = realPrices.find((item) => item.city === profile.city) ?? realPrices[0] ?? null
   const price = Number(selectedCity?.[profile.fuelKey]) || 0
   const spentAmount = toNumber(profile.spentAmount)
   const distanceKm = toNumber(profile.distanceKm)
@@ -117,8 +118,10 @@ export default function Aracim() {
   }, [distanceKm, price, spentAmount])
   const filteredCities = useMemo(() => {
     const query = cityQuery.trim().toLocaleLowerCase('tr-TR')
-    return query ? data.prices.filter((item) => item.city.toLocaleLowerCase('tr-TR').includes(query)) : data.prices
-  }, [cityQuery, data.prices])
+    return query
+      ? realPrices.filter((item) => item.city.toLocaleLowerCase('tr-TR').includes(query))
+      : realPrices
+  }, [cityQuery, realPrices])
   const monthlyExpenses = useMemo(() => buildMonthlyExpenses(expenseHistory), [expenseHistory])
   const monthlyMaximum = Math.max(...monthlyExpenses.map((item) => item.total), 1)
   const currentMonthExpense = monthlyExpenses[monthlyExpenses.length - 1]?.total ?? 0

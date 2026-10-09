@@ -8,6 +8,7 @@ import CityPickerModal from '../components/CityPickerModal'
 import ScreenHeader from '../components/ScreenHeader'
 import { colors, radii, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
+import { computeNationalAverages, getRealPriceRows } from '../services/fuelData'
 import {
   defaultFavoriteCities,
   loadFavoriteCities,
@@ -53,34 +54,36 @@ export default function AnaSayfa() {
     setLocationMeta(null)
   }
 
+  const realPrices = useMemo(() => getRealPriceRows(data.prices), [data.prices])
+  const hasRealData = data.hasRealPrices && realPrices.length > 0
   const heroCityName = favCities[0] ?? 'İstanbul'
 
   const heroCity = useMemo(() => {
+    if (!hasRealData) return null
     return (
-      data.prices.find((row) => row.city === heroCityName)
-      ?? data.prices.find((row) => row.city === 'İstanbul')
-      ?? data.prices[0]
+      realPrices.find((row) => row.city === heroCityName)
+      ?? realPrices.find((row) => row.city === 'İstanbul')
+      ?? realPrices[0]
     )
-  }, [data.prices, heroCityName])
+  }, [hasRealData, realPrices, heroCityName])
 
   const heroPrice = heroCity?.[fuelKey] ?? 0
 
   const nationalAverage = useMemo(() => {
-    const values = data.prices.map((row) => row[fuelKey]).filter((value) => value > 0)
-    if (!values.length) return 0
-    return values.reduce((sum, value) => sum + value, 0) / values.length
-  }, [data.prices, fuelKey])
+    const averages = computeNationalAverages(realPrices)
+    return averages[fuelKey] ?? 0
+  }, [realPrices, fuelKey])
 
   const favoriteRows = useMemo(() => {
     return favCities.map((cityName) => {
-      const row = data.prices.find((item) => item.city === cityName)
+      const row = realPrices.find((item) => item.city === cityName)
       return {
         city: cityName,
         price: row?.[fuelKey] ?? 0,
         isHero: cityName === heroCity?.city,
       }
     })
-  }, [data.prices, favCities, fuelKey, heroCity?.city])
+  }, [realPrices, favCities, fuelKey, heroCity?.city])
 
   const fuelLabel = FUEL_OPTIONS.find((fuel) => fuel.key === fuelKey)?.label ?? 'Yakıt'
 
@@ -102,6 +105,16 @@ export default function AnaSayfa() {
       >
         <ScreenHeader showRefresh title="Ana Sayfa" />
 
+        {!hasRealData ? (
+          <View style={styles.emptyDataBlock}>
+            <Ionicons color={colors.mutedSoft} name="cloud-offline-outline" size={32} />
+            <Text allowFontScaling style={styles.emptyDataTitle}>Veri yok</Text>
+            <Text allowFontScaling style={styles.emptyDataText}>
+              Güncel fiyat verisi alınamadı. Aşağıdan yenilemeyi deneyebilirsiniz.
+            </Text>
+          </View>
+        ) : (
+          <>
         <View style={styles.heroBlock}>
           <Text allowFontScaling style={styles.heroEyebrow}>Senin şehrin</Text>
           <Pressable
@@ -192,6 +205,8 @@ export default function AnaSayfa() {
             </View>
           </View>
         ) : null}
+          </>
+        )}
       </ScrollView>
 
       <CityPickerModal
@@ -214,6 +229,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.screen,
     paddingTop: spacing.sm,
     paddingBottom: 96,
+  },
+  emptyDataBlock: {
+    alignItems: 'flex-start',
+    paddingVertical: spacing.xxl,
+    gap: spacing.sm,
+  },
+  emptyDataTitle: {
+    color: colors.muted,
+    fontSize: typography.heading,
+    fontWeight: '600',
+  },
+  emptyDataText: {
+    color: colors.mutedSoft,
+    fontSize: typography.body,
+    lineHeight: 22,
   },
   heroBlock: {
     marginBottom: spacing.xl,

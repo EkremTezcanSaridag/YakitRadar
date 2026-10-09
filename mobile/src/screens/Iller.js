@@ -6,7 +6,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View, St
 import ScreenHeader from '../components/ScreenHeader'
 import { colors, shadows } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
-import { fuelTabs } from '../services/fuelData'
+import { computeNationalAverages, fuelTabs, getRealPriceRows } from '../services/fuelData'
 import { defaultFavoriteCities, loadFavoriteCities, setPrimaryCityManual, toggleFavoriteCity } from '../services/favoriteCities'
 
 function formatCurrency(value) {
@@ -15,10 +15,6 @@ function formatCurrency(value) {
 
 function formatChange(value) {
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)} ₺`
-}
-
-function formatStationCount(value) {
-  return `${String(value).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} istasyon`
 }
 
 function normalizeSearch(value) {
@@ -62,27 +58,31 @@ export default function Iller() {
     ])
   }
 
-  const cities = useMemo(
-    () => {
-      const normalizedQuery = normalizeSearch(searchQuery.trim())
+  const cities = useMemo(() => {
+    const normalizedQuery = normalizeSearch(searchQuery.trim())
+    const realPrices = getRealPriceRows(data.prices)
+    const averages = computeNationalAverages(realPrices)
+    const nationalAvg = averages[selectedFuelKey]
 
-      return [...data.prices]
-        .filter((city) => {
-          if (showOnlyFavorites && !favoriteCities.includes(city.city)) return false
-          if (normalizedQuery && !normalizeSearch(city.city).includes(normalizedQuery)) return false
-          return true
-        })
-        .sort((first, second) => first[selectedFuelKey] - second[selectedFuelKey])
-        .map((city) => ({
+    return realPrices
+      .filter((city) => {
+        if (showOnlyFavorites && !favoriteCities.includes(city.city)) return false
+        if (normalizedQuery && !normalizeSearch(city.city).includes(normalizedQuery)) return false
+        return true
+      })
+      .sort((first, second) => first[selectedFuelKey] - second[selectedFuelKey])
+      .map((city) => {
+        const price = city[selectedFuelKey]
+        const avgDiff = nationalAvg && price ? price - nationalAvg : null
+
+        return {
           name: city.city,
-          price: formatCurrency(city[selectedFuelKey]),
-          change: formatChange(city.change),
-          stations: formatStationCount(city.stations),
+          price: formatCurrency(price),
+          avgDiff,
           isFavorite: favoriteCities.includes(city.city),
-        }))
-    },
-    [data.prices, favoriteCities, searchQuery, selectedFuelKey, showOnlyFavorites],
-  )
+        }
+      })
+  }, [data.prices, favoriteCities, searchQuery, selectedFuelKey, showOnlyFavorites])
 
   const bestCity = cities[0]
   const hasSearchQuery = searchQuery.trim().length > 0
@@ -215,8 +215,17 @@ export default function Iller() {
           </View>
         )}
 
+        {!data.hasRealPrices ? (
+          <View style={styles.emptyCard}>
+            <MaterialCommunityIcons name="database-off-outline" size={28} color={colors.mutedSoft} />
+            <Text style={styles.emptyTitle}>Veri yok</Text>
+            <Text style={styles.emptyText}>Gerçek fiyat verisi bulunamadı.</Text>
+          </View>
+        ) : null}
+
         {cities.map((city, index) => {
-          const trendUp = city.change.startsWith('+')
+          const trendUp = city.avgDiff !== null && city.avgDiff > 0
+          const trendDown = city.avgDiff !== null && city.avgDiff < 0
 
           return (
             <Pressable
@@ -239,16 +248,18 @@ export default function Iller() {
                     />
                   </Pressable>
                 </View>
-                <View style={styles.cityChangeWrap}>
-                  <MaterialCommunityIcons
-                    name={trendUp ? 'arrow-up-bold' : 'arrow-down-bold'}
-                    size={12}
-                    color={trendUp ? colors.warning : colors.accent}
-                  />
-                  <Text style={[styles.cityChange, trendUp ? styles.cityChangeUp : styles.cityChangeDown]}>
-                    {city.change} ort. fiyattan
-                  </Text>
-                </View>
+                {city.avgDiff !== null && Math.abs(city.avgDiff) >= 0.005 ? (
+                  <View style={styles.cityChangeWrap}>
+                    <MaterialCommunityIcons
+                      name={trendUp ? 'arrow-up-bold' : trendDown ? 'arrow-down-bold' : 'minus'}
+                      size={12}
+                      color={colors.mutedSoft}
+                    />
+                    <Text style={styles.cityChange}>
+                      {formatChange(city.avgDiff)} ort. fiyattan
+                    </Text>
+                  </View>
+                ) : null}
               </View>
 
               <View style={styles.priceWrap}>

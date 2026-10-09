@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { checkAndTriggerCustomAlerts } from '../services/customAlerts'
-import { fallbackFuelData, loadFuelData } from '../services/fuelData'
+import { emptyFuelData, getRealPriceRows, loadFuelData } from '../services/fuelData'
 import { scheduleWeeklySummaryNotification } from '../services/notifications'
 
 function triggerAlertsAndSchedule(freshData) {
-  if (freshData?.prices?.length) {
+  if (getRealPriceRows(freshData?.prices).length) {
     scheduleWeeklySummaryNotification(freshData.prices).catch(() => {})
     checkAndTriggerCustomAlerts(freshData.prices, freshData.marketSignal).catch(() => {})
   }
@@ -14,7 +14,7 @@ export function useFuelData() {
   const followUpTimerRef = useRef(null)
   const mountedRef = useRef(true)
   const [state, setState] = useState({
-    data: fallbackFuelData,
+    data: emptyFuelData,
     loading: true,
     refreshing: false,
   })

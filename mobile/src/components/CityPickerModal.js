@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native'
+import { getRealPriceRows } from '../services/fuelData'
 import { colors, radii, spacing, typography } from '../theme'
 
 function normalizeSearch(value) {
@@ -22,15 +23,11 @@ function normalizeSearch(value) {
     .replace(/[üÜ]/g, 'u')
 }
 
-export function filterRealPriceRows(prices = []) {
-  return prices.filter((row) => row?.dataUpdatedAt && row.city)
-}
-
 export default function CityPickerModal({ onClose, onSelect, prices, selectedCity, visible }) {
   const [query, setQuery] = useState('')
 
   const cities = useMemo(() => {
-    const realRows = filterRealPriceRows(prices)
+    const realRows = getRealPriceRows(prices)
     const normalizedQuery = normalizeSearch(query.trim())
 
     return realRows
