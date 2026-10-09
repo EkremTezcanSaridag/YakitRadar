@@ -7,10 +7,14 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/backend-tests.yml'
+      - '.github/workflows/guncelle.yml'
+      - 'supabase/functions/**'
   pull_request:
     paths:
       - 'backend/**'
       - '.github/workflows/backend-tests.yml'
+      - '.github/workflows/guncelle.yml'
+      - 'supabase/functions/**'
   workflow_dispatch:
 
 permissions:
@@ -43,6 +47,14 @@ jobs:
         run: |
           cd backend
           pytest --cov=. --cov-report=term-missing --cov-report=xml -v
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Deno test (refresh-prices cooldown)
+        run: deno test --allow-env supabase/functions/refresh-prices/
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
