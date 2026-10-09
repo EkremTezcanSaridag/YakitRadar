@@ -377,8 +377,8 @@ export default function Bildirimler() {
               <Ionicons name="pulse-outline" size={18} color={colors.muted} />
             </View>
             <View style={styles.rowCopy}>
-              <Text style={styles.rowTitle}>Piyasa notunu göster</Text>
-              <Text style={styles.rowDesc}>Ana sayfada piyasa analizi özetini gösterir.</Text>
+              <Text style={styles.rowTitle}>Beklenen değişimi göster</Text>
+              <Text style={styles.rowDesc}>Ana sayfada beklenen pompa değişim kutularını gösterir.</Text>
             </View>
             <Switch
               onValueChange={async (value) => {
