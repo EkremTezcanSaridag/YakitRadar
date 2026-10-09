@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { enableScreens } from 'react-native-screens'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -20,16 +19,10 @@ import {
   syncExistingNotificationPermission,
 } from './src/services/notifications'
 import { initAds, trackAdInteraction } from './src/services/adManager'
+import SakinSolmaTabBar from './src/components/SakinSolmaTabBar'
 import { colors } from './src/theme'
 
-import {
-  AccessibilityInfo,
-  Animated,
-  Easing,
-  Platform,
-  StyleSheet,
-  View,
-} from 'react-native'
+import { AccessibilityInfo, Easing, Platform } from 'react-native'
 
 enableScreens()
 configureNotificationHandler()
@@ -63,103 +56,6 @@ const tabIcons = {
 const startupNotificationMeta = {
   trackedCities: ['İstanbul', 'Ankara', 'İzmir'],
   trackedFuels: defaultNotificationSettings.trackedFuels,
-}
-
-function AnimatedTabIcon({ focused, routeName, reduceMotion, transitionMs, pillFadeMs }) {
-  const iconMeta = tabIcons[routeName] ?? { active: 'circle', inactive: 'circle-outline' }
-  const pillOpacity = useRef(new Animated.Value(focused ? 1 : 0)).current
-  const pillScale = useRef(new Animated.Value(focused ? 1 : 0.85)).current
-  const outlineOpacity = useRef(new Animated.Value(focused ? 0 : 1)).current
-  const filledOpacity = useRef(new Animated.Value(focused ? 1 : 0)).current
-
-  useEffect(() => {
-    if (reduceMotion) {
-      pillOpacity.setValue(focused ? 1 : 0)
-      pillScale.setValue(focused ? 1 : 0.85)
-      outlineOpacity.setValue(focused ? 0 : 1)
-      filledOpacity.setValue(focused ? 1 : 0)
-      return
-    }
-
-    if (focused) {
-      Animated.parallel([
-        Animated.timing(pillOpacity, {
-          toValue: 1,
-          duration: transitionMs,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pillScale, {
-          toValue: 1,
-          duration: transitionMs,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(outlineOpacity, {
-          toValue: 0,
-          duration: pillFadeMs,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(filledOpacity, {
-          toValue: 1,
-          duration: pillFadeMs,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start()
-    } else {
-      Animated.parallel([
-        Animated.timing(pillOpacity, {
-          toValue: 0,
-          duration: pillFadeMs,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pillScale, {
-          toValue: 0.85,
-          duration: pillFadeMs,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(outlineOpacity, {
-          toValue: 1,
-          duration: pillFadeMs,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(filledOpacity, {
-          toValue: 0,
-          duration: pillFadeMs,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start()
-    }
-  }, [focused, filledOpacity, outlineOpacity, pillFadeMs, pillOpacity, pillScale, reduceMotion, transitionMs])
-
-  return (
-    <View style={styles.tabIconWrap}>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.tabIconPill,
-          {
-            opacity: pillOpacity,
-            transform: [{ scale: pillScale }],
-          },
-        ]}
-      />
-      <View style={styles.tabIconStack}>
-        <Animated.View style={[styles.tabIconLayer, { opacity: outlineOpacity }]}>
-          <MaterialCommunityIcons name={iconMeta.inactive} color={colors.muted} size={20} />
-        </Animated.View>
-        <Animated.View style={[styles.tabIconLayer, styles.tabIconLayerFilled, { opacity: filledOpacity }]}>
-          <MaterialCommunityIcons name={iconMeta.active} color={colors.accent} size={20} />
-        </Animated.View>
-      </View>
-    </View>
-  )
 }
 
 const sakinSolmaSceneInterpolator = ({ current }) => ({
@@ -210,21 +106,21 @@ function MainTabs() {
           },
         }}
         safeAreaInsets={{ bottom: insets.bottom }}
-        screenOptions={({ route }) => ({
+        tabBar={(props) => (
+          <SakinSolmaTabBar
+            {...props}
+            pillFadeMs={pillFadeMs}
+            reduceMotion={reduceMotion}
+            tabIcons={tabIcons}
+            transitionMs={transitionMs}
+          />
+        )}
+        screenOptions={() => ({
           headerShown: false,
-          tabBarShowLabel: true,
+          tabBarShowLabel: false,
           animation: reduceMotion ? 'none' : undefined,
           transitionSpec,
           sceneStyleInterpolator: reduceMotion ? undefined : sakinSolmaSceneInterpolator,
-          tabBarIcon: ({ focused }) => (
-            <AnimatedTabIcon
-              focused={focused}
-              pillFadeMs={pillFadeMs}
-              reduceMotion={reduceMotion}
-              routeName={route.name}
-              transitionMs={transitionMs}
-            />
-          ),
           tabBarLabelStyle: {
             fontSize: 10,
             fontWeight: '800',
@@ -301,35 +197,3 @@ export default function App() {
     </SafeAreaProvider>
   )
 }
-
-const styles = StyleSheet.create({
-  tabIconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 38,
-    height: 28,
-    borderRadius: 14,
-  },
-  tabIconPill: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.accentSoft,
-    borderRadius: 14,
-  },
-  tabIconStack: {
-    width: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabIconLayer: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabIconLayerFilled: {
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-})
