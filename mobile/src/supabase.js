@@ -1,20 +1,22 @@
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_CONFIG_ERROR =
-  'Supabase yapılandırması eksik: EXPO_PUBLIC_SUPABASE_URL ve EXPO_PUBLIC_SUPABASE_ANON_KEY ortam değişkenlerini ayarlayın.\n\n' +
-  'Yerel geliştirme: mobile/.env.example dosyasını .env olarak kopyalayıp değerleri girin, sonra Metro/Expo’yu yeniden başlatın.\n\n' +
-  'EAS Build (preview / production): Expo dashboard veya `eas env:create` ile bu değişkenleri ilgili ortamda tanımlayın (eas.json içindeki profile environment alanına bakın).'
+const missingSupabaseEnv =
+  !process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
 
-if (!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) {
-  throw new Error(SUPABASE_CONFIG_ERROR)
+export const hasSupabaseConfig = !missingSupabaseEnv
+
+if (missingSupabaseEnv) {
+  console.warn(
+    '[YakitRadar] Supabase yapılandırması eksik (EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY). ' +
+      'Canlı veri yerine yerel örnek veriler kullanılacak. Geliştirme için mobile/.env.example → .env; ' +
+      'EAS için preview/production ortam değişkenlerini tanımlayın.',
+  )
 }
 
-export const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-  {
-    auth: {
-      persistSession: false,
-    },
-  },
-)
+export const supabase = hasSupabaseConfig
+  ? createClient(process.env.EXPO_PUBLIC_SUPABASE_URL, process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: false,
+      },
+    })
+  : null

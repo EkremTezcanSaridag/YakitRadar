@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { ErrorBoundary } from './src/components/ErrorBoundary'
+import { SupabaseConfigDevBanner } from './src/components/SupabaseConfigDevBanner'
 import AnaSayfa from './src/screens/AnaSayfa'
 import Iller from './src/screens/Iller'
 import Gecmis from './src/screens/Gecmis'
@@ -71,6 +72,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+        <SupabaseConfigDevBanner />
         <NavigationContainer>
           <Tab.Navigator
           screenListeners={{
