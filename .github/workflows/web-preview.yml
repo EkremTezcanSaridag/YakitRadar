@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - cursor/zifiri-siyah-dark-redesign-e06e
+      - cursor/redesign-v2
   workflow_dispatch:
 
 permissions:
@@ -46,11 +47,19 @@ jobs:
       - name: Export web bundle
         run: npx expo export --platform web
 
+      - name: Resolve preview alias
+        id: preview_alias
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            cursor/redesign-v2) echo "alias=yeniden-tasarim" >> "$GITHUB_OUTPUT" ;;
+            *) echo "alias=zifiri-siyah" >> "$GITHUB_OUTPUT" ;;
+          esac
+
       - name: Deploy preview to EAS Hosting
         id: eas_deploy
         env:
           DEPLOY_JSON_PATH: /tmp/eas-deploy.json
-          PREVIEW_ALIAS: zifiri-siyah
+          PREVIEW_ALIAS: ${{ steps.preview_alias.outputs.alias }}
         run: |
           set -euo pipefail
           eas deploy \
