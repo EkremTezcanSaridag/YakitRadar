@@ -4,6 +4,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
+import { ErrorBoundary } from './src/components/ErrorBoundary'
+import { SupabaseConfigDevBanner } from './src/components/SupabaseConfigDevBanner'
 import AnaSayfa from './src/screens/AnaSayfa'
 import Iller from './src/screens/Iller'
 import Gecmis from './src/screens/Gecmis'
@@ -22,6 +24,7 @@ import { initAds, trackAdInteraction } from './src/services/adManager'
 import { colors } from './src/theme'
 
 import { Platform, StyleSheet, View } from 'react-native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 enableScreens()
 configureNotificationHandler()
@@ -68,9 +71,12 @@ export default function App() {
   }, [])
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <NavigationContainer>
-        <Tab.Navigator
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+          <SupabaseConfigDevBanner />
+          <NavigationContainer>
+          <Tab.Navigator
           screenListeners={{
             tabPress: () => {
               trackAdInteraction()
@@ -133,8 +139,10 @@ export default function App() {
           <Tab.Screen name={tabs.vehicle} component={Aracim} />
           <Tab.Screen name={tabs.alerts} component={Bildirimler} />
         </Tab.Navigator>
-      </NavigationContainer>
-    </GestureHandlerRootView>
+          </NavigationContainer>
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   )
 }
 

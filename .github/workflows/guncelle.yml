@@ -1,8 +1,11 @@
 name: Günlük Fiyat Güncelleme
 
+permissions:
+  contents: read
+
 on:
   schedule:
-    - cron: '0 * * * *'  # Her saat basi (UTC, GitHub Actions scheduler)
+    - cron: '17 * * * *'  # Her saat 17. dakikada (UTC, GitHub Actions scheduler)
   push:
     branches:
       - main
