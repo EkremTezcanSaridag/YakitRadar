@@ -111,7 +111,12 @@ export default function Gecmis() {
               <Pressable
                 key={fuel.key}
                 onPress={() => setSelectedFuelKey(fuel.key)}
-                style={({ pressed }) => [styles.fuelChip, active && styles.fuelChipActive, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.fuelChip,
+                  active && styles.fuelChipActive,
+                  active && pressed && styles.fuelChipPressed,
+                  pressed && styles.pressed,
+                ]}
               >
                 <Ionicons name={fuel.icon} size={16} color={active ? colors.onAccent : colors.muted} />
                 <Text style={[styles.fuelChipText, active && styles.fuelChipTextActive]}>{fuel.label}</Text>
@@ -229,6 +234,10 @@ const styles = StyleSheet.create({
   fuelChipActive: {
     backgroundColor: colors.accent,
     borderColor: colors.accent,
+  },
+  fuelChipPressed: {
+    backgroundColor: colors.accentPressed,
+    borderColor: colors.accentPressed,
   },
   fuelChipText: {
     color: colors.muted,

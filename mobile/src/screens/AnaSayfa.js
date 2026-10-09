@@ -124,6 +124,7 @@ export default function AnaSayfa() {
                 style={({ pressed }) => [
                   styles.fuelChip,
                   active && styles.fuelChipActive,
+                  active && pressed && styles.fuelChipPressed,
                   pressed && styles.pressed,
                 ]}
               >
@@ -262,6 +263,10 @@ const styles = StyleSheet.create({
   fuelChipActive: {
     backgroundColor: colors.accent,
     borderColor: colors.accent,
+  },
+  fuelChipPressed: {
+    backgroundColor: colors.accentPressed,
+    borderColor: colors.accentPressed,
   },
   fuelChipText: {
     color: colors.muted,

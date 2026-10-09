@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFuelData } from '../hooks/useFuelData'
 import { colors, iconSize, radii, spacing, typography } from '../theme'
@@ -15,7 +15,10 @@ export default function ScreenHeader({ showRefresh = false, title }) {
             {refreshing ? 'Yenileniyor…' : `Son kontrol: ${data.lastUpdatedHm ?? '--:--'}`}
           </Text>
           {!refreshing && data.dataCheckStale ? (
-            <Text allowFontScaling style={styles.staleDataNote}>Veri eski olabilir</Text>
+            <View style={styles.staleRow}>
+              <Ionicons color={colors.mutedSoft} name="time-outline" size={14} />
+              <Text allowFontScaling style={styles.staleDataNote}>Veri eski olabilir</Text>
+            </View>
           ) : null}
         </View>
         {showRefresh ? (
@@ -62,11 +65,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     textAlign: 'left',
   },
-  staleDataNote: {
-    color: colors.accent,
-    fontSize: typography.caption,
-    fontWeight: '500',
+  staleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     marginTop: spacing.xs,
+  },
+  staleDataNote: {
+    color: colors.mutedSoft,
+    fontSize: typography.caption,
+    fontWeight: '400',
     textAlign: 'left',
   },
   refreshBtn: {
