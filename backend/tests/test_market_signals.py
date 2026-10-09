@@ -293,3 +293,62 @@ class TestSummarizePriceChanges:
         assert result["score"] < 0
         # Direction depends on score threshold (<=-35 for decrease)
         assert len(result["items"]) > 0
+
+
+class TestResolveAnalysisMode:
+    def test_groq_mode_when_groq_model(self):
+        from market_signals import resolve_analysis_mode
+
+        assert resolve_analysis_mode({"model": "groq:openai/gpt-oss-120b"}) == "groq"
+
+    def test_rules_when_no_result(self):
+        from market_signals import resolve_analysis_mode
+
+        assert resolve_analysis_mode(None) == "rules"
+
+    def test_rules_when_model_not_groq(self):
+        from market_signals import resolve_analysis_mode
+
+        assert resolve_analysis_mode({"model": "other-provider"}) == "rules"
+
+
+class TestCallGroqAnalysis:
+    def test_missing_api_key_warns_and_returns_none(self, monkeypatch, capsys):
+        from market_signals import call_groq_analysis
+
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+        result = call_groq_analysis({"news": []})
+
+        assert result is None
+        captured = capsys.readouterr()
+        assert "UYARI" in captured.out
+        assert "GROQ_API_KEY" in captured.out
+
+    def test_build_market_signal_uses_groq_mode_when_groq_succeeds(self, monkeypatch):
+        from market_signals import build_market_signal
+
+        monkeypatch.setattr("market_signals.fetch_news_items", lambda: [])
+        monkeypatch.setattr(
+            "market_signals.call_groq_analysis",
+            lambda _payload: {
+                "model": "groq:test-model",
+                "direction": "neutral",
+                "summary": "Groq ozet",
+                "confidence": "high",
+            },
+        )
+
+        signal = build_market_signal([])
+
+        assert signal["analysis"]["mode"] == "groq"
+
+    def test_build_market_signal_uses_rules_mode_without_groq(self, monkeypatch):
+        from market_signals import build_market_signal
+
+        monkeypatch.setattr("market_signals.fetch_news_items", lambda: [])
+        monkeypatch.setattr("market_signals.call_groq_analysis", lambda _payload: None)
+
+        signal = build_market_signal([])
+
+        assert signal["analysis"]["mode"] == "rules"
