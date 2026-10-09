@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
 import CityPickerModal from '../components/CityPickerModal'
+import ExpectedChangeSection from '../components/ExpectedChangeSection'
 import ScreenHeader from '../components/ScreenHeader'
 import { colors, radii, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
@@ -19,6 +20,7 @@ import {
   removeComparisonCity,
   setPrimaryCityManual,
 } from '../services/favoriteCities'
+import { enrichExpectedChanges } from '../services/expectedChange'
 import { loadShowMarketNote } from '../services/uiPreferences'
 
 const FUEL_OPTIONS = [
@@ -117,6 +119,14 @@ export default function AnaSayfa() {
 
   const fuelLabel = FUEL_OPTIONS.find((fuel) => fuel.key === fuelKey)?.label ?? 'Yakıt'
 
+  const expectedChangeBoxes = useMemo(() => {
+    const raw = data.marketSignal?.expectedFuelSignals ?? []
+    if (!raw.length) {
+      return []
+    }
+    return enrichExpectedChanges(raw, heroCity)
+  }, [data.marketSignal?.expectedFuelSignals, heroCity])
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="light" />
@@ -134,6 +144,15 @@ export default function AnaSayfa() {
         showsVerticalScrollIndicator={false}
       >
         <ScreenHeader showRefresh title="Ana Sayfa" />
+
+        {showMarketNote && expectedChangeBoxes.length > 0 ? (
+          <ExpectedChangeSection
+            analysisTime={data.marketSignal?.updatedAt}
+            boxes={expectedChangeBoxes}
+            onRefresh={refreshMarketSignal}
+            refreshing={marketSignalRefreshing}
+          />
+        ) : null}
 
         {!hasRealData ? (
           <View style={styles.emptyDataBlock}>
@@ -299,41 +318,6 @@ export default function AnaSayfa() {
           </View>
         </View>
 
-        {showMarketNote ? (
-          <View style={styles.section}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionLabel}>Piyasa notu</Text>
-              <Pressable
-                accessibilityRole="button"
-                disabled={marketSignalRefreshing}
-                onPress={() => refreshMarketSignal()}
-                style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
-              >
-                <Text style={styles.editButtonText}>{marketSignalRefreshing ? '…' : 'Yenile'}</Text>
-              </Pressable>
-            </View>
-            {data.marketSignal?.summary ? (
-              <View style={styles.noteBlock}>
-                <Ionicons name="pulse-outline" size={20} color={colors.muted} />
-                <View style={styles.noteCopy}>
-                  <Text style={styles.noteText}>{data.marketSignal.summary}</Text>
-                  {data.marketSignal.fuelPriceLines?.length ? (
-                    <View style={styles.noteFuelLines}>
-                      {data.marketSignal.fuelPriceLines.map((line, index) => (
-                        <Text key={`${index}-${line}`} style={styles.noteFuelLine}>{line}</Text>
-                      ))}
-                    </View>
-                  ) : null}
-                  {data.marketSignal.updatedAt ? (
-                    <Text style={styles.noteMeta}>Analiz: {data.marketSignal.updatedAt}</Text>
-                  ) : null}
-                </View>
-              </View>
-            ) : (
-              <Text style={styles.noteEmpty}>Piyasa notu bulunamadı. Yenile ile tekrar deneyin.</Text>
-            )}
-          </View>
-        ) : null}
           </>
         )}
       </ScrollView>
@@ -573,39 +557,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: typography.body,
     fontWeight: '500',
-  },
-  noteBlock: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  noteCopy: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  noteText: {
-    color: colors.muted,
-    fontSize: typography.body,
-    lineHeight: 22,
-  },
-  noteFuelLines: {
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-  },
-  noteFuelLine: {
-    color: colors.mutedSoft,
-    fontSize: typography.caption,
-    lineHeight: 20,
-  },
-  noteMeta: {
-    color: colors.mutedSoft,
-    fontSize: typography.caption,
-  },
-  noteEmpty: {
-    color: colors.mutedSoft,
-    fontSize: typography.body,
-    paddingVertical: spacing.md,
   },
   pressed: {
     opacity: 0.88,

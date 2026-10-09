@@ -1,5 +1,6 @@
 import { colors } from '../theme'
 import { supabase } from '../supabase'
+import { parseExpectedFuelSignals } from './expectedChange'
 
 export const fuelTabs = [
   { key: 'benzin95', label: 'Benzin', title: 'Benzin 95', icon: 'gas-station' },
@@ -873,86 +874,6 @@ function normalizePriceChangeEvent(record) {
   }
 }
 
-function parseNullableFuelNumber(value) {
-  if (value === null || value === undefined || value === '') {
-    return null
-  }
-
-  return parseFuelValue(value)
-}
-
-function formatTlUnitPrice(value) {
-  if (!Number.isFinite(value)) {
-    return null
-  }
-
-  return value.toFixed(2).replace('.', ',')
-}
-
-function buildFuelSignalPriceLine(signal) {
-  const fuel = signal.fuel ?? 'Yakıt'
-  const direction = normalizeSignalDirection(signal.direction)
-  const amountTl = parseNullableFuelNumber(signal.expected_amount_tl ?? signal.expected_amount)
-  const expectedPrice = parseNullableFuelNumber(signal.expected_price)
-  let currentPrice = parseNullableFuelNumber(signal.current_price)
-
-  if (currentPrice === null && expectedPrice !== null && amountTl !== null) {
-    if (direction === 'increase') {
-      currentPrice = expectedPrice - amountTl
-    } else if (direction === 'decrease') {
-      currentPrice = expectedPrice + amountTl
-    }
-  }
-
-  const hasAmount = amountTl !== null && amountTl !== 0
-  const hasPrices =
-    expectedPrice !== null
-    && currentPrice !== null
-    && Number.isFinite(expectedPrice)
-    && Number.isFinite(currentPrice)
-
-  if (hasPrices && hasAmount) {
-    const sign = amountTl >= 0 ? '+' : ''
-    const currentLabel = formatTlUnitPrice(currentPrice)
-    const expectedLabel = formatTlUnitPrice(expectedPrice)
-    const amountLabel = formatTlUnitPrice(Math.abs(amountTl))
-    const signedAmount = `${sign}${amountLabel} ₺`
-    return `${fuel} ${currentLabel} ₺ → yaklaşık ${expectedLabel} ₺ (${signedAmount})`
-  }
-
-  if (amountTl === null) {
-    if (direction === 'increase') {
-      return `${fuel} · zam beklentisi`
-    }
-    if (direction === 'decrease') {
-      return `${fuel} · indirim beklentisi`
-    }
-    return `${fuel} · sabit`
-  }
-
-  if (direction === 'increase') {
-    return `${fuel} · zam beklentisi`
-  }
-  if (direction === 'decrease') {
-    return `${fuel} · indirim beklentisi`
-  }
-  return `${fuel} · sabit`
-}
-
-export function buildMarketSignalFuelPriceLines(record) {
-  if (!record || record.signals === null || record.signals === undefined) {
-    return null
-  }
-
-  const rawFuelSignals = parseJsonList(record.signals)
-
-  if (!rawFuelSignals.length) {
-    return []
-  }
-
-  return rawFuelSignals.map((signal) => buildFuelSignalPriceLine(signal))
-}
-
 function normalizeMarketSignalRecord(record) {
   if (!record) {
     return null
@@ -1024,7 +945,7 @@ function normalizeMarketSignalRecord(record) {
     summary: record.summary ?? '',
     title: tone.title,
     updatedAt: formatSignalTime(record.calculated_at ?? record.signal_date),
-    fuelPriceLines: signalsFieldPresent ? rawFuelSignals.map((signal) => buildFuelSignalPriceLine(signal)) : null,
+    expectedFuelSignals: signalsFieldPresent ? parseExpectedFuelSignals(rawFuelSignals) : [],
   }
 }
 

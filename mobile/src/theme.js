@@ -36,6 +36,12 @@ export const colors = {
   purpleGlow: '#A1A1AA',
   purpleDark: '#17171A',
   overlay: '#00000099',
+  expectedIncrease: '#FF6B6B',
+  expectedIncreaseBg: 'rgba(255,107,107,0.10)',
+  expectedIncreaseBorder: 'rgba(255,107,107,0.35)',
+  expectedDecrease: '#34D399',
+  expectedDecreaseBg: 'rgba(52,211,153,0.10)',
+  expectedDecreaseBorder: 'rgba(52,211,153,0.35)',
 }
 
 export const typography = {
