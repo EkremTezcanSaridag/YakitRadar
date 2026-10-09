@@ -7,10 +7,14 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/backend-tests.yml'
+      - '.github/workflows/guncelle.yml'
+      - 'supabase/functions/**'
   pull_request:
     paths:
       - 'backend/**'
       - '.github/workflows/backend-tests.yml'
+      - '.github/workflows/guncelle.yml'
+      - 'supabase/functions/**'
   workflow_dispatch:
 
 permissions:
