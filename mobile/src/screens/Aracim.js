@@ -13,6 +13,7 @@ import {
   loadVehicleProfile,
   saveVehicleProfile,
 } from '../services/vehicleProfile'
+import ScreenHeader from '../components/ScreenHeader'
 import { useFuelData } from '../hooks/useFuelData'
 import { colors, shadows } from '../theme'
 
@@ -68,7 +69,7 @@ function ResultRow({ icon, label, value }) {
 }
 
 export default function Aracim() {
-  const { data, refresh, refreshing } = useFuelData()
+  const { data } = useFuelData()
   const [profile, setProfile] = useState(defaultVehicleProfile)
   const [cityPickerOpen, setCityPickerOpen] = useState(false)
   const [resultOpen, setResultOpen] = useState(false)
@@ -235,16 +236,7 @@ export default function Aracim() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <View style={styles.headerMark}><MaterialCommunityIcons name="car-outline" size={21} color={colors.accent} /></View>
-          <View style={styles.headerText}>
-            <Text style={styles.brand}>Aracım</Text>
-            <Text style={styles.subtitle}>Yakıt maliyetini ve fişlerini takip et</Text>
-          </View>
-          <Pressable accessibilityLabel="Fiyatları yenile" onPress={refresh} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-            <MaterialCommunityIcons name="refresh" size={19} color={refreshing ? colors.muted : colors.accent} />
-          </Pressable>
-        </View>
+        <ScreenHeader showRefresh title="Aracım" />
 
         <View style={styles.priceStrip}>
           <View style={styles.priceStripIcon}><MaterialCommunityIcons name={selectedFuel.icon} size={17} color={colors.accent} /></View>

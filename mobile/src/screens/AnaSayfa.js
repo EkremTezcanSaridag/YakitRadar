@@ -3,7 +3,8 @@ import { StatusBar } from 'expo-status-bar'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Pressable, RefreshControl, ScrollView, View, Text, StyleSheet, useWindowDimensions } from 'react-native'
-import { colors, iconSize, radii, shadows, spacing, typography } from '../theme'
+import ScreenHeader from '../components/ScreenHeader'
+import { colors, radii, shadows, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { buildDetailedFuelPredictions } from '../services/fuelData'
 import { defaultFavoriteCities, loadFavoriteCities } from '../services/favoriteCities'
@@ -166,32 +167,7 @@ export default function AnaSayfa() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.screenHeader}>
-          <View style={styles.screenHeaderRow}>
-            <View>
-              <Text allowFontScaling style={styles.screenTitle}>Ana Sayfa</Text>
-              <Text allowFontScaling style={styles.screenSubtitle}>
-                {refreshing
-                  ? 'Yenileniyor…'
-                  : `Son kontrol: ${data.lastUpdatedHm ?? '--:--'}`}
-              </Text>
-              {!refreshing && data.dataCheckStale ? (
-                <Text allowFontScaling style={styles.staleDataNote}>Veri eski olabilir</Text>
-              ) : null}
-            </View>
-            <Pressable
-              accessibilityLabel="Fiyatları yenile"
-              onPress={refresh}
-              style={({ pressed }) => [styles.heroRefreshBtn, pressed && styles.pressed]}
-            >
-              <MaterialCommunityIcons
-                name="refresh"
-                size={iconSize.tab}
-                color={refreshing ? colors.mutedSoft : colors.muted}
-              />
-            </Pressable>
-          </View>
-        </View>
+        <ScreenHeader showRefresh title="Ana Sayfa" />
 
         {triggeredAlerts.length > 0 ? (
           <View style={styles.triggeredBanner}>

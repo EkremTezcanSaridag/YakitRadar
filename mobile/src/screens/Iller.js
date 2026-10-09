@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Pressable, RefreshControl, ScrollView, Text, TextInput, View, StyleSheet } from 'react-native'
+import ScreenHeader from '../components/ScreenHeader'
 import { colors, shadows } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { fuelTabs } from '../services/fuelData'
@@ -90,16 +91,7 @@ export default function Iller() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <View style={styles.headerMark}>
-            <MaterialCommunityIcons name="gas-station" size={18} color={colors.accent} />
-          </View>
-          <View style={styles.brandRow}>
-            <Text style={styles.brandMain}>YAKIT </Text>
-            <Text style={styles.brandAccent}>RADAR</Text>
-          </View>
-          <View style={{ width: 34 }} />
-        </View>
+        <ScreenHeader title="İller" />
 
         <View style={styles.searchBox}>
           <MaterialCommunityIcons name="magnify" size={18} color={colors.accent} />
