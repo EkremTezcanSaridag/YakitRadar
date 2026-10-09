@@ -1,3 +1,5 @@
+import { evaluateWorkflowCooldown, type GitHubConfig } from './github_workflow.ts'
+
 const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -25,7 +27,7 @@ Deno.serve(async (request) => {
 
   const token = Deno.env.get('GITHUB_ACTION_TOKEN')
   const owner = Deno.env.get('GITHUB_OWNER') ?? 'EkremTezcanSaridag'
-  const repo = Deno.env.get('GITHUB_REPO') ?? 'fuel-tracker'
+  const repo = Deno.env.get('GITHUB_REPO') ?? 'YakitRadar'
   const workflow = Deno.env.get('GITHUB_WORKFLOW') ?? 'guncelle.yml'
   const ref = Deno.env.get('GITHUB_REF') ?? 'main'
   const requestBody = (await request.json().catch(() => ({}))) as {
@@ -43,6 +45,26 @@ Deno.serve(async (request) => {
       },
       500,
     )
+  }
+
+  const githubConfig: GitHubConfig = {
+    owner,
+    repo,
+    workflow,
+    token,
+  }
+
+  const cooldownDecision = await evaluateWorkflowCooldown(githubConfig, {
+    testNotification,
+  })
+
+  if (cooldownDecision.skip) {
+    return jsonResponse({
+      skipped: true,
+      reason: cooldownDecision.reason ?? 'cooldown',
+      status: 'skipped',
+      testNotification,
+    })
   }
 
   const dispatchUrl = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow}/dispatches`

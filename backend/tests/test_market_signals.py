@@ -329,24 +329,62 @@ class TestCallGroqAnalysis:
         from market_signals import build_market_signal
 
         monkeypatch.setattr("market_signals.fetch_news_items", lambda: [])
+        monkeypatch.setattr("market_signals.fetch_pump_price_rows", lambda: [])
+        monkeypatch.setattr("market_signals.fetch_gecmis_rows", lambda limit=7: [])
+        monkeypatch.setattr("market_signals.fetch_brent_history", lambda limit=12: [])
+        monkeypatch.setattr("market_signals.fetch_usd_try_history", lambda limit=12: [])
         monkeypatch.setattr(
             "market_signals.call_groq_analysis",
             lambda _payload: {
                 "model": "groq:test-model",
                 "direction": "neutral",
                 "summary": "Groq ozet",
-                "confidence": "high",
+                "confidence": "low",
+                "fuel_signals": [
+                    {
+                        "fuel": "Benzin",
+                        "direction": "neutral",
+                        "expected_amount_tl": None,
+                        "expected_amount": None,
+                        "current_price": None,
+                        "expected_price": None,
+                        "reason": "",
+                    },
+                    {
+                        "fuel": "Motorin",
+                        "direction": "neutral",
+                        "expected_amount_tl": None,
+                        "expected_amount": None,
+                        "current_price": None,
+                        "expected_price": None,
+                        "reason": "",
+                    },
+                    {
+                        "fuel": "LPG",
+                        "direction": "neutral",
+                        "expected_amount_tl": None,
+                        "expected_amount": None,
+                        "current_price": None,
+                        "expected_price": None,
+                        "reason": "",
+                    },
+                ],
             },
         )
 
         signal = build_market_signal([])
 
         assert signal["analysis"]["mode"] == "groq"
+        assert signal["confidence"] == "low"
 
     def test_build_market_signal_uses_rules_mode_without_groq(self, monkeypatch):
         from market_signals import build_market_signal
 
         monkeypatch.setattr("market_signals.fetch_news_items", lambda: [])
+        monkeypatch.setattr("market_signals.fetch_pump_price_rows", lambda: [])
+        monkeypatch.setattr("market_signals.fetch_gecmis_rows", lambda limit=7: [])
+        monkeypatch.setattr("market_signals.fetch_brent_history", lambda limit=12: [])
+        monkeypatch.setattr("market_signals.fetch_usd_try_history", lambda limit=12: [])
         monkeypatch.setattr("market_signals.call_groq_analysis", lambda _payload: None)
 
         signal = build_market_signal([])

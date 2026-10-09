@@ -4,6 +4,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
+import { ErrorBoundary } from './src/components/ErrorBoundary'
+import { SupabaseConfigDevBanner } from './src/components/SupabaseConfigDevBanner'
 import AnaSayfa from './src/screens/AnaSayfa'
 import Iller from './src/screens/Iller'
 import Gecmis from './src/screens/Gecmis'
@@ -213,10 +215,13 @@ export default function App() {
   }, [])
 
   return (
-    <SafeAreaProvider>
-      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
-        <AppRoot />
-      </GestureHandlerRootView>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+          <SupabaseConfigDevBanner />
+          <AppRoot />
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   )
 }

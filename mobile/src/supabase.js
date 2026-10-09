@@ -1,17 +1,45 @@
 import { createClient } from '@supabase/supabase-js'
+import { normalizeSupabaseUrlDetails } from './utils/normalizeSupabaseUrl'
 
-const env = typeof process !== 'undefined' ? process.env ?? {} : {}
-const SUPABASE_URL = env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://phmmqamvornjwtcrbioh.supabase.co'
-const SUPABASE_KEY =
-  env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBobW1xYW12b3Juand0Y3JiaW9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwODg3NDksImV4cCI6MjA5ODY2NDc0OX0.mm4IMsUF4n1oK5rl7JVHDWbqNtnEa4xAHtmxYUhJv30'
+const missingSupabaseEnv =
+  !process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
 
-export const hasSupabaseConfig = Boolean(SUPABASE_URL && SUPABASE_KEY)
+export const hasSupabaseConfig = !missingSupabaseEnv
 
-export const supabase = hasSupabaseConfig
-  ? createClient(SUPABASE_URL, SUPABASE_KEY, {
-      auth: {
-        persistSession: false,
-      },
-    })
-  : null
+if (missingSupabaseEnv) {
+  console.warn(
+    '[YakitRadar] Supabase yapılandırması eksik (EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY). ' +
+      'Canlı veri yerine yerel örnek veriler kullanılacak. Geliştirme için mobile/.env.example → .env; ' +
+      'EAS için preview/production ortam değişkenlerini tanımlayın.',
+  )
+}
+
+let supabaseClient = null
+
+if (hasSupabaseConfig) {
+  const { url: supabaseUrl, wasNormalized } = normalizeSupabaseUrlDetails(
+    process.env.EXPO_PUBLIC_SUPABASE_URL,
+  )
+
+  if (__DEV__ && wasNormalized) {
+    console.warn(
+      '[YakitRadar] EXPO_PUBLIC_SUPABASE_URL proje kök adresi olmalı; /rest/v1 gibi yol son ekleri kaldırıldı.',
+    )
+  }
+
+  if (supabaseUrl) {
+    try {
+      supabaseClient = createClient(supabaseUrl, process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY, {
+        auth: {
+          persistSession: false,
+        },
+      })
+    } catch (error) {
+      console.warn('[YakitRadar] Supabase istemcisi oluşturulamadı:', error?.message ?? error)
+    }
+  } else {
+    console.warn('[YakitRadar] EXPO_PUBLIC_SUPABASE_URL geçerli bir adres değil; örnek veriler kullanılacak.')
+  }
+}
+
+export const supabase = supabaseClient

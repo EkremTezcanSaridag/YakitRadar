@@ -3,8 +3,7 @@ name: EAS Web Preview
 on:
   push:
     branches:
-      - cursor/zifiri-siyah-dark-redesign-e06e
-      - cursor/redesign-v2
+      - main
   workflow_dispatch:
 
 permissions:
@@ -12,6 +11,7 @@ permissions:
 
 jobs:
   deploy-web-preview:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -47,19 +47,11 @@ jobs:
       - name: Export web bundle
         run: npx expo export --platform web
 
-      - name: Resolve preview alias
-        id: preview_alias
-        run: |
-          case "${GITHUB_REF_NAME}" in
-            cursor/redesign-v2) echo "alias=yeniden-tasarim" >> "$GITHUB_OUTPUT" ;;
-            *) echo "alias=zifiri-siyah" >> "$GITHUB_OUTPUT" ;;
-          esac
-
       - name: Deploy preview to EAS Hosting
         id: eas_deploy
         env:
           DEPLOY_JSON_PATH: /tmp/eas-deploy.json
-          PREVIEW_ALIAS: ${{ steps.preview_alias.outputs.alias }}
+          PREVIEW_ALIAS: main
         run: |
           set -euo pipefail
           eas deploy \
@@ -117,12 +109,11 @@ jobs:
         env:
           ALIAS_URL: ${{ steps.eas_deploy.outputs.alias_url }}
           DEPLOY_URL: ${{ steps.eas_deploy.outputs.deploy_url }}
-          GIT_REF: ${{ github.ref_name }}
         run: |
           {
             echo "## EAS Web preview deployment"
             echo ""
-            echo "Branch: \`$GIT_REF\`"
+            echo "Branch: \`main\`"
             echo ""
             echo "**Stable preview URL (alias):** $ALIAS_URL"
             echo ""
