@@ -588,24 +588,23 @@ def hafiza_degisimi_olustur(price_memory):
 
 
 def piyasa_sinyali_kaydet(degisimler=None, onceki_pompa_hafizasi=None):
+    from market_signals import prepare_market_signal_row
+
     sinyal = build_market_signal(degisimler or [], onceki_pompa_hafizasi)
+    row = prepare_market_signal_row(sinyal)
+
     try:
         with open("market_signals.json", "w", encoding="utf-8") as file:
-            json.dump(sinyal, file, ensure_ascii=False, indent=2)
+            json.dump(row, file, ensure_ascii=False, indent=2)
     except Exception as io_err:
         print(f"Yerel market_signals.json yazılamadı: {io_err}")
 
-    try:
-        supabase.table("market_signals").upsert(sinyal, on_conflict="signal_date").execute()
-        print(
-            "Piyasa sinyali kaydedildi: "
-            f"{sinyal['direction']} / {sinyal['confidence']} / skor {sinyal['score']}"
-        )
-        return sinyal
-    except Exception as hata:
-        print("Piyasa sinyali Supabase'e kaydedilemedi. backend/supabase_market_signals.sql dosyasını Supabase'de çalıştırın.")
-        print(f"Detay: {hata}")
-        return sinyal
+    supabase.table("market_signals").upsert(row, on_conflict="signal_date").execute()
+    print(
+        "Piyasa sinyali kaydedildi: "
+        f"{row['direction']} / {row['confidence']} / skor {row['score']}"
+    )
+    return row
 
 
 def test_bildirimi_gonder(installation_id):
@@ -838,7 +837,14 @@ if __name__ == "__main__":
 
     gecmis_kaydet(veri)
     onceki_pompa_hafizasi = gunluk_pompa_hafizasi_oku()
-    sinyal = piyasa_sinyali_kaydet(degisimler, onceki_pompa_hafizasi)
+
+    try:
+        sinyal = piyasa_sinyali_kaydet(degisimler, onceki_pompa_hafizasi)
+    except Exception as hata:
+        print("Piyasa sinyali Supabase'e kaydedilemedi. backend/supabase_market_signals.sql dosyasini kontrol edin.")
+        print(f"Detay: {hata}")
+        raise SystemExit(1) from hata
+
     price_memory = (sinyal or {}).get("analysis", {})
     fiyat_bildirimleri_gonder(
         degisimler,
