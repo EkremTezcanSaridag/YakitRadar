@@ -5,12 +5,15 @@ from datetime import datetime
 import pytest
 
 from groq_market_analysis import (
+    NO_CHANGE_SUMMARY,
     aggregate_news_amount_extractions,
-    build_deterministic_market_summary,
+    build_fallback_signal_summary,
     extract_price_amounts,
     parse_expected_amount_tl,
     parse_groq_fuel_signals,
+    resolve_market_summary,
     strip_news_title_source_suffix,
+    validate_groq_summary,
 )
 from market_signals import normalize_text
 
@@ -158,9 +161,10 @@ class TestParseGroqFuelSignals:
         assert motorin["expected_amount_tl"] == 6.4
 
 
-class TestDeterministicSummary:
-    def test_mixed_fuels_one_sentence(self):
-        signals = [
+class TestGroqSummaryValidation:
+    @pytest.fixture
+    def mixed_signals(self):
+        return [
             {
                 "fuel": "Motorin",
                 "direction": "increase",
@@ -174,19 +178,42 @@ class TestDeterministicSummary:
             {"fuel": "LPG", "direction": "neutral", "expected_amount_tl": None},
         ]
 
+    def test_valid_groq_summary_accepted(self, mixed_signals):
+        groq = "Motorin ↑ 6,40 TL; Benzin ↓ 0,96 TL"
+
+        assert validate_groq_summary(groq, mixed_signals) is True
+        assert resolve_market_summary(groq, mixed_signals) == groq
+
+    def test_too_long_summary_uses_fallback(self, mixed_signals):
+        groq = "Motorin ↑ 6,40 TL; Benzin ↓ 0,96 TL " + ("x" * 200)
+
+        assert validate_groq_summary(groq, mixed_signals) is False
         assert (
-            build_deterministic_market_summary(signals)
-            == "Motorin 6,40 lira artacak, benzin 96 kuruş düşecek."
+            resolve_market_summary(groq, mixed_signals)
+            == "Motorin ↑ 6,40 TL; Benzin ↓ 0,96 TL"
         )
 
-    def test_all_neutral(self):
-        signals = [
+    def test_contradicting_direction_uses_fallback(self, mixed_signals):
+        groq = "Motorin ↓ 6,40 TL; Benzin ↓ 0,96 TL"
+
+        assert validate_groq_summary(groq, mixed_signals) is False
+        assert "Motorin ↑" in resolve_market_summary(groq, mixed_signals)
+
+    def test_contradicting_amount_uses_fallback(self, mixed_signals):
+        groq = "Motorin ↑ 6,75 TL; Benzin ↓ 0,96 TL"
+
+        assert validate_groq_summary(groq, mixed_signals) is False
+        assert "6,40 TL" in resolve_market_summary(groq, mixed_signals)
+
+    def test_no_change_summary(self):
+        neutral = [
             {"fuel": "Motorin", "direction": "neutral", "expected_amount_tl": None},
             {"fuel": "Benzin", "direction": "neutral", "expected_amount_tl": None},
             {"fuel": "LPG", "direction": "neutral", "expected_amount_tl": None},
         ]
 
-        assert build_deterministic_market_summary(signals) == "Fiyat değişikliği beklenmiyor."
+        assert validate_groq_summary(NO_CHANGE_SUMMARY, neutral) is True
+        assert build_fallback_signal_summary(neutral) == NO_CHANGE_SUMMARY
 
 
 class TestStripNewsTitleSourceSuffix:
