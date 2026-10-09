@@ -1,0 +1,79 @@
+name: EAS Android Preview APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch or ref to build
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  eas-preview-android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Queue EAS preview build (Android APK)
+        id: eas_build
+        run: |
+          set -euo pipefail
+          BUILD_JSON=$(eas build \
+            --profile preview \
+            --platform android \
+            --non-interactive \
+            --no-wait \
+            --json)
+
+          echo "$BUILD_JSON" | tee eas-build.json
+
+          BUILD_LINK=$(echo "$BUILD_JSON" | jq -r '
+            (if type == "array" then .[0] else . end)
+            | .buildDetailsPageUrl // .logsUrl // empty
+          ')
+
+          if [ -z "$BUILD_LINK" ] || [ "$BUILD_LINK" = "null" ]; then
+            BUILD_ID=$(echo "$BUILD_JSON" | jq -r '(if type == "array" then .[0].id else .id end)')
+            echo "build_link=Build ID: ${BUILD_ID} (open the Builds page on expo.dev)" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_link=${BUILD_LINK}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Job summary
+        run: |
+          {
+            echo "## Android preview APK (EAS)"
+            echo ""
+            echo "Branch/ref: \`${{ inputs.ref }}\`"
+            echo ""
+            echo "**Build:** ${{ steps.eas_build.outputs.build_link }}"
+            echo ""
+            echo "When the build finishes on Expo, download the APK from the build page."
+          } >> "$GITHUB_STEP_SUMMARY"
