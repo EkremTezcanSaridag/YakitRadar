@@ -29,9 +29,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Placeholder Firebase config for export
-        run: cp google-services.json.example google-services.json
-
       - name: Supabase URL normalizer tests
         run: npm run test:normalize-supabase-url
 
