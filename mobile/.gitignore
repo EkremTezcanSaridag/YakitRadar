@@ -42,7 +42,3 @@ yarn-error.*
 # generated native folders
 /ios
 /android
-
-# Firebase (real file: local copy or EAS file secret; see google-services.json.example)
-google-services.json
-!google-services.json.example
