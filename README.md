@@ -36,8 +36,13 @@ Mobil uygulamayı çalıştırmak için:
 ```bash
 cd mobile
 npm install
+cp google-services.json.example google-services.json
+# Replace placeholders in google-services.json with your Firebase project file
+# (download from Firebase Console or supply via EAS secrets for cloud builds).
 npm start
 ```
+
+Android derlemeleri `mobile/google-services.json` dosyasını bekler; bu dosya repoda tutulmaz. Yerel geliştirme ve EAS için gerçek dosyayı Firebase Console'dan indirip `mobile/` altına koyun veya EAS Build file secret olarak sağlayın. Şema için `mobile/google-services.json.example` dosyasına bakın.
 
 Backend veri çekiciyi çalıştırmak için:
 
