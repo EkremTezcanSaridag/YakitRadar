@@ -28,3 +28,10 @@ class TestFiyatlarGecmisSql:
         sql = load_sql()
         assert 'create policy "fiyatlar_select_anon"' in sql
         assert 'create policy "gecmis_select_anon"' in sql
+
+    def test_select_policies_for_authenticated(self):
+        sql = load_sql()
+        assert 'create policy "fiyatlar_select_authenticated"' in sql
+        assert 'to authenticated' in sql
+        assert 'create policy "gecmis_select_authenticated"' in sql
+        assert sql.count("using (true)") >= 4

@@ -67,3 +67,15 @@ on public.gecmis
 for select
 to anon
 using (true);
+
+create policy "fiyatlar_select_authenticated"
+on public.fiyatlar
+for select
+to authenticated
+using (true);
+
+create policy "gecmis_select_authenticated"
+on public.gecmis
+for select
+to authenticated
+using (true);
