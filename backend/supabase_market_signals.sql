@@ -28,8 +28,10 @@ alter table public.market_signals enable row level security;
 -- Mobil yalnızca okur; yazma backend'de service_role ile yapılır.
 revoke all on public.market_signals from anon, authenticated;
 grant select on public.market_signals to anon, authenticated;
+revoke insert, update, delete on table public.market_signals from anon, authenticated;
 grant all on public.market_signals to service_role;
 revoke all on sequence public.market_signals_id_seq from anon, authenticated;
+revoke usage, update on sequence public.market_signals_id_seq from anon, authenticated;
 grant usage, select on sequence public.market_signals_id_seq to service_role;
 
 create index if not exists market_signals_calculated_at_idx
