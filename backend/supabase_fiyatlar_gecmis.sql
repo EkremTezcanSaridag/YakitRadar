@@ -17,10 +17,6 @@ create table if not exists public.gecmis (
   lpg_degisim text not null default '0.00'
 );
 
-create unique index if not exists gecmis_tarih_uidx on public.gecmis (tarih);
-
-create index if not exists gecmis_tarih_desc_idx on public.gecmis (tarih desc);
-
 alter table public.fiyatlar enable row level security;
 alter table public.gecmis enable row level security;
 
