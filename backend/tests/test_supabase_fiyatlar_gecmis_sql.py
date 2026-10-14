@@ -35,3 +35,8 @@ class TestFiyatlarGecmisSql:
         assert 'to authenticated' in sql
         assert 'create policy "gecmis_select_authenticated"' in sql
         assert sql.count("using (true)") >= 4
+
+    def test_gecmis_indexes_deferred_to_follow_up_sql(self):
+        sql = load_sql().lower()
+        assert "gecmis_tarih_uidx" not in sql
+        assert "gecmis_tarih_desc_idx" not in sql
