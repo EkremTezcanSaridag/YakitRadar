@@ -86,6 +86,11 @@ begin
     raise exception 'Invalid push token registration payload';
   end if;
 
+  -- Ayni Expo push token baska bir kurulumda kayitliysa bu cihazin kaydini calmasin.
+  delete from public.push_tokens
+  where expo_push_token = expo_push_token_value
+    and installation_id <> installation_id_value;
+
   insert into public.push_tokens (
     app_version,
     city_alerts,
@@ -128,7 +133,8 @@ begin
     tracked_cities = excluded.tracked_cities,
     tracked_fuels = excluded.tracked_fuels,
     updated_at = excluded.updated_at,
-    weekly_summary = excluded.weekly_summary;
+    weekly_summary = excluded.weekly_summary
+  where push_tokens.installation_id = installation_id_value;
 end;
 $$;
 
