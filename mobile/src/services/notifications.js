@@ -3,6 +3,7 @@ import { computeNationalAverages, getRealPriceRows } from './fuelData'
 import Constants, { ExecutionEnvironment } from 'expo-constants'
 import * as Notifications from 'expo-notifications'
 import { Platform } from 'react-native'
+import { colors } from '../theme'
 import { supabase } from '../supabase'
 
 const INSTALLATION_ID_KEY = '@pompametre/installation-id'
@@ -48,7 +49,7 @@ export async function setupNotificationChannels() {
   await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNEL_ID, {
     description: 'Akaryakit fiyat degisimleri ve ozetleri',
     importance: Notifications.AndroidImportance.HIGH,
-    lightColor: '#19E6B1',
+    lightColor: colors.notificationLed,
     name: 'Yakıt Radar fiyat uyarilari',
     vibrationPattern: [0, 250, 250, 250],
   })

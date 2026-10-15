@@ -95,16 +95,16 @@ export const provinceNames = [
 
 const signalToneConfig = {
   increase: {
-    color: colors.danger,
+    color: colors.priceRise,
     icon: 'trending-up',
-    softColor: colors.dangerDark,
+    softColor: colors.priceRiseBg,
     title: 'Artış baskısı',
     tone: 'bad',
   },
   decrease: {
-    color: colors.success,
+    color: colors.priceFall,
     icon: 'trending-down',
-    softColor: colors.successDark,
+    softColor: colors.priceFallBg,
     title: 'İndirim baskısı',
     tone: 'good',
   },
@@ -120,16 +120,16 @@ const signalToneConfig = {
 function predictionPillTokens(isInc, isDec) {
   if (isInc) {
     return {
-      pillBg: colors.dangerDark,
-      pillBorder: colors.danger,
-      textColor: colors.danger,
+      pillBg: colors.priceRiseBg,
+      pillBorder: colors.priceRiseBorder,
+      textColor: colors.priceRise,
     }
   }
   if (isDec) {
     return {
-      pillBg: colors.successDark,
-      pillBorder: colors.success,
-      textColor: colors.success,
+      pillBg: colors.priceFallBg,
+      pillBorder: colors.priceFallBorder,
+      textColor: colors.priceFall,
     }
   }
   return {

@@ -129,7 +129,13 @@ export default function Gecmis() {
         <View style={styles.chartHeader}>
           <Text style={styles.chartPrice}>{latest ? formatDecimalTr(latest.price) : '--'}</Text>
           <Text style={styles.chartUnit}>₺/L · {activeFuel.label}</Text>
-          <Text style={styles.chartMeta}>
+          <Text
+            style={[
+              styles.chartMeta,
+              historyView.periodDiff > 0 && styles.chartMetaRise,
+              historyView.periodDiff < 0 && styles.chartMetaFall,
+            ]}
+          >
             {Number.isFinite(historyView.periodDiff)
               ? `${formatSignedCurrencyTr(historyView.periodDiff)} dönem içi`
               : '0,00 ₺ dönem içi'}
@@ -267,6 +273,12 @@ const styles = StyleSheet.create({
     color: colors.mutedSoft,
     fontSize: typography.caption,
     marginTop: spacing.sm,
+  },
+  chartMetaRise: {
+    color: colors.priceRise,
+  },
+  chartMetaFall: {
+    color: colors.priceFall,
   },
   chartCanvas: {
     height: CHART_HEIGHT,
