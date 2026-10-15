@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import ScreenHeader from '../components/ScreenHeader'
-import { colors, shadows } from '../theme'
+import { colors, fuelAlertIconStyle, shadows, switchThumbColor, switchTrackColors } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { fuelTabs } from '../services/fuelData'
 import {
@@ -328,18 +328,17 @@ export default function Bildirimler() {
             const isMotorin = alertItem.fuelKey === 'motorin'
             const isLpg = alertItem.fuelKey === 'lpg'
             const fuelIcon = isMotorin ? 'truck-outline' : isLpg ? 'fire' : 'gas-station'
-            const fuelColor = isMotorin ? colors.warning : isLpg ? colors.purpleGlow : colors.accent
-            const fuelBg = isMotorin ? '#2D1F08' : isLpg ? '#261438' : '#0C2A4A'
+            const fuelIconStyle = fuelAlertIconStyle(alertItem.fuelKey)
 
             return (
               <View key={alertItem.id} style={[styles.customAlertRow, idx === 0 && styles.rowFirst]}>
-                <View style={[styles.customAlertIconBox, { backgroundColor: fuelBg }]}>
-                  <MaterialCommunityIcons name={fuelIcon} size={18} color={fuelColor} />
+                <View style={[styles.customAlertIconBox, { backgroundColor: fuelIconStyle.backgroundColor }]}>
+                  <MaterialCommunityIcons name={fuelIcon} size={18} color={fuelIconStyle.color} />
                 </View>
                 <View style={styles.customAlertInfo}>
                   <Text style={styles.customAlertTitle}>{alertItem.city} · {alertItem.fuelTitle}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                    <MaterialCommunityIcons name={condMeta.icon} size={13} color={fuelColor} />
+                    <MaterialCommunityIcons name={condMeta.icon} size={13} color={fuelIconStyle.color} />
                     <Text style={styles.customAlertDesc}>
                       {alertItem.condition === 'news_hike'
                         ? 'Groq AI zam haberi tespit edince uyar'
@@ -352,8 +351,8 @@ export default function Bildirimler() {
                 <View style={styles.customAlertActions}>
                   <Switch
                     onValueChange={() => handleToggleAlert(alertItem.id)}
-                    thumbColor={alertItem.isEnabled ? colors.accent : '#D6DEE9'}
-                    trackColor={{ false: '#25364F', true: colors.accentDark }}
+                    thumbColor={switchThumbColor(alertItem.isEnabled)}
+                    trackColor={switchTrackColors}
                     value={alertItem.isEnabled}
                   />
                   <Pressable onPress={() => handleDeleteAlert(alertItem.id)} style={styles.deleteAlertBtn}>
@@ -385,8 +384,8 @@ export default function Bildirimler() {
                 setShowMarketNote(value)
                 await saveShowMarketNote(value)
               }}
-              thumbColor={showMarketNote ? colors.accent : '#D6DEE9'}
-              trackColor={{ false: '#25364F', true: colors.accentDark }}
+              thumbColor={switchThumbColor(showMarketNote)}
+              trackColor={switchTrackColors}
               value={showMarketNote}
             />
           </View>
@@ -407,8 +406,8 @@ export default function Bildirimler() {
               <Switch
                 disabled={permissionBusy}
                 onValueChange={(value) => updateSetting(row.key, value)}
-                thumbColor={row.value ? colors.accent : '#D6DEE9'}
-                trackColor={{ false: '#25364F', true: colors.accentDark }}
+                thumbColor={switchThumbColor(row.value)}
+                trackColor={switchTrackColors}
                 value={row.value}
               />
             </View>
@@ -423,8 +422,8 @@ export default function Bildirimler() {
             </View>
             <Switch
               onValueChange={(value) => updateSetting('quietHours', value)}
-              thumbColor={settings.quietHours ? colors.accent : '#D6DEE9'}
-              trackColor={{ false: '#25364F', true: colors.accentDark }}
+              thumbColor={switchThumbColor(settings.quietHours)}
+              trackColor={switchTrackColors}
               value={settings.quietHours}
             />
           </View>
@@ -436,7 +435,7 @@ export default function Bildirimler() {
             </View>
             <View style={styles.timeLine} />
             <View style={styles.timeChip}>
-              <MaterialCommunityIcons name="white-balance-sunny" size={15} color={colors.warning} />
+              <MaterialCommunityIcons name="white-balance-sunny" size={15} color={colors.accent} />
               <Text style={styles.timeText}>08:00</Text>
             </View>
           </View>
@@ -952,7 +951,7 @@ const styles = StyleSheet.create({
   deleteAlertBtn: {
     padding: 4,
   },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000099' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay },
   modalSheet: { maxHeight: '88%', backgroundColor: colors.bg, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 24 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   modalTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
