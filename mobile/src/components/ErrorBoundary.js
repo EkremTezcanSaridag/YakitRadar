@@ -75,7 +75,7 @@ export class ErrorBoundary extends React.Component {
               <MaterialCommunityIcons 
                 name="restart" 
                 size={20} 
-                color="#FFFFFF" 
+                color={colors.onAccent}
                 style={styles.buttonIcon}
               />
               <Text style={styles.buttonText}>Yeniden Başlat</Text>
@@ -145,18 +145,18 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontSize: 16,
     fontWeight: 'bold',
   },
   debugContainer: {
     width: '100%',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 8,
     padding: 16,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: colors.border,
   },
   debugTitle: {
     fontSize: 12,
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   debugText: {
     fontSize: 11,
-    color: '#999999',
+    color: colors.muted,
     fontFamily: 'monospace',
     lineHeight: 16,
   },
