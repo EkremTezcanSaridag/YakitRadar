@@ -220,3 +220,25 @@ export function filterVisibleExpectedFuelSignals(signalsField, cityRow, nowMs = 
     shouldShowExpectedChangeBox(change, cityRow, nowMs),
   )
 }
+
+/** Ana Sayfa: show calm empty line when market data loaded but no visible expected-change boxes. */
+export function shouldShowExpectedChangeEmptyNote({
+  showMarketNote,
+  hasRealData,
+  marketSignalLoaded,
+  visibleBoxCount,
+}) {
+  if (!showMarketNote) {
+    return false
+  }
+  if (!hasRealData) {
+    return false
+  }
+  if (!marketSignalLoaded) {
+    return false
+  }
+  if (visibleBoxCount > 0) {
+    return false
+  }
+  return true
+}

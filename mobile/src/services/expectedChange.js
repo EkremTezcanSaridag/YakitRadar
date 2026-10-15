@@ -22,6 +22,7 @@ export {
   mapSignalFuelToKey,
   parseExpectedFuelSignals,
   shouldShowExpectedChangeBox,
+  shouldShowExpectedChangeEmptyNote,
 } from './expectedChangeLogic'
 
 export function formatTlComma(value) {
