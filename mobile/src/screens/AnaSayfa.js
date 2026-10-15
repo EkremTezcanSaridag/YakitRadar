@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
 import CityPickerModal from '../components/CityPickerModal'
+import ExpectedChangeEmptyNote from '../components/ExpectedChangeEmptyNote'
 import ExpectedChangeSection from '../components/ExpectedChangeSection'
 import ScreenHeader from '../components/ScreenHeader'
 import { colors, radii, spacing, typography } from '../theme'
@@ -23,6 +24,7 @@ import {
 import {
   enrichExpectedChanges,
   filterVisibleExpectedFuelSignals,
+  shouldShowExpectedChangeEmptyNote,
 } from '../services/expectedChange'
 import { loadShowMarketNote } from '../services/uiPreferences'
 import { formatDecimalTr, formatPerLiterTr } from '../utils/priceFormat'
@@ -128,6 +130,13 @@ export default function AnaSayfa() {
     return enrichExpectedChanges(visible, heroCity)
   }, [data.marketSignal?.signals, data.marketSignal?.expectedFuelSignals, heroCity])
 
+  const showExpectedChangeEmptyNote = shouldShowExpectedChangeEmptyNote({
+    showMarketNote,
+    hasRealData,
+    marketSignalLoaded: data.marketSignal != null,
+    visibleBoxCount: expectedChangeBoxes.length,
+  })
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="light" />
@@ -154,6 +163,7 @@ export default function AnaSayfa() {
             refreshing={marketSignalRefreshing}
           />
         ) : null}
+        {showExpectedChangeEmptyNote ? <ExpectedChangeEmptyNote /> : null}
 
         {!hasRealData ? (
           <View style={styles.emptyDataBlock}>

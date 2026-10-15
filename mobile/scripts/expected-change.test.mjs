@@ -5,6 +5,7 @@ import {
   isAfterBuGeceEffectiveMidnight,
   parseExpectedFuelSignals,
   shouldShowExpectedChangeBox,
+  shouldShowExpectedChangeEmptyNote,
 } from '../src/services/expectedChangeLogic.js'
 
 const cityRow = { benzin95: 50.0, motorin: 55.0, lpg: 30.0 }
@@ -63,5 +64,34 @@ assert.equal(
 
 const visible = filterVisibleExpectedFuelSignals(baseSignals, { motorin: 54.0 }, afterMidnight)
 assert.equal(visible.length, 1)
+
+const noteBase = {
+  showMarketNote: true,
+  hasRealData: true,
+  marketSignalLoaded: true,
+  visibleBoxCount: 0,
+}
+
+assert.equal(shouldShowExpectedChangeEmptyNote(noteBase), true, 'note when loaded and no boxes')
+assert.equal(
+  shouldShowExpectedChangeEmptyNote({ ...noteBase, visibleBoxCount: 2 }),
+  false,
+  'hide note when boxes visible',
+)
+assert.equal(
+  shouldShowExpectedChangeEmptyNote({ ...noteBase, hasRealData: false }),
+  false,
+  'hide note on offline/error (no real data)',
+)
+assert.equal(
+  shouldShowExpectedChangeEmptyNote({ ...noteBase, marketSignalLoaded: false }),
+  false,
+  'hide note when market signal not loaded',
+)
+assert.equal(
+  shouldShowExpectedChangeEmptyNote({ ...noteBase, showMarketNote: false }),
+  false,
+  'hide note when market note preference off',
+)
 
 console.log('expected-change tests passed')
