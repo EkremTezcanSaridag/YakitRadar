@@ -1,3 +1,6 @@
+const PRICE_RISE = '#FF6B6B'
+const PRICE_FALL = '#34D399'
+
 export const colors = {
   bg: '#000000',
   surface: '#0E0E10',
@@ -36,12 +39,35 @@ export const colors = {
   purpleGlow: '#A1A1AA',
   purpleDark: '#17171A',
   overlay: '#00000099',
-  expectedIncrease: '#FF6B6B',
+  priceRise: PRICE_RISE,
+  priceRiseBg: 'rgba(255,107,107,0.10)',
+  priceRiseBorder: 'rgba(255,107,107,0.35)',
+  priceFall: PRICE_FALL,
+  priceFallBg: 'rgba(52,211,153,0.10)',
+  priceFallBorder: 'rgba(52,211,153,0.35)',
+  expectedIncrease: PRICE_RISE,
   expectedIncreaseBg: 'rgba(255,107,107,0.10)',
   expectedIncreaseBorder: 'rgba(255,107,107,0.35)',
-  expectedDecrease: '#34D399',
+  expectedDecrease: PRICE_FALL,
   expectedDecreaseBg: 'rgba(52,211,153,0.10)',
   expectedDecreaseBorder: 'rgba(52,211,153,0.35)',
+  favorite: '#4C8DFF',
+  favoriteSoft: '#4C8DFF29',
+  switchThumbOff: '#D6DEE9',
+  switchTrackOff: '#25364F',
+  switchTrackOn: '#17171A',
+  fuelIconBgBenzin: '#0C2A4A',
+  fuelIconBgMotorin: '#152238',
+  fuelIconBgLpg: '#1C1C24',
+  chartTrack: 'rgba(255, 255, 255, 0.05)',
+  stationBrandOpet: '#0055A5',
+  stationBrandPetrolOfisi: '#E30613',
+  stationBrandAytemiz: '#FF6600',
+  stationBrandTotal: '#ED1C24',
+  stationBrandTp: '#009944',
+  stationBrandSunpet: '#00A3E0',
+  stationBrandOther: '#888888',
+  notificationLed: '#4C8DFF',
 }
 
 export const typography = {
@@ -91,4 +117,23 @@ export const shadows = {
     shadowOffset: { width: 0, height: 0 },
     elevation: 0,
   },
+}
+
+export const switchTrackColors = {
+  false: colors.switchTrackOff,
+  true: colors.switchTrackOn,
+}
+
+export function switchThumbColor(on) {
+  return on ? colors.accent : colors.switchThumbOff
+}
+
+export function fuelAlertIconStyle(fuelKey) {
+  if (fuelKey === 'motorin') {
+    return { backgroundColor: colors.fuelIconBgMotorin, color: colors.chartMotorin }
+  }
+  if (fuelKey === 'lpg') {
+    return { backgroundColor: colors.fuelIconBgLpg, color: colors.chartLpg }
+  }
+  return { backgroundColor: colors.fuelIconBgBenzin, color: colors.accent }
 }

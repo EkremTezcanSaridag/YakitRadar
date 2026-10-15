@@ -37,13 +37,13 @@ export async function loadVehicleExpenseHistory() {
 
 export const fuelStations = [
   { id: 'shell', name: 'Shell', icon: 'gas-station', color: colors.stationShell },
-  { id: 'opet', name: 'Opet', icon: 'gas-station', color: '#0055A5' },
-  { id: 'po', name: 'Petrol Ofisi', icon: 'gas-station', color: '#E30613' },
-  { id: 'aytemiz', name: 'Aytemiz', icon: 'gas-station', color: '#FF6600' },
-  { id: 'total', name: 'TotalEnergies', icon: 'gas-station', color: '#ED1C24' },
-  { id: 'tp', name: 'TP', icon: 'gas-station', color: '#009944' },
-  { id: 'sunpet', name: 'Sunpet', icon: 'gas-station', color: '#00A3E0' },
-  { id: 'diger', name: 'Diğer İstasyon', icon: 'gas-station', color: '#888888' },
+  { id: 'opet', name: 'Opet', icon: 'gas-station', color: colors.stationBrandOpet },
+  { id: 'po', name: 'Petrol Ofisi', icon: 'gas-station', color: colors.stationBrandPetrolOfisi },
+  { id: 'aytemiz', name: 'Aytemiz', icon: 'gas-station', color: colors.stationBrandAytemiz },
+  { id: 'total', name: 'TotalEnergies', icon: 'gas-station', color: colors.stationBrandTotal },
+  { id: 'tp', name: 'TP', icon: 'gas-station', color: colors.stationBrandTp },
+  { id: 'sunpet', name: 'Sunpet', icon: 'gas-station', color: colors.stationBrandSunpet },
+  { id: 'diger', name: 'Diğer İstasyon', icon: 'gas-station', color: colors.stationBrandOther },
 ]
 
 export async function addVehicleExpenseRecord(record) {

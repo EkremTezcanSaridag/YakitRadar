@@ -140,9 +140,11 @@ export default function Iller() {
             <Ionicons
               name={showOnlyFavorites ? 'heart' : 'heart-outline'}
               size={14}
-              color={showOnlyFavorites ? '#FF4D4D' : colors.mutedSoft}
+              color={showOnlyFavorites ? colors.favorite : colors.mutedSoft}
             />
-            <Text style={[styles.segmentText, showOnlyFavorites && { color: '#FF4D4D' }]}>Favoriler ({favoriteCities.length})</Text>
+            <Text style={[styles.segmentText, showOnlyFavorites && styles.favoriteSegmentText]}>
+              Favoriler ({favoriteCities.length})
+            </Text>
           </Pressable>
 
           {fuelTabs.map((item) => {
@@ -223,7 +225,7 @@ export default function Iller() {
                     <Ionicons
                       name={city.isFavorite ? 'heart' : 'heart-outline'}
                       size={18}
-                      color={city.isFavorite ? '#FF4D4D' : colors.muted}
+                      color={city.isFavorite ? colors.favorite : colors.muted}
                     />
                   </Pressable>
                 </View>
@@ -232,9 +234,15 @@ export default function Iller() {
                     <Ionicons
                       name={trendUp ? 'caret-up' : trendDown ? 'caret-down' : 'remove'}
                       size={12}
-                      color={colors.mutedSoft}
+                      color={trendUp ? colors.priceRise : trendDown ? colors.priceFall : colors.mutedSoft}
                     />
-                    <Text style={styles.cityChange}>
+                    <Text
+                      style={[
+                        styles.cityChange,
+                        trendUp && styles.cityChangeRise,
+                        trendDown && styles.cityChangeFall,
+                      ]}
+                    >
                       {formatSignedCurrencyTr(city.avgDiff)} 81 il ort.
                     </Text>
                   </View>
@@ -420,8 +428,11 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
   },
   favoriteSegmentActive: {
-    backgroundColor: '#331111',
-    borderColor: '#FF4D4D',
+    backgroundColor: colors.favoriteSoft,
+    borderColor: colors.favorite,
+  },
+  favoriteSegmentText: {
+    color: colors.favorite,
   },
   cityNameRow: {
     flexDirection: 'row',
@@ -551,11 +562,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginLeft: 4,
   },
-  cityChangeUp: {
-    color: colors.warning,
+  cityChangeRise: {
+    color: colors.priceRise,
   },
-  cityChangeDown: {
-    color: colors.accent,
+  cityChangeFall: {
+    color: colors.priceFall,
   },
   priceWrap: {
     alignItems: 'flex-end',
