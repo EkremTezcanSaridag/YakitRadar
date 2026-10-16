@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { CommonActions } from '@react-navigation/native'
 import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import { colors, iconSize, typography } from '../theme'
+import { computeTabPillTranslateX, mergeTabBarContentFrame } from '../utils/tabPillLayout'
 
 const useNativeDriver = Platform.OS !== 'web'
 const PILL_WIDTH = 52
@@ -51,6 +52,14 @@ function runFocusAnimation(anims, focused, reduceMotion) {
   ])
 }
 
+function framesEqual(first, second) {
+  if (!first || !second) {
+    return false
+  }
+
+  return first.x === second.x && first.width === second.width
+}
+
 export default function SakinSolmaTabBar({
   state,
   descriptors,
@@ -60,27 +69,55 @@ export default function SakinSolmaTabBar({
 }) {
   const tabAnimsRef = useRef({})
   const pillTranslateX = useRef(new Animated.Value(0)).current
-  const [itemWidth, setItemWidth] = useState(0)
+  const pressableLayoutsRef = useRef({})
+  const contentLayoutsRef = useRef({})
+  const hasAnimatedPillRef = useRef(false)
+  const [tabFrames, setTabFrames] = useState({})
 
-  useEffect(() => {
-    if (itemWidth <= 0) {
+  const syncTabFrame = useCallback((routeKey) => {
+    const merged = mergeTabBarContentFrame(
+      pressableLayoutsRef.current[routeKey],
+      contentLayoutsRef.current[routeKey],
+    )
+
+    if (!merged) {
       return
     }
 
-    const targetX = state.index * itemWidth + (itemWidth - PILL_WIDTH) / 2
+    setTabFrames((current) => {
+      const previous = current[routeKey]
+      if (framesEqual(previous, merged)) {
+        return current
+      }
 
-    if (reduceMotion) {
-      pillTranslateX.setValue(targetX)
-    } else {
-      Animated.spring(pillTranslateX, {
-        toValue: targetX,
-        stiffness: 420,
-        damping: 34,
-        mass: 1,
-        useNativeDriver,
-      }).start()
+      return { ...current, [routeKey]: merged }
+    })
+  }, [])
+
+  const focusedRouteKey = state.routes[state.index]?.key
+  const focusedTabFrame = focusedRouteKey ? tabFrames[focusedRouteKey] : null
+  const pillTranslateTarget = computeTabPillTranslateX(focusedTabFrame, PILL_WIDTH)
+  const pillReady = pillTranslateTarget != null
+
+  useEffect(() => {
+    if (!pillReady) {
+      return
     }
-  }, [itemWidth, pillTranslateX, reduceMotion, state.index])
+
+    if (!hasAnimatedPillRef.current || reduceMotion) {
+      pillTranslateX.setValue(pillTranslateTarget)
+      hasAnimatedPillRef.current = true
+      return
+    }
+
+    Animated.spring(pillTranslateX, {
+      toValue: pillTranslateTarget,
+      stiffness: 420,
+      damping: 34,
+      mass: 1,
+      useNativeDriver,
+    }).start()
+  }, [pillReady, pillTranslateTarget, pillTranslateX, reduceMotion])
 
   useEffect(() => {
     state.routes.forEach((route, index) => {
@@ -91,24 +128,13 @@ export default function SakinSolmaTabBar({
     })
   }, [reduceMotion, state.index, state.routes])
 
-  const focusedRouteKey = state.routes[state.index]?.key
   const tabBarStyle = descriptors[focusedRouteKey]?.options?.tabBarStyle ?? {}
   const tabBarItemStyle = descriptors[focusedRouteKey]?.options?.tabBarItemStyle ?? {}
   const tabBarLabelStyle = descriptors[focusedRouteKey]?.options?.tabBarLabelStyle ?? {}
 
   return (
-    <View
-      accessibilityRole="tablist"
-      onLayout={(event) => {
-        const width = event.nativeEvent.layout.width
-        const nextItemWidth = width / Math.max(state.routes.length, 1)
-        setItemWidth(nextItemWidth)
-        const targetX = state.index * nextItemWidth + (nextItemWidth - PILL_WIDTH) / 2
-        pillTranslateX.setValue(targetX)
-      }}
-      style={[styles.bar, tabBarStyle]}
-    >
-      {itemWidth > 0 ? (
+    <View accessibilityRole="tablist" style={[styles.bar, tabBarStyle]}>
+      {pillReady ? (
         <Animated.View
           pointerEvents="none"
           style={[
@@ -155,41 +181,55 @@ export default function SakinSolmaTabBar({
             accessibilityRole="tab"
             accessibilityState={{ selected: focused }}
             accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
-            onPress={onPress}
+            onLayout={(event) => {
+              const { x, width } = event.nativeEvent.layout
+              pressableLayoutsRef.current[route.key] = { x, width }
+              syncTabFrame(route.key)
+            }}
             onLongPress={onLongPress}
+            onPress={onPress}
             style={[styles.item, tabBarItemStyle]}
           >
-            <Animated.View
-              style={[styles.iconStack, { transform: [{ scale: anims.iconScale }] }]}
+            <View
+              style={styles.tabContent}
+              onLayout={(event) => {
+                const { x, width } = event.nativeEvent.layout
+                contentLayoutsRef.current[route.key] = { x, width }
+                syncTabFrame(route.key)
+              }}
             >
-              <Ionicons
-                name={focused ? iconMeta.active : iconMeta.inactive}
-                color={focused ? colors.accent : colors.muted}
-                size={iconSize.tab}
-              />
-            </Animated.View>
-            <View style={styles.labelStack}>
-              <Animated.Text
-                numberOfLines={1}
-                style={[
-                  styles.label,
-                  tabBarLabelStyle,
-                  { color: colors.muted, opacity: anims.labelInactiveOpacity },
-                ]}
+              <Animated.View
+                style={[styles.iconStack, { transform: [{ scale: anims.iconScale }] }]}
               >
-                {label}
-              </Animated.Text>
-              <Animated.Text
-                numberOfLines={1}
-                style={[
-                  styles.label,
-                  styles.labelActive,
-                  tabBarLabelStyle,
-                  { color: colors.accent, opacity: anims.labelActiveOpacity },
-                ]}
-              >
-                {label}
-              </Animated.Text>
+                <Ionicons
+                  name={focused ? iconMeta.active : iconMeta.inactive}
+                  color={focused ? colors.accent : colors.muted}
+                  size={iconSize.tab}
+                />
+              </Animated.View>
+              <View style={styles.labelStack}>
+                <Animated.Text
+                  numberOfLines={1}
+                  style={[
+                    styles.label,
+                    tabBarLabelStyle,
+                    { color: colors.muted, opacity: anims.labelInactiveOpacity },
+                  ]}
+                >
+                  {label}
+                </Animated.Text>
+                <Animated.Text
+                  numberOfLines={1}
+                  style={[
+                    styles.label,
+                    styles.labelActive,
+                    tabBarLabelStyle,
+                    { color: colors.accent, opacity: anims.labelActiveOpacity },
+                  ]}
+                >
+                  {label}
+                </Animated.Text>
+              </View>
             </View>
           </Pressable>
         )
@@ -218,6 +258,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: iconSize.tabTouch,
+  },
+  tabContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   iconStack: {
     width: iconSize.tab,
