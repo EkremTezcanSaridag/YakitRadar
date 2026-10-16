@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from notification_rules import (
@@ -7,6 +7,7 @@ from notification_rules import (
     expected_change_dedupe_key,
     filter_expected_change_signals,
     istanbul_quiet_hours_active,
+    is_pending_price_change_stale,
     is_single_source_low_confidence_signal,
     price_change_dedupe_key,
     should_notify_expected_change,
@@ -73,6 +74,29 @@ class TestExpectedChangeRules:
 
     def test_dedupe_key_per_day_and_fuel(self):
         assert expected_change_dedupe_key("2026-10-16", "Motorin") == "expected:2026-10-16:motorin"
+
+
+class TestPendingPriceStaleness:
+    def test_fresh_row_not_stale(self):
+        now = datetime(2026, 10, 16, 12, 0, tzinfo=IST)
+        detected = (now - timedelta(hours=1)).isoformat()
+        assert is_pending_price_change_stale(detected, now) is False
+
+    def test_row_older_than_24h_is_stale(self):
+        now = datetime(2026, 10, 16, 12, 0, tzinfo=IST)
+        detected = (now - timedelta(hours=25)).isoformat()
+        assert is_pending_price_change_stale(detected, now) is True
+
+    def test_boundary_exactly_24h_not_stale(self):
+        now = datetime(2026, 10, 16, 12, 0, tzinfo=IST)
+        detected = now - timedelta(hours=24)
+        assert is_pending_price_change_stale(detected, now) is False
+
+    def test_missing_or_invalid_detected_at_is_stale(self):
+        now = datetime(2026, 10, 16, 12, 0, tzinfo=IST)
+        assert is_pending_price_change_stale(None, now) is True
+        assert is_pending_price_change_stale("", now) is True
+        assert is_pending_price_change_stale("not-a-date", now) is True
 
 
 class TestPriceChangeDedupe:

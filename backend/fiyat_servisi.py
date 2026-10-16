@@ -17,6 +17,7 @@ from notification_rules import (
     filter_expected_change_signals,
     fuel_matches_tracked,
     istanbul_quiet_hours_active,
+    is_pending_price_change_stale,
     price_change_dedupe_key,
 )
 from price_memory_validation import sanitize_price_memory_items
@@ -447,7 +448,7 @@ def bekleyen_fiyat_degisimlerini_oku():
     try:
         sonuc = (
             supabase.table("pending_price_notifications")
-            .select("dedupe_key, change_payload")
+            .select("dedupe_key, change_payload, detected_at")
             .is_("sent_at", "null")
             .execute()
         )
@@ -455,7 +456,27 @@ def bekleyen_fiyat_degisimlerini_oku():
         print(f"Bekleyen fiyat bildirimleri okunamadi: {hata}")
         return []
 
-    return sonuc.data or []
+    kayitlar = sonuc.data or []
+    now = datetime.now(ISTANBUL_TZ)
+    taze_kayitlar = []
+    eski_dedupe_keys = []
+
+    for kayit in kayitlar:
+        if is_pending_price_change_stale(kayit.get("detected_at"), now):
+            eski_dedupe_keys.append(kayit["dedupe_key"])
+        else:
+            taze_kayitlar.append(kayit)
+
+    if eski_dedupe_keys:
+        try:
+            bekleyen_fiyat_degisimlerini_gonderildi_isaretle(eski_dedupe_keys)
+            print(
+                f"{len(eski_dedupe_keys)} bekleyen fiyat bildirimi 24 saatten eski oldugu icin kapatildi"
+            )
+        except Exception as hata:
+            print(f"Eski bekleyen fiyat bildirimleri kapatilamadi: {hata}")
+
+    return taze_kayitlar
 
 
 def bekleyen_fiyat_degisimlerini_gonderildi_isaretle(dedupe_keys):

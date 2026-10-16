@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
+
+DEFAULT_PENDING_PRICE_MAX_AGE = timedelta(hours=24)
 
 CONFIDENCE_RANK = {
     "low": 0,
@@ -160,6 +162,44 @@ def fuel_matches_tracked(fuel: str, tracked_fuels: list[str]) -> bool:
 
     fuel_key = normalize_fuel_key(fuel)
     return any(normalize_fuel_key(item) == fuel_key for item in tracked_fuels)
+
+
+def parse_pending_detected_at(value: Any) -> datetime | None:
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        return value
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def is_pending_price_change_stale(
+    detected_at: Any,
+    now: datetime,
+    max_age: timedelta = DEFAULT_PENDING_PRICE_MAX_AGE,
+) -> bool:
+    """True when the pending row must not be sent (missing/invalid or older than max_age)."""
+    parsed = parse_pending_detected_at(detected_at)
+    if parsed is None:
+        return True
+
+    reference = now
+    if parsed.tzinfo is None and reference.tzinfo is not None:
+        parsed = parsed.replace(tzinfo=reference.tzinfo)
+    elif parsed.tzinfo is not None and reference.tzinfo is None:
+        reference = reference.replace(tzinfo=parsed.tzinfo)
+    elif parsed.tzinfo is not None and reference.tzinfo is not None:
+        parsed = parsed.astimezone(reference.tzinfo)
+
+    return reference - parsed > max_age
 
 
 def dedupe_price_changes(changes: list[dict[str, Any]], signal_date: str) -> list[dict[str, Any]]:
