@@ -9,7 +9,7 @@ Gerçek kimlikler repoda tutulmaz; EAS Secrets veya build profili ortamında tan
 | `ADMOB_ANDROID_APP_ID` | AdMob Android uygulama kimliği (`app.config.js` → `react-native-google-mobile-ads` eklentisi) |
 | `ADMOB_IOS_APP_ID` | AdMob iOS uygulama kimliği |
 
-Production (`EAS_BUILD_PROFILE=production`) build’lerinde her iki değişken zorunludur; eksikse build durur. Preview ve yerel geliştirmede eksikse AdMob eklentisi atlanır (reklam SDK’sı yapılandırılmaz).
+Production (`EAS_BUILD_PROFILE=production`) build’lerinde her iki değişken zorunludur; eksikse build durur. Preview ve yerel geliştirmede eksikse native çöküşü önlemek için Google’ın herkese açık örnek app ID’leri yedek olarak kullanılır (gerçek reklam birimi kimliği yoksa reklam yine kapalıdır).
 
 ## Interstitial birim kimlikleri (çalışma zamanı)
 

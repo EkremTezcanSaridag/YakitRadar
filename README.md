@@ -49,7 +49,7 @@ python fiyat_servisi.py
 
 ## Reklam (AdMob) ortam değişkenleri
 
-EAS build ve çalışma zamanı için gerekli secret adları (değerler repoda tutulmaz): [mobile/docs/ads-eas-env.md](mobile/docs/ads-eas-env.md).
+EAS build ve çalışma zamanı için gerekli secret adları (değerler repoda tutulmaz): [mobile/docs/ads-eas-env.md](mobile/docs/ads-eas-env.md). Preview build’lerde AdMob app ID secret’ları yoksa örnek Google test app ID’leri yedeklenir; interstitial birim kimliği olmadan reklam gösterilmez.
 
 ## Supabase
 
