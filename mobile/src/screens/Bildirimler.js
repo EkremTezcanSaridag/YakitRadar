@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import ScreenHeader from '../components/ScreenHeader'
+import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
 import { colors, fuelAlertIconStyle, shadows, switchThumbColor, switchTrackColors } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { fuelTabs } from '../services/fuelData'
@@ -472,13 +473,35 @@ export default function Bildirimler() {
               </ScrollView>
 
               <Text style={styles.fieldLabel}>Yakıt Türü</Text>
-              <View style={styles.fuelSelectorRow}>
+              <View style={[fuelSelectorChipStyles.fuelRow, styles.fuelSelectorRow]}>
                 {fuelTabs.map((fuel) => {
                   const selected = fuel.key === alertFuelKey
                   return (
-                    <Pressable key={fuel.key} onPress={() => setAlertFuelKey(fuel.key)} style={[styles.fuelOption, selected && styles.fuelOptionActive]}>
-                      <MaterialCommunityIcons name={fuel.icon} size={15} color={selected ? colors.bg : colors.mutedSoft} />
-                      <Text style={[styles.fuelOptionText, selected && styles.fuelOptionTextActive]}>{fuel.label}</Text>
+                    <Pressable
+                      key={fuel.key}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      onPress={() => setAlertFuelKey(fuel.key)}
+                      style={({ pressed }) => [
+                        fuelSelectorChipStyles.fuelChip,
+                        selected && fuelSelectorChipStyles.fuelChipActive,
+                        selected && pressed && fuelSelectorChipStyles.fuelChipPressed,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={fuel.icon}
+                        size={15}
+                        color={selected ? colors.onAccent : colors.muted}
+                      />
+                      <Text
+                        style={[
+                          fuelSelectorChipStyles.fuelChipText,
+                          selected && fuelSelectorChipStyles.fuelChipTextActive,
+                        ]}
+                      >
+                        {fuel.label}
+                      </Text>
                     </Pressable>
                   )
                 })}
@@ -964,10 +987,6 @@ const styles = StyleSheet.create({
   selectChipText: { color: colors.text, fontSize: 12, fontWeight: '700' },
   selectChipTextActive: { color: colors.bg },
   fuelSelectorRow: { flexDirection: 'row', gap: 7 },
-  fuelOption: { flex: 1, height: 38, borderRadius: 7, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5 },
-  fuelOptionActive: { borderColor: colors.accent, backgroundColor: colors.accent },
-  fuelOptionText: { color: colors.mutedSoft, fontSize: 12, fontWeight: '800' },
-  fuelOptionTextActive: { color: colors.bg },
   condCard: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgSoft, marginBottom: 8, gap: 10 },
   condCardActive: { borderColor: colors.accent, backgroundColor: colors.surfaceAlt },
   condCardCopy: { flex: 1 },

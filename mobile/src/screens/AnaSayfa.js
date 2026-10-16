@@ -8,6 +8,7 @@ import CityPickerModal from '../components/CityPickerModal'
 import ExpectedChangeEmptyNote from '../components/ExpectedChangeEmptyNote'
 import ExpectedChangeSection from '../components/ExpectedChangeSection'
 import ScreenHeader from '../components/ScreenHeader'
+import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
 import { colors, radii, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { computeNationalAverages, getRealPriceRows } from '../services/fuelData'
@@ -206,7 +207,7 @@ export default function AnaSayfa() {
           ) : null}
         </View>
 
-        <View style={styles.fuelSelector}>
+        <View style={[fuelSelectorChipStyles.fuelRow, styles.fuelSelector]}>
           {FUEL_OPTIONS.map((fuel) => {
             const active = fuel.key === fuelKey
             return (
@@ -216,9 +217,9 @@ export default function AnaSayfa() {
                 accessibilityState={{ selected: active }}
                 onPress={() => setFuelKey(fuel.key)}
                 style={({ pressed }) => [
-                  styles.fuelChip,
-                  active && styles.fuelChipActive,
-                  active && pressed && styles.fuelChipPressed,
+                  fuelSelectorChipStyles.fuelChip,
+                  active && fuelSelectorChipStyles.fuelChipActive,
+                  active && pressed && fuelSelectorChipStyles.fuelChipPressed,
                   pressed && styles.pressed,
                 ]}
               >
@@ -227,7 +228,10 @@ export default function AnaSayfa() {
                   size={18}
                   color={active ? colors.onAccent : colors.muted}
                 />
-                <Text allowFontScaling style={[styles.fuelChipText, active && styles.fuelChipTextActive]}>
+                <Text
+                  allowFontScaling
+                  style={[fuelSelectorChipStyles.fuelChipText, active && fuelSelectorChipStyles.fuelChipTextActive]}
+                >
                   {fuel.label}
                 </Text>
               </Pressable>
@@ -442,37 +446,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   fuelSelector: {
-    flexDirection: 'row',
-    gap: spacing.sm,
     marginBottom: spacing.section,
-  },
-  fuelChip: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.md,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  fuelChipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  fuelChipPressed: {
-    backgroundColor: colors.accentPressed,
-    borderColor: colors.accentPressed,
-  },
-  fuelChipText: {
-    color: colors.muted,
-    fontSize: typography.caption,
-    fontWeight: '600',
-  },
-  fuelChipTextActive: {
-    color: colors.onAccent,
   },
   section: {
     marginBottom: spacing.section,
