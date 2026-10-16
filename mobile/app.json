@@ -12,11 +12,11 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 220,
+          "imageWidth": 240,
           "resizeMode": "contain",
-          "backgroundColor": "#071426",
+          "backgroundColor": "#000000",
           "dark": {
-            "backgroundColor": "#071426"
+            "backgroundColor": "#000000"
           }
         }
       ],
@@ -24,7 +24,7 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#19E6B1",
+          "color": "#4C8DFF",
           "defaultChannel": "fuel-alerts"
         }
       ],
@@ -54,7 +54,7 @@
     },
     "android": {
       "package": "com.pompametre.app",
-      "versionCode": 12,
+      "versionCode": 13,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "POST_NOTIFICATIONS",
@@ -65,8 +65,9 @@
         "ACCESS_BACKGROUND_LOCATION"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#071426"
+        "foregroundImage": "./assets/adaptive-foreground.png",
+        "backgroundImage": "./assets/adaptive-background.png",
+        "monochromeImage": "./assets/adaptive-monochrome.png"
       }
     },
     "web": {
