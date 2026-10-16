@@ -19,7 +19,7 @@ Uygulamanın düzgün çalışabilmesi için işlenen teknik veriler şunlardır
 ### 2. Üçüncü Taraf Servisler ve Reklamlar
 
 Uygulamamızın altyapısında ve gelir modelinde güvenilir üçüncü taraf servis sağlayıcıları kullanılmaktadır:
-- **Google AdMob:** Uygulama içerisinde reklam gösterimi sağlamak amacıyla Google Mobile Ads SDK kullanılır. AdMob, kişiselleştirilmemiş veya kullanıcı tercihine bağlı reklamlar sunmak için standart reklam tanımlayıcılarını (GAID) işleyebilir. Daha fazla bilgi için: [Google Gizlilik Politikası](https://policies.google.com/privacy).
+- **Google AdMob:** Uygulama içerisinde reklam gösterimi sağlamak amacıyla Google Mobile Ads SDK kullanılır. Reklam türü (kişiselleştirilmiş veya kişiselleştirilmemiş), Avrupa/İngiltere’de Google UMP onay ekranındaki seçimlerinize göre belirlenir; onay verilmeden reklam istenmez. AdMob, reklam sunumu için standart reklam tanımlayıcılarını (GAID) işleyebilir. Daha fazla bilgi için: [Google Gizlilik Politikası](https://policies.google.com/privacy).
 - **Supabase:** Güncel akaryakıt pompa fiyatlarını, piyasa analizi özetlerini ve bildirim kayıtlarını sorgulamak için bulut veritabanı olarak kullanılır.
 
 ---

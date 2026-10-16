@@ -47,6 +47,10 @@ pip install -r requirements.txt
 python fiyat_servisi.py
 ```
 
+## Reklam (AdMob) ortam değişkenleri
+
+EAS build ve çalışma zamanı için gerekli secret adları (değerler repoda tutulmaz): [mobile/docs/ads-eas-env.md](mobile/docs/ads-eas-env.md).
+
 ## Supabase
 
 Mobil uygulama `fiyatlar` ve `gecmis` tablolarını okur. Bağlantı başarısız olursa veya tablo boşsa uygulama yerel yedek veriyle açılır; bu sayede ekranlar boş kalmaz ve uygulama crash vermez.
