@@ -44,6 +44,9 @@ jobs:
       - name: Fuel data offline tests
         run: npm run test:fuel-data-offline
 
+      - name: Error handling tests
+        run: npm run test:error-handling
+
       - name: Export Android bundle
         env:
           EXPO_PUBLIC_SUPABASE_URL: https://ci-placeholder.invalid

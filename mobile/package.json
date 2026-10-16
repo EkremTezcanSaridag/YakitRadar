@@ -1,6 +1,6 @@
 {
   "name": "mobile",
-  "version": "1.0.0",
+  "version": "1.0.9",
   "main": "index.js",
   "scripts": {
     "start": "expo start",
@@ -11,7 +11,8 @@
     "test:expected-change": "node scripts/expected-change.test.mjs",
     "test:chart-nearest": "node scripts/chart-nearest-point.test.mjs",
     "test:tab-pill-layout": "node scripts/tab-pill-layout.test.mjs",
-    "test:fuel-data-offline": "node scripts/fuel-data-offline.test.mjs"
+    "test:fuel-data-offline": "node scripts/fuel-data-offline.test.mjs",
+    "test:error-handling": "node scripts/error-handling.test.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
