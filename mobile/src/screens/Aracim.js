@@ -13,8 +13,12 @@ import {
   loadVehicleProfile,
   saveVehicleProfile,
 } from '../services/vehicleProfile'
+import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
 import ScreenHeader from '../components/ScreenHeader'
+import { SkeletonBlock, SkeletonCard, SkeletonGroup } from '../components/SkeletonLoader'
+import { useDeferredSkeleton } from '../hooks/useDeferredSkeleton'
 import { useFuelData } from '../hooks/useFuelData'
+import { shouldShowFuelDataSkeleton } from '../services/fuelDataViewState'
 import { colors, shadows, spacing, typography } from '../theme'
 import { formatCurrencyTr, formatDecimalTr } from '../utils/priceFormat'
 
@@ -72,7 +76,7 @@ function ResultRow({ icon, label, value }) {
 }
 
 export default function Aracim() {
-  const { data } = useFuelData()
+  const { data, loading } = useFuelData()
   const [profile, setProfile] = useState(defaultVehicleProfile)
   const [cityPickerOpen, setCityPickerOpen] = useState(false)
   const [resultOpen, setResultOpen] = useState(false)
@@ -107,6 +111,7 @@ export default function Aracim() {
   const realPrices = getRealPriceRows(data.prices)
   const selectedCity = realPrices.find((item) => item.city === profile.city) ?? realPrices[0] ?? null
   const hasRealData = realPrices.length > 0
+  const showPriceSkeleton = useDeferredSkeleton(shouldShowFuelDataSkeleton(loading, hasRealData))
   const price = Number(selectedCity?.[profile.fuelKey]) || 0
   const spentAmount = toNumber(profile.spentAmount)
   const distanceKm = toNumber(profile.distanceKm)
@@ -245,6 +250,14 @@ export default function Aracim() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ScreenHeader showRefresh title="Aracım" />
 
+        <FuelDataStatusBanner />
+
+        {showPriceSkeleton ? (
+          <SkeletonGroup label="Fiyat şeridi yükleniyor">
+            <SkeletonBlock height={56} width="100%" />
+            <SkeletonCard />
+          </SkeletonGroup>
+        ) : (
         <View style={styles.priceStrip}>
           <View style={styles.priceStripIcon}>
             <Ionicons name={fuelIonicon[selectedFuel.icon] ?? 'car-sport-outline'} size={18} color={colors.muted} />
@@ -252,10 +265,11 @@ export default function Aracim() {
           <View style={styles.priceStripText}>
             <Text style={styles.priceStripLabel}>{selectedCity?.city ?? profile.city} · {selectedFuel.title}</Text>
             <Text style={styles.priceStripValue}>
-              {hasRealData && price > 0 ? `${formatDecimalTr(price)} ₺ / L` : 'Veri yok'}
+              {hasRealData && price > 0 ? `${formatDecimalTr(price)} ₺ / L` : 'Fiyat alınamadı'}
             </Text>
           </View>
         </View>
+        )}
 
         {/* Action Buttons Row */}
         <View style={styles.actionRow}>

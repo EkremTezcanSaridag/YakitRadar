@@ -8,14 +8,21 @@ import CityPickerModal from '../components/CityPickerModal'
 import ExpectedChangeEmptyNote from '../components/ExpectedChangeEmptyNote'
 import ExpectedChangeSection from '../components/ExpectedChangeSection'
 import EmptyState from '../components/EmptyState'
-import FuelDataLoadingSkeleton from '../components/FuelDataLoadingSkeleton'
-import OfflineDataBanner from '../components/OfflineDataBanner'
+import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
 import ScreenHeader from '../components/ScreenHeader'
+import {
+  SkeletonFuelChips,
+  SkeletonGroup,
+  SkeletonHero,
+  SkeletonRows,
+} from '../components/SkeletonLoader'
 import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
 import { colors, radii, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { computeNationalAverages, getRealPriceRows } from '../services/fuelData'
-import { shouldShowFuelDataEmptyState } from '../services/fuelDataPersistence'
+import { useNetworkStatus } from '../context/NetworkContext'
+import { useDeferredSkeleton } from '../hooks/useDeferredSkeleton'
+import { resolveFuelEmptyState, shouldShowFuelDataSkeleton } from '../services/fuelDataViewState'
 import {
   addComparisonCity,
   defaultFavoriteCities,
@@ -42,6 +49,7 @@ const FUEL_OPTIONS = [
 
 export default function AnaSayfa() {
   const { data, loading, refresh, refreshMarketSignal, refreshing, marketSignalRefreshing } = useFuelData()
+  const { isOffline } = useNetworkStatus()
   const [favCities, setFavCities] = useState(defaultFavoriteCities)
   const [fuelKey, setFuelKey] = useState('benzin95')
   const [cityPickerOpen, setCityPickerOpen] = useState(false)
@@ -95,6 +103,8 @@ export default function AnaSayfa() {
 
   const realPrices = useMemo(() => getRealPriceRows(data.prices), [data.prices])
   const hasRealData = data.hasRealPrices && realPrices.length > 0
+  const showSkeleton = useDeferredSkeleton(shouldShowFuelDataSkeleton(loading, hasRealData))
+  const emptyState = resolveFuelEmptyState({ loading, fuelData: data, isOffline })
   const heroCityName = favCities[0] ?? 'İstanbul'
 
   const heroCity = useMemo(() => {
@@ -160,7 +170,7 @@ export default function AnaSayfa() {
       >
         <ScreenHeader showRefresh title="Ana Sayfa" />
 
-        <OfflineDataBanner fuelData={data} onRetry={refresh} refreshing={refreshing} />
+        <FuelDataStatusBanner />
 
         {showMarketNote && expectedChangeBoxes.length > 0 ? (
           <ExpectedChangeSection
@@ -172,13 +182,22 @@ export default function AnaSayfa() {
         ) : null}
         {showExpectedChangeEmptyNote ? <ExpectedChangeEmptyNote /> : null}
 
-        {loading && !hasRealData ? <FuelDataLoadingSkeleton /> : null}
+        {showSkeleton ? (
+          <SkeletonGroup label="Fiyatlar yükleniyor">
+            <SkeletonHero />
+            <SkeletonFuelChips />
+            <SkeletonRows count={5} />
+          </SkeletonGroup>
+        ) : null}
 
-        {shouldShowFuelDataEmptyState(data, loading) ? (
+        {emptyState ? (
           <EmptyState
-            message="Güncel fiyat verisi alınamadı. Bağlantınızı kontrol edip tekrar deneyin."
-            onRetry={refresh}
-            title="Veri yok"
+            actionLabel={emptyState.actionLabel}
+            busy={refreshing}
+            message={emptyState.message}
+            onAction={refresh}
+            title={emptyState.title}
+            variant={emptyState.variant}
           />
         ) : null}
 

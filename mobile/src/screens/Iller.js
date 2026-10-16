@@ -4,14 +4,17 @@ import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View, StyleSheet } from 'react-native'
 import EmptyState from '../components/EmptyState'
-import FuelDataLoadingSkeleton from '../components/FuelDataLoadingSkeleton'
-import OfflineDataBanner from '../components/OfflineDataBanner'
+import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
 import ScreenHeader from '../components/ScreenHeader'
+import { SkeletonGroup, SkeletonRows } from '../components/SkeletonLoader'
+import { useToast } from '../components/ToastProvider'
 import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
 import { colors, shadows, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { computeNationalAverages, fuelTabs, getRealPriceRows } from '../services/fuelData'
-import { shouldShowFuelDataEmptyState } from '../services/fuelDataPersistence'
+import { useNetworkStatus } from '../context/NetworkContext'
+import { useDeferredSkeleton } from '../hooks/useDeferredSkeleton'
+import { resolveFuelEmptyState, shouldShowFuelDataSkeleton } from '../services/fuelDataViewState'
 import { formatCurrencyTr, formatSignedCurrencyTr } from '../utils/priceFormat'
 import { defaultFavoriteCities, loadFavoriteCities, setPrimaryCityManual, toggleFavoriteCity } from '../services/favoriteCities'
 
@@ -33,7 +36,12 @@ function normalizeSearch(value) {
 }
 
 export default function Iller() {
+  const toast = useToast()
   const { data, loading, refresh, refreshing } = useFuelData()
+  const { isOffline } = useNetworkStatus()
+  const hasRealPrices = data.hasRealPrices
+  const showListSkeleton = useDeferredSkeleton(shouldShowFuelDataSkeleton(loading, hasRealPrices))
+  const fuelEmptyState = resolveFuelEmptyState({ loading, fuelData: data, isOffline })
   const [selectedFuel, setSelectedFuel] = useState(fuelTabs[0])
   const [searchQuery, setSearchQuery] = useState('')
   const [favoriteCities, setFavoriteCities] = useState(defaultFavoriteCities)
@@ -46,8 +54,14 @@ export default function Iller() {
   }, [])
 
   async function handleToggleFavorite(cityName) {
+    const wasFavorite = favoriteCities.includes(cityName)
     const updated = await toggleFavoriteCity(cityName)
     setFavoriteCities(updated)
+    if (wasFavorite) {
+      toast.info('Favorilerden çıkarıldı')
+    } else {
+      toast.success('Favorilere eklendi')
+    }
   }
 
   function handleMakePrimaryCity(cityName) {
@@ -109,19 +123,20 @@ export default function Iller() {
       >
         <ScreenHeader showRefresh title="İller" />
 
-        <OfflineDataBanner fuelData={data} onRetry={refresh} refreshing={refreshing} />
+        <FuelDataStatusBanner />
 
-        {loading && !data.hasRealPrices ? <FuelDataLoadingSkeleton /> : null}
-
-        {shouldShowFuelDataEmptyState(data, loading) ? (
+        {fuelEmptyState ? (
           <EmptyState
-            message="İl fiyatları yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin."
-            onRetry={refresh}
-            title="Veri yok"
+            actionLabel={fuelEmptyState.actionLabel}
+            busy={refreshing}
+            message={fuelEmptyState.message}
+            onAction={refresh}
+            title={fuelEmptyState.title}
+            variant={fuelEmptyState.variant}
           />
         ) : null}
 
-        {!shouldShowFuelDataEmptyState(data, loading) ? (
+        {!fuelEmptyState ? (
         <>
         <View style={styles.searchBox}>
           <Ionicons name="search-outline" size={18} color={colors.mutedSoft} />
@@ -148,7 +163,7 @@ export default function Iller() {
         </View>
 
         <Text style={styles.leadText}>
-          {selectedFuelTitle} · {data.hasRealPrices ? `${cities.length} il` : 'Veri yok'}
+          {selectedFuelTitle} · {loading && !hasRealPrices ? 'Yükleniyor…' : hasRealPrices ? `${cities.length} il` : '—'}
         </Text>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segmentRow}>
@@ -220,14 +235,35 @@ export default function Iller() {
           <Text style={styles.listMeta}>{selectedFuelTitle}</Text>
         </View>
 
-        {cities.length === 0 && (
-          <View style={styles.emptyCard}>
-            <Ionicons name="search-outline" size={28} color={colors.mutedSoft} />
-            <Text style={styles.emptyTitle}>{showOnlyFavorites ? 'Favori iliniz yok' : 'İl bulunamadı'}</Text>
-            <Text style={styles.emptyText}>{showOnlyFavorites ? 'Kalp simgesine dokunarak il ekleyin.' : 'Arama metnini kısaltarak tekrar deneyin.'}</Text>
-          </View>
-        )}
+        {showListSkeleton ? (
+          <SkeletonGroup label="İl listesi yükleniyor">
+            <SkeletonRows count={8} />
+          </SkeletonGroup>
+        ) : null}
 
+        {!showListSkeleton && cities.length === 0 && hasRealPrices ? (
+          showOnlyFavorites ? (
+            <EmptyState
+              actionLabel="Tüm illeri göster"
+              compact
+              icon="heart-outline"
+              message="Bir ilin yanındaki kalbe dokunarak ekle."
+              onAction={() => setShowOnlyFavorites(false)}
+              title="Henüz favori ilin yok"
+              variant="empty"
+            />
+          ) : (
+            <EmptyState
+              compact
+              icon="search-outline"
+              message="Aramayı kısaltıp tekrar dene."
+              title="İl bulunamadı"
+              variant="empty"
+            />
+          )
+        ) : null}
+
+        {!showListSkeleton ? (
         <View style={styles.flatListBlock}>
         {cities.map((city, index) => {
           const trendUp = city.avgDiff !== null && city.avgDiff > 0
@@ -277,6 +313,7 @@ export default function Iller() {
           )
         })}
         </View>
+        ) : null}
         </>
         ) : null}
       </ScrollView>
