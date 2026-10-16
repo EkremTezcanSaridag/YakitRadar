@@ -47,6 +47,13 @@ pip install -r requirements.txt
 python fiyat_servisi.py
 ```
 
+## Gizlilik ve Play Data safety
+
+- Tam metin: [PRIVACY_POLICY.md](PRIVACY_POLICY.md) (Türkçe, kısa İngilizce özet)
+- GitHub Pages için statik sürüm: [docs/index.html](docs/index.html)
+- Play Console form özeti: [docs/data-safety.md](docs/data-safety.md)
+- Uygulama içi link: `EXPO_PUBLIC_PRIVACY_POLICY_URL` (Bildirimler ekranı; değer repoda tutulmaz)
+
 ## Reklam (AdMob) ortam değişkenleri
 
 EAS build ve çalışma zamanı için gerekli secret adları (değerler repoda tutulmaz): [mobile/docs/ads-eas-env.md](mobile/docs/ads-eas-env.md).
