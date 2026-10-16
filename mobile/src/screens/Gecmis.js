@@ -11,6 +11,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native'
+import EmptyState from '../components/EmptyState'
+import OfflineDataBanner from '../components/OfflineDataBanner'
 import ScreenHeader from '../components/ScreenHeader'
 import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
 import { colors, radii, spacing, typography } from '../theme'
@@ -79,7 +81,7 @@ function buildLineGeometry(values, width) {
 
 export default function Gecmis() {
   const { width: windowWidth } = useWindowDimensions()
-  const { data } = useFuelData()
+  const { data, loading, refresh, refreshing } = useFuelData()
   const [selectedFuelKey, setSelectedFuelKey] = useState('benzin95')
   const [period, setPeriod] = useState(7)
   const [selectedPointIndex, setSelectedPointIndex] = useState(-1)
@@ -155,6 +157,19 @@ export default function Gecmis() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ScreenHeader title="Geçmiş" />
 
+        <OfflineDataBanner fuelData={data} onRetry={refresh} refreshing={refreshing} />
+
+        {!loading && !fuelValues.length ? (
+          <EmptyState
+            icon="analytics-outline"
+            message="Geçmiş fiyat serisi henüz yüklenemedi veya bu dönem için kayıt yok."
+            onRetry={refresh}
+            title="Grafik verisi yok"
+          />
+        ) : null}
+
+        {fuelValues.length > 0 ? (
+        <>
         <View style={styles.periodRow}>
           {historyPeriods.map((item) => {
             const active = period === item.value
@@ -303,6 +318,8 @@ export default function Gecmis() {
             <Text style={styles.statValue}>{formatDecimalTr(historyView.maxPrice)}</Text>
           </View>
         </View>
+        </>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   )

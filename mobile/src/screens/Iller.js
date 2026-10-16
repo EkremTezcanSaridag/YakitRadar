@@ -3,11 +3,15 @@ import { StatusBar } from 'expo-status-bar'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View, StyleSheet } from 'react-native'
+import EmptyState from '../components/EmptyState'
+import FuelDataLoadingSkeleton from '../components/FuelDataLoadingSkeleton'
+import OfflineDataBanner from '../components/OfflineDataBanner'
 import ScreenHeader from '../components/ScreenHeader'
 import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
 import { colors, shadows, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { computeNationalAverages, fuelTabs, getRealPriceRows } from '../services/fuelData'
+import { shouldShowFuelDataEmptyState } from '../services/fuelDataPersistence'
 import { formatCurrencyTr, formatSignedCurrencyTr } from '../utils/priceFormat'
 import { defaultFavoriteCities, loadFavoriteCities, setPrimaryCityManual, toggleFavoriteCity } from '../services/favoriteCities'
 
@@ -29,7 +33,7 @@ function normalizeSearch(value) {
 }
 
 export default function Iller() {
-  const { data, refresh, refreshing } = useFuelData()
+  const { data, loading, refresh, refreshing } = useFuelData()
   const [selectedFuel, setSelectedFuel] = useState(fuelTabs[0])
   const [searchQuery, setSearchQuery] = useState('')
   const [favoriteCities, setFavoriteCities] = useState(defaultFavoriteCities)
@@ -105,6 +109,20 @@ export default function Iller() {
       >
         <ScreenHeader showRefresh title="İller" />
 
+        <OfflineDataBanner fuelData={data} onRetry={refresh} refreshing={refreshing} />
+
+        {loading && !data.hasRealPrices ? <FuelDataLoadingSkeleton /> : null}
+
+        {shouldShowFuelDataEmptyState(data, loading) ? (
+          <EmptyState
+            message="İl fiyatları yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin."
+            onRetry={refresh}
+            title="Veri yok"
+          />
+        ) : null}
+
+        {!shouldShowFuelDataEmptyState(data, loading) ? (
+        <>
         <View style={styles.searchBox}>
           <Ionicons name="search-outline" size={18} color={colors.mutedSoft} />
           <TextInput
@@ -210,14 +228,6 @@ export default function Iller() {
           </View>
         )}
 
-        {!data.hasRealPrices ? (
-          <View style={styles.emptyCard}>
-            <Ionicons name="cloud-offline-outline" size={28} color={colors.mutedSoft} />
-            <Text style={styles.emptyTitle}>Veri yok</Text>
-            <Text style={styles.emptyText}>Gerçek fiyat verisi bulunamadı.</Text>
-          </View>
-        ) : null}
-
         <View style={styles.flatListBlock}>
         {cities.map((city, index) => {
           const trendUp = city.avgDiff !== null && city.avgDiff > 0
@@ -267,6 +277,8 @@ export default function Iller() {
           )
         })}
         </View>
+        </>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   )

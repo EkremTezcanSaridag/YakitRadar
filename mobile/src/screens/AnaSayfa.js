@@ -7,11 +7,15 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import CityPickerModal from '../components/CityPickerModal'
 import ExpectedChangeEmptyNote from '../components/ExpectedChangeEmptyNote'
 import ExpectedChangeSection from '../components/ExpectedChangeSection'
+import EmptyState from '../components/EmptyState'
+import FuelDataLoadingSkeleton from '../components/FuelDataLoadingSkeleton'
+import OfflineDataBanner from '../components/OfflineDataBanner'
 import ScreenHeader from '../components/ScreenHeader'
 import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
 import { colors, radii, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { computeNationalAverages, getRealPriceRows } from '../services/fuelData'
+import { shouldShowFuelDataEmptyState } from '../services/fuelDataPersistence'
 import {
   addComparisonCity,
   defaultFavoriteCities,
@@ -37,7 +41,7 @@ const FUEL_OPTIONS = [
 ]
 
 export default function AnaSayfa() {
-  const { data, refresh, refreshMarketSignal, refreshing, marketSignalRefreshing } = useFuelData()
+  const { data, loading, refresh, refreshMarketSignal, refreshing, marketSignalRefreshing } = useFuelData()
   const [favCities, setFavCities] = useState(defaultFavoriteCities)
   const [fuelKey, setFuelKey] = useState('benzin95')
   const [cityPickerOpen, setCityPickerOpen] = useState(false)
@@ -156,6 +160,8 @@ export default function AnaSayfa() {
       >
         <ScreenHeader showRefresh title="Ana Sayfa" />
 
+        <OfflineDataBanner fuelData={data} onRetry={refresh} refreshing={refreshing} />
+
         {showMarketNote && expectedChangeBoxes.length > 0 ? (
           <ExpectedChangeSection
             analysisTime={data.marketSignal?.updatedAt}
@@ -166,15 +172,17 @@ export default function AnaSayfa() {
         ) : null}
         {showExpectedChangeEmptyNote ? <ExpectedChangeEmptyNote /> : null}
 
-        {!hasRealData ? (
-          <View style={styles.emptyDataBlock}>
-            <Ionicons color={colors.mutedSoft} name="cloud-offline-outline" size={32} />
-            <Text allowFontScaling style={styles.emptyDataTitle}>Veri yok</Text>
-            <Text allowFontScaling style={styles.emptyDataText}>
-              Güncel fiyat verisi alınamadı. Aşağıdan yenilemeyi deneyebilirsiniz.
-            </Text>
-          </View>
-        ) : (
+        {loading && !hasRealData ? <FuelDataLoadingSkeleton /> : null}
+
+        {shouldShowFuelDataEmptyState(data, loading) ? (
+          <EmptyState
+            message="Güncel fiyat verisi alınamadı. Bağlantınızı kontrol edip tekrar deneyin."
+            onRetry={refresh}
+            title="Veri yok"
+          />
+        ) : null}
+
+        {hasRealData ? (
           <>
         <View style={styles.heroBlock}>
           <Text allowFontScaling style={styles.heroEyebrow}>Senin şehrin</Text>
@@ -334,7 +342,7 @@ export default function AnaSayfa() {
         </View>
 
           </>
-        )}
+        ) : null}
       </ScrollView>
 
       <CityPickerModal
