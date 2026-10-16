@@ -1,39 +1,41 @@
-// Web ve genel fallback ortamı için AdManager mock/simülasyon servisi
-export const TEST_INTERSTITIAL_ID = 'ca-app-pub-3940256099942544/1033173712'
-export const AD_INTERACTION_THRESHOLD = 8
+import {
+  createInterstitialPolicyState,
+  markInterstitialShown,
+  MIN_TAB_TRANSITIONS_BEFORE_AD,
+  recordTabTransition,
+  shouldOfferInterstitial,
+} from './adInterstitialPolicy'
 
-let clickCounter = 0
+export const AD_INTERACTION_THRESHOLD = MIN_TAB_TRANSITIONS_BEFORE_AD
 
-export async function initAds() {
-  // Web / simülasyon ortamında native AdMob çalışmaz
-}
+let policyState = createInterstitialPolicyState()
 
-export function loadNextInterstitial() {
-  // Web / simülasyon ortamında boş işlem
-}
+export async function initAds() {}
+
+export function loadNextInterstitial() {}
 
 export function trackAdInteraction() {
-  clickCounter += 1
+  policyState = recordTabTransition(policyState)
 
-  if (clickCounter >= AD_INTERACTION_THRESHOLD) {
-    clickCounter = 0
-    showInterstitialAd()
-    return true
+  if (!shouldOfferInterstitial(policyState)) {
+    return false
   }
 
-  return false
+  showInterstitialAd()
+  policyState = markInterstitialShown(policyState)
+  return true
 }
 
 export function showInterstitialAd() {
   if (__DEV__) {
-    console.log('[AdManager] 8 tıklamaya ulaşıldı - Android APK derlemesinde tam ekran geçiş reklamı açılacaktır.')
+    console.log('[AdManager] Interstitial eşiği karşılandı (native derlemede gösterilir).')
   }
 }
 
 export function getAdClickCount() {
-  return clickCounter
+  return policyState.tabTransitions
 }
 
 export function resetAdClickCount() {
-  clickCounter = 0
+  policyState = createInterstitialPolicyState()
 }
