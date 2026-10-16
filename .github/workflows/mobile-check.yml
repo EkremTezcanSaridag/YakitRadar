@@ -38,6 +38,9 @@ jobs:
       - name: Chart nearest point tests
         run: npm run test:chart-nearest
 
+      - name: Tab pill layout tests
+        run: npm run test:tab-pill-layout
+
       - name: Export Android bundle
         env:
           EXPO_PUBLIC_SUPABASE_URL: https://ci-placeholder.invalid
