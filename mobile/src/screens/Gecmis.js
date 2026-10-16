@@ -1,12 +1,26 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { StatusBar } from 'expo-status-bar'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
+import {
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native'
 import ScreenHeader from '../components/ScreenHeader'
+import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
 import { colors, radii, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { buildHistoryView } from '../services/fuelData'
+import {
+  clampChartTooltipLeft,
+  formatHistoryChartTooltipDate,
+  pickNearestChartPointIndex,
+} from '../utils/chartNearestPoint'
 import { formatDecimalTr, formatSignedCurrencyTr } from '../utils/priceFormat'
 
 const historyPeriods = [
@@ -22,6 +36,7 @@ const fuelTabsConfig = [
 ]
 
 const CHART_HEIGHT = 160
+const TOOLTIP_ESTIMATED_WIDTH = 168
 
 function buildLineGeometry(values, width) {
   const padding = 12
@@ -67,6 +82,8 @@ export default function Gecmis() {
   const { data } = useFuelData()
   const [selectedFuelKey, setSelectedFuelKey] = useState('benzin95')
   const [period, setPeriod] = useState(7)
+  const [selectedPointIndex, setSelectedPointIndex] = useState(-1)
+  const [tooltipWidth, setTooltipWidth] = useState(TOOLTIP_ESTIMATED_WIDTH)
 
   const chartWidth = Math.max(280, windowWidth - spacing.screen * 2)
 
@@ -82,7 +99,55 @@ export default function Gecmis() {
     [fuelValues, chartWidth],
   )
 
+  useEffect(() => {
+    if (!fuelValues.length) {
+      setSelectedPointIndex(-1)
+      return
+    }
+    setSelectedPointIndex(fuelValues.length - 1)
+  }, [fuelValues, period, selectedFuelKey])
+
+  const pointsRef = useRef(points)
+  pointsRef.current = points
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => pointsRef.current.length > 0,
+        onMoveShouldSetPanResponder: () => pointsRef.current.length > 0,
+        onPanResponderGrant: (event) => {
+          const index = pickNearestChartPointIndex(event.nativeEvent.locationX, pointsRef.current)
+          if (index >= 0) {
+            setSelectedPointIndex(index)
+          }
+        },
+        onPanResponderMove: (event) => {
+          const index = pickNearestChartPointIndex(event.nativeEvent.locationX, pointsRef.current)
+          if (index >= 0) {
+            setSelectedPointIndex(index)
+          }
+        },
+      }),
+    [],
+  )
+
   const activeFuel = fuelTabsConfig.find((fuel) => fuel.key === selectedFuelKey) ?? fuelTabsConfig[0]
+  const selectedValue = selectedPointIndex >= 0 ? fuelValues[selectedPointIndex] : null
+  const selectedPoint = selectedPointIndex >= 0 ? points[selectedPointIndex] : null
+  const previousValue = selectedPointIndex > 0 ? fuelValues[selectedPointIndex - 1] : null
+  const dayDiff =
+    selectedValue && previousValue ? selectedValue.price - previousValue.price : null
+
+  const tooltipLeft =
+    selectedPoint
+      ? clampChartTooltipLeft(selectedPoint.x, tooltipWidth, chartWidth)
+      : spacing.sm
+
+  const chartAccessibilityLabel = selectedValue
+    ? `${formatDecimalTr(selectedValue.price)} lira, ${formatHistoryChartTooltipDate(selectedValue.date)}${
+        Number.isFinite(dayDiff) ? `, dünden fark ${formatSignedCurrencyTr(dayDiff)}` : ''
+      }`
+    : 'Fiyat grafiği'
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -105,22 +170,28 @@ export default function Gecmis() {
           })}
         </View>
 
-        <View style={styles.fuelRow}>
+        <View style={[fuelSelectorChipStyles.fuelRow, styles.fuelRow]}>
           {fuelTabsConfig.map((fuel) => {
             const active = fuel.key === selectedFuelKey
             return (
               <Pressable
                 key={fuel.key}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
                 onPress={() => setSelectedFuelKey(fuel.key)}
                 style={({ pressed }) => [
-                  styles.fuelChip,
-                  active && styles.fuelChipActive,
-                  active && pressed && styles.fuelChipPressed,
+                  fuelSelectorChipStyles.fuelChip,
+                  active && fuelSelectorChipStyles.fuelChipActive,
+                  active && pressed && fuelSelectorChipStyles.fuelChipPressed,
                   pressed && styles.pressed,
                 ]}
               >
                 <Ionicons name={fuel.icon} size={16} color={active ? colors.onAccent : colors.muted} />
-                <Text style={[styles.fuelChipText, active && styles.fuelChipTextActive]}>{fuel.label}</Text>
+                <Text
+                  style={[fuelSelectorChipStyles.fuelChipText, active && fuelSelectorChipStyles.fuelChipTextActive]}
+                >
+                  {fuel.label}
+                </Text>
               </Pressable>
             )
           })}
@@ -142,10 +213,22 @@ export default function Gecmis() {
           </Text>
         </View>
 
-        <View style={[styles.chartCanvas, { width: chartWidth }]}>
+        <View
+          accessibilityLabel={chartAccessibilityLabel}
+          accessibilityRole="adjustable"
+          style={[styles.chartCanvas, { width: chartWidth }]}
+          {...panResponder.panHandlers}
+        >
+          {selectedPoint ? (
+            <View
+              pointerEvents="none"
+              style={[styles.chartGuideLine, { left: selectedPoint.x - 0.5 }]}
+            />
+          ) : null}
           {segments.map((segment, index) => (
             <View
               key={`seg-${index}`}
+              pointerEvents="none"
               style={[
                 styles.lineSegment,
                 {
@@ -157,16 +240,53 @@ export default function Gecmis() {
               ]}
             />
           ))}
-          {points.map((point, index) => (
+          {points.map((point, index) => {
+            const selected = index === selectedPointIndex
+            return (
+              <View
+                key={`pt-${index}`}
+                pointerEvents="none"
+                style={[
+                  styles.lineDot,
+                  selected && styles.lineDotSelected,
+                  { left: point.x - (selected ? 5 : 3), top: point.y - (selected ? 5 : 3) },
+                ]}
+              />
+            )
+          })}
+          {selectedValue && selectedPoint ? (
             <View
-              key={`pt-${index}`}
+              onLayout={(event) => {
+                const width = event.nativeEvent.layout.width
+                if (width > 0) {
+                  setTooltipWidth(width)
+                }
+              }}
+              pointerEvents="none"
               style={[
-                styles.lineDot,
-                index === points.length - 1 && styles.lineDotActive,
-                { left: point.x - 3, top: point.y - 3 },
+                styles.chartTooltip,
+                {
+                  left: tooltipLeft,
+                  top: Math.max(0, selectedPoint.y - 52),
+                },
               ]}
-            />
-          ))}
+            >
+              <Text style={styles.chartTooltipMain}>
+                {formatDecimalTr(selectedValue.price)} ₺ · {formatHistoryChartTooltipDate(selectedValue.date)}
+              </Text>
+              {Number.isFinite(dayDiff) ? (
+                <Text
+                  style={[
+                    styles.chartTooltipDiff,
+                    dayDiff > 0 && styles.chartTooltipDiffRise,
+                    dayDiff < 0 && styles.chartTooltipDiffFall,
+                  ]}
+                >
+                  Dünden fark: {formatSignedCurrencyTr(dayDiff)}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.statsRow}>
@@ -223,37 +343,7 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   fuelRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
     marginBottom: spacing.xl,
-  },
-  fuelChip: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  fuelChipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  fuelChipPressed: {
-    backgroundColor: colors.accentPressed,
-    borderColor: colors.accentPressed,
-  },
-  fuelChipText: {
-    color: colors.muted,
-    fontSize: typography.micro,
-    fontWeight: '600',
-  },
-  fuelChipTextActive: {
-    color: colors.onAccent,
   },
   chartHeader: {
     marginBottom: spacing.lg,
@@ -287,6 +377,42 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  chartGuideLine: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: colors.accentSoft,
+  },
+  chartTooltip: {
+    position: 'absolute',
+    maxWidth: '92%',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  chartTooltipMain: {
+    color: colors.text,
+    fontSize: typography.caption,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '600',
+  },
+  chartTooltipDiff: {
+    color: colors.muted,
+    fontSize: typography.micro,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '600',
+    marginTop: spacing.xs,
+  },
+  chartTooltipDiffRise: {
+    color: colors.priceRise,
+  },
+  chartTooltipDiffFall: {
+    color: colors.priceFall,
+  },
   lineSegment: {
     position: 'absolute',
     height: 2,
@@ -300,13 +426,13 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: colors.border,
   },
-  lineDotActive: {
+  lineDotSelected: {
     backgroundColor: colors.accent,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginLeft: -1,
-    marginTop: -1,
+    borderColor: colors.accentSoft,
+    borderRadius: 5,
+    borderWidth: 4,
+    height: 10,
+    width: 10,
   },
   statsRow: {
     flexDirection: 'row',
