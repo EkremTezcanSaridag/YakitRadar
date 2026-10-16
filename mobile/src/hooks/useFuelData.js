@@ -5,13 +5,14 @@ import { pushToast } from '../components/toastController'
 import { checkAndTriggerCustomAlerts } from '../services/customAlerts'
 import { emptyFuelData, getRealPriceRows, loadFuelData, refreshMarketSignalFromRemote } from '../services/fuelData'
 import { scheduleWeeklySummaryNotification } from '../services/notifications'
+import { logError } from '../utils/logger'
 
 const FuelDataContext = createContext(null)
 
 function triggerAlertsAndSchedule(freshData) {
   if (getRealPriceRows(freshData?.prices).length) {
-    scheduleWeeklySummaryNotification(freshData.prices).catch(() => {})
-    checkAndTriggerCustomAlerts(freshData.prices, freshData.marketSignal).catch(() => {})
+    scheduleWeeklySummaryNotification(freshData.prices).catch((error) => logError('fuel.weeklySummary', error))
+    checkAndTriggerCustomAlerts(freshData.prices, freshData.marketSignal).catch((error) => logError('fuel.customAlerts', error))
   }
 }
 

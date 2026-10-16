@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from 'react-native'
 import { colors, radii, spacing } from '../theme'
+import { logError } from '../utils/logger'
 
 const PulseContext = createContext(null)
 
@@ -36,7 +37,7 @@ export function SkeletonGroup({ label = 'Yükleniyor', children }) {
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled()
       .then(setReduceMotion)
-      .catch(() => {})
+      .catch((error) => logError('skeleton.reduceMotion', error))
 
     const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion)
 
