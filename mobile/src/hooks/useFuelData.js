@@ -88,7 +88,19 @@ export function useFuelData() {
     let isMounted = true
     mountedRef.current = true
 
-    loadFuelData().then((data) => {
+    async function bootstrap() {
+      const cached = await loadFuelData({ refresh: false })
+
+      if (isMounted && cached?.hasRealPrices) {
+        setState((current) => ({
+          ...current,
+          data: cached,
+          loading: false,
+        }))
+      }
+
+      const data = await loadFuelData({ refresh: true, triggerBackend: true })
+
       if (!isMounted) {
         return
       }
@@ -100,7 +112,9 @@ export function useFuelData() {
         refreshing: false,
       }))
       triggerAlertsAndSchedule(data)
-    })
+    }
+
+    bootstrap()
 
     return () => {
       isMounted = false

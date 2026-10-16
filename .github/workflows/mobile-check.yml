@@ -41,6 +41,9 @@ jobs:
       - name: Tab pill layout tests
         run: npm run test:tab-pill-layout
 
+      - name: Fuel data offline tests
+        run: npm run test:fuel-data-offline
+
       - name: Export Android bundle
         env:
           EXPO_PUBLIC_SUPABASE_URL: https://ci-placeholder.invalid

@@ -1,7 +1,10 @@
 import { colors } from '../theme'
 import { supabase } from '../supabase'
 import { parseExpectedFuelSignals } from './expectedChange'
+import { readFuelDataCache, writeFuelDataCache } from './fuelDataCacheIO'
+import { formatCacheSavedAtLabel } from './fuelDataPersistence'
 import { formatCurrencyTr, formatSignedCurrencyTr } from '../utils/priceFormat'
+import { FUEL_FETCH_TIMEOUT_MS, withTimeout } from '../utils/withTimeout'
 
 export const fuelTabs = [
   { key: 'benzin95', label: 'Benzin', title: 'Benzin 95', icon: 'gas-station' },
@@ -1272,6 +1275,10 @@ function buildFuelData({
   priceChangeEvents = [],
   refreshRequest = null,
   syncedAt = new Date(),
+  networkFetchFailed = false,
+  cacheSavedAt = null,
+  cacheSavedAtLabel = null,
+  servedFromCache = false,
 }) {
   const realPrices = getRealPriceRows(prices)
   const cityRows = buildCityRows(prices)
@@ -1298,7 +1305,39 @@ function buildFuelData({
     recentChanges: buildRecentChanges(history, priceChangeEvents),
     refreshRequest,
     source,
+    networkFetchFailed,
+    cacheSavedAt,
+    cacheSavedAtLabel,
+    servedFromCache,
   }
+}
+
+function buildFuelDataFromRemotePayload(remotePayload, cacheMeta = {}) {
+  const savedAt = cacheMeta.savedAt
+  const syncedAt = savedAt ? new Date(savedAt) : new Date()
+
+  return buildFuelData({
+    ...remotePayload,
+    syncedAt,
+    networkFetchFailed: Boolean(cacheMeta.networkFetchFailed),
+    cacheSavedAt: savedAt ?? null,
+    cacheSavedAtLabel: savedAt ? formatCacheSavedAtLabel(savedAt) : null,
+    servedFromCache: Boolean(cacheMeta.servedFromCache),
+  })
+}
+
+async function hydrateFuelDataFromDisk() {
+  const diskCache = await readFuelDataCache()
+
+  if (!diskCache) {
+    return null
+  }
+
+  return buildFuelDataFromRemotePayload(diskCache.payload, {
+    savedAt: diskCache.savedAt,
+    servedFromCache: true,
+    networkFetchFailed: false,
+  })
 }
 
 let lastBackendRefreshTriggerAt = 0
@@ -1418,11 +1457,14 @@ export async function refreshMarketSignalFromRemote() {
     return null
   }
 
-  const { data, error } = await supabase
-    .from('market_signals')
-    .select(marketSignalSelect)
-    .order('calculated_at', { ascending: false })
-    .limit(1)
+  const { data, error } = await withTimeout(
+    supabase
+      .from('market_signals')
+      .select(marketSignalSelect)
+      .order('calculated_at', { ascending: false })
+      .limit(1),
+    FUEL_FETCH_TIMEOUT_MS,
+  )
 
   if (error || !data?.[0]) {
     return null
@@ -1445,17 +1487,55 @@ export async function loadFuelData({ refresh = false, triggerBackend = refresh }
     return fuelDataCache
   }
 
+  if (!fuelDataCache) {
+    const hydrated = await hydrateFuelDataFromDisk()
+    if (hydrated) {
+      fuelDataCache = hydrated
+    }
+  }
+
+  if (!refresh && fuelDataCache) {
+    return fuelDataCache
+  }
+
   try {
-    const remoteFuelData = await fetchRemoteFuelData({ triggerBackend })
+    const remoteFuelData = await withTimeout(
+      fetchRemoteFuelData({ triggerBackend }),
+      FUEL_FETCH_TIMEOUT_MS,
+    )
 
     if (remoteFuelData) {
-      fuelDataCache = buildFuelData(remoteFuelData)
-    } else if (!fuelDataCache || fuelDataCache.source !== 'supabase') {
+      const savedAt = await writeFuelDataCache(remoteFuelData)
+      fuelDataCache = buildFuelDataFromRemotePayload(remoteFuelData, {
+        savedAt: savedAt ?? new Date().toISOString(),
+        servedFromCache: false,
+        networkFetchFailed: false,
+      })
+    } else if (!fuelDataCache?.hasRealPrices) {
       fuelDataCache = createEmptyFuelData()
     }
   } catch (error) {
-    if (!fuelDataCache || fuelDataCache.source !== 'supabase') {
-      fuelDataCache = createEmptyFuelData(error)
+    if (fuelDataCache?.hasRealPrices) {
+      fuelDataCache = {
+        ...fuelDataCache,
+        error,
+        networkFetchFailed: true,
+        cacheSavedAtLabel:
+          fuelDataCache.cacheSavedAtLabel ??
+          (fuelDataCache.cacheSavedAt ? formatCacheSavedAtLabel(fuelDataCache.cacheSavedAt) : null),
+      }
+    } else {
+      const diskCache = await readFuelDataCache()
+      if (diskCache) {
+        fuelDataCache = buildFuelDataFromRemotePayload(diskCache.payload, {
+          savedAt: diskCache.savedAt,
+          servedFromCache: true,
+          networkFetchFailed: true,
+        })
+        fuelDataCache = { ...fuelDataCache, error }
+      } else if (!fuelDataCache?.hasRealPrices) {
+        fuelDataCache = createEmptyFuelData(error)
+      }
     }
   }
 
