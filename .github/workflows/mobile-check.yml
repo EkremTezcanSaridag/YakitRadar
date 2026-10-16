@@ -50,6 +50,9 @@ jobs:
       - name: Ad interstitial policy tests
         run: npm run test:ad-interstitial-policy
 
+      - name: AdMob app config tests
+        run: npm run test:admob-app-config
+
       - name: Export Android bundle
         env:
           EXPO_PUBLIC_SUPABASE_URL: https://ci-placeholder.invalid
