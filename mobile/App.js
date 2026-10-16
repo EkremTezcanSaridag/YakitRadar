@@ -25,6 +25,7 @@ import SakinSolmaTabBar from './src/components/SakinSolmaTabBar'
 import LocationOnboarding from './src/screens/LocationOnboarding'
 import { hasUserConfiguredPrimaryCity } from './src/services/favoriteCities'
 import { colors } from './src/theme'
+import { logError } from './src/utils/logger'
 
 import { AccessibilityInfo, ActivityIndicator, Easing, Platform, View } from 'react-native'
 import { ToastProvider } from './src/components/ToastProvider'
@@ -84,7 +85,7 @@ function MainTabs() {
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled()
       .then(setReduceMotion)
-      .catch(() => {})
+      .catch((error) => logError('accessibility.reduceMotion', error))
     const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion)
     return () => {
       subscription?.remove?.()
@@ -188,7 +189,10 @@ function AppRoot() {
   useEffect(() => {
     hasUserConfiguredPrimaryCity()
       .then((configured) => setBootState(configured ? 'app' : 'onboarding'))
-      .catch(() => setBootState('app'))
+      .catch((error) => {
+        logError('boot.primaryCity', error)
+        setBootState('app')
+      })
   }, [])
 
   useEffect(() => {
@@ -218,18 +222,18 @@ function AppRoot() {
 
 export default function App() {
   useEffect(() => {
-    initAds().catch(() => {})
-    setupNotificationChannels().catch(() => {})
+    initAds().catch((error) => logError('startup.ads', error))
+    setupNotificationChannels().catch((error) => logError('startup.notificationChannels', error))
     const unsubscribe = subscribeToNotificationEvents()
 
     loadNotificationSettings()
       .then((settings) => {
         syncExistingNotificationPermission(settings, startupNotificationMeta)
         if (settings.weeklySummary) {
-          scheduleWeeklySummaryNotification().catch(() => {})
+          scheduleWeeklySummaryNotification().catch((error) => logError('startup.weeklySummary', error))
         }
       })
-      .catch(() => {})
+      .catch((error) => logError('startup.notificationSettings', error))
 
     return unsubscribe
   }, [])

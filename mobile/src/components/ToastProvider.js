@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AccessibilityInfo, Platform } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { logError } from '../utils/logger'
 import Toast from './Toast'
 import { pushToast, registerToastApi, unregisterToastApi } from './toastController'
 
@@ -32,12 +33,12 @@ export function ToastProvider({ children }) {
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled()
       .then(setReduceMotion)
-      .catch(() => {})
+      .catch((error) => logError('toast.reduceMotion', error))
     AccessibilityInfo.isScreenReaderEnabled()
       .then((enabled) => {
         screenReaderRef.current = enabled
       })
-      .catch(() => {})
+      .catch((error) => logError('toast.reduceMotion', error))
 
     const motionSub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion)
     const readerSub = AccessibilityInfo.addEventListener('screenReaderChanged', (enabled) => {
