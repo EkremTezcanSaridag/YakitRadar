@@ -29,6 +29,7 @@ import {
   toggleCustomAlert,
 } from '../services/customAlerts'
 import { loadShowMarketNote, saveShowMarketNote } from '../services/uiPreferences'
+import { logError } from '../utils/logger'
 
 const fuelChips = ['Benzin', 'Motorin', 'LPG']
 
@@ -48,7 +49,7 @@ function getPermissionCopy(permission) {
       badge: 'Aktif',
       icon: 'bell-check-outline',
       title: 'Bildirim izni açık',
-      desc: permission.expoPushToken ? 'Push token hazırlandı.' : 'Yerel bildirimler hazır.',
+      desc: 'Bildirimler açık.',
       tone: 'active',
     }
   }
@@ -58,7 +59,7 @@ function getPermissionCopy(permission) {
       badge: 'Kontrol gerekli',
       icon: 'alert-circle-outline',
       title: 'Bildirim bağlantısı kurulamadı',
-      desc: 'Aşağıdaki ayrıntıyı kontrol edip tekrar deneyin.',
+      desc: 'İnternetini kontrol edip tekrar dene.',
       tone: 'blocked',
     }
   }
@@ -182,6 +183,39 @@ export default function Bildirimler() {
     [settings],
   )
 
+  async function retryNotificationConnection() {
+    setPermissionBusy(true)
+
+    try {
+      const currentPermission = await getNotificationPermissionStatus(settings, registrationMeta)
+      setPermission(currentPermission)
+
+      if (currentPermission.tokenError) {
+        const registration = await saveAndSyncNotificationSettings(
+          settings,
+          currentPermission.expoPushToken,
+          registrationMeta,
+        )
+
+        if (registration.error) {
+          setPermission((current) => ({
+            ...current,
+            tokenError: registration.error,
+          }))
+        } else {
+          setPermission((current) => ({
+            ...current,
+            tokenError: null,
+          }))
+        }
+      }
+    } catch (error) {
+      logError('notifications.retryConnection', error)
+    } finally {
+      setPermissionBusy(false)
+    }
+  }
+
   async function ensureNotificationAccess() {
     setPermissionBusy(true)
 
@@ -217,9 +251,9 @@ export default function Bildirimler() {
 
     if (key === 'weeklySummary') {
       if (value) {
-        scheduleWeeklySummaryNotification(data.prices).catch(() => {})
+        scheduleWeeklySummaryNotification(data.prices).catch((error) => logError('notifications.weeklySummary', error))
       } else {
-        cancelWeeklySummaryNotification().catch(() => {})
+        cancelWeeklySummaryNotification().catch((error) => logError('notifications.cancelWeeklySummary', error))
       }
     }
 
@@ -305,18 +339,29 @@ export default function Bildirimler() {
           <View style={styles.summaryText}>
             <Text style={styles.summaryTitle}>{permissionCopy.title}</Text>
             <Text style={styles.summaryDesc}>{loading ? 'Durum kontrol ediliyor.' : permissionCopy.desc}</Text>
-            {permission.granted && !permission.tokenError && (
+            {__DEV__ && permission.granted && !permission.tokenError ? (
               <Text style={styles.tokenText}>Expo token: {formatToken(permission.expoPushToken)}</Text>
-            )}
+            ) : null}
           </View>
         </View>
 
-        {permission.tokenError && (
+        {permission.tokenError ? (
           <View style={styles.errorCard}>
             <MaterialCommunityIcons name="information-outline" size={18} color={colors.danger} />
-            <Text style={styles.errorText}>{permission.tokenError}</Text>
+            <View style={styles.errorCardCopy}>
+              <Text style={styles.errorTitle}>Bildirim bağlantısı kurulamadı</Text>
+              <Text style={styles.errorText}>İnternetini kontrol edip tekrar dene.</Text>
+              <Pressable
+                accessibilityRole="button"
+                disabled={permissionBusy}
+                onPress={retryNotificationConnection}
+                style={({ pressed }) => [styles.errorRetry, pressed && styles.pressed]}
+              >
+                <Text style={styles.errorRetryText}>{permissionBusy ? '…' : 'Tekrar dene'}</Text>
+              </Pressable>
+            </View>
           </View>
-        )}
+        ) : null}
 
         {/* Kişisel Fiyat Alarmları Paneli */}
         <View style={styles.panel}>
@@ -713,13 +758,32 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     padding: 12,
   },
-  errorText: {
-    color: colors.text,
+  errorCardCopy: {
     flex: 1,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 18,
+    gap: 4,
     marginLeft: 8,
+  },
+  errorTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  errorText: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  errorRetry: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  errorRetryText: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '600',
   },
   actionRow: {
     flexDirection: 'row',
