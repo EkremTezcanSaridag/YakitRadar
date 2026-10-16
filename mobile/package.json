@@ -8,7 +8,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test:normalize-supabase-url": "node scripts/normalize-supabase-url.test.mjs",
-    "test:expected-change": "node scripts/expected-change.test.mjs"
+    "test:expected-change": "node scripts/expected-change.test.mjs",
+    "test:chart-nearest": "node scripts/chart-nearest-point.test.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

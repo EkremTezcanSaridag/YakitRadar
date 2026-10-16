@@ -1,26 +1,19 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { CommonActions } from '@react-navigation/native'
-import {
-  Animated,
-  Easing,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import { colors, iconSize, typography } from '../theme'
 
 const useNativeDriver = Platform.OS !== 'web'
+const PILL_WIDTH = 52
+const PILL_HEIGHT = 30
+const PILL_RADIUS = 15
+const FOCUSED_ICON_SCALE = 1.08
 
 function ensureTabAnims(store, routeKey, focused) {
   if (!store[routeKey]) {
     store[routeKey] = {
-      pillOpacity: new Animated.Value(focused ? 1 : 0),
-      pillScale: new Animated.Value(focused ? 1 : 0.85),
-      iconActiveOpacity: new Animated.Value(focused ? 1 : 0),
-      iconInactiveOpacity: new Animated.Value(focused ? 0 : 1),
+      iconScale: new Animated.Value(focused ? FOCUSED_ICON_SCALE : 1),
       labelActiveOpacity: new Animated.Value(focused ? 1 : 0),
       labelInactiveOpacity: new Animated.Value(focused ? 0 : 1),
     }
@@ -28,96 +21,34 @@ function ensureTabAnims(store, routeKey, focused) {
   return store[routeKey]
 }
 
-function runFocusAnimation(anims, focused, transitionMs, pillFadeMs) {
-  const easing = Easing.out(Easing.cubic)
-  if (focused) {
-    return Animated.parallel([
-      Animated.timing(anims.pillOpacity, {
-        toValue: 1,
-        duration: transitionMs,
-        easing,
-        useNativeDriver,
-      }),
-      Animated.timing(anims.pillScale, {
-        toValue: 1,
-        duration: transitionMs,
-        easing,
-        useNativeDriver,
-      }),
-      Animated.timing(anims.iconActiveOpacity, {
-        toValue: 1,
-        duration: pillFadeMs,
-        easing,
-        useNativeDriver,
-      }),
-      Animated.timing(anims.iconInactiveOpacity, {
-        toValue: 0,
-        duration: pillFadeMs,
-        easing,
-        useNativeDriver,
-      }),
-      Animated.timing(anims.labelActiveOpacity, {
-        toValue: 1,
-        duration: pillFadeMs,
-        easing,
-        useNativeDriver,
-      }),
-      Animated.timing(anims.labelInactiveOpacity, {
-        toValue: 0,
-        duration: pillFadeMs,
-        easing,
-        useNativeDriver,
-      }),
-    ])
+function runFocusAnimation(anims, focused, reduceMotion) {
+  const iconTarget = focused ? FOCUSED_ICON_SCALE : 1
+  if (reduceMotion) {
+    anims.iconScale.setValue(iconTarget)
+    anims.labelActiveOpacity.setValue(focused ? 1 : 0)
+    anims.labelInactiveOpacity.setValue(focused ? 0 : 1)
+    return null
   }
 
   return Animated.parallel([
-    Animated.timing(anims.pillOpacity, {
-      toValue: 0,
-      duration: pillFadeMs,
-      easing,
-      useNativeDriver,
-    }),
-    Animated.timing(anims.pillScale, {
-      toValue: 0.85,
-      duration: pillFadeMs,
-      easing,
-      useNativeDriver,
-    }),
-    Animated.timing(anims.iconActiveOpacity, {
-      toValue: 0,
-      duration: pillFadeMs,
-      easing,
-      useNativeDriver,
-    }),
-    Animated.timing(anims.iconInactiveOpacity, {
-      toValue: 1,
-      duration: pillFadeMs,
-      easing,
+    Animated.spring(anims.iconScale, {
+      toValue: iconTarget,
+      stiffness: 420,
+      damping: 34,
+      mass: 1,
       useNativeDriver,
     }),
     Animated.timing(anims.labelActiveOpacity, {
-      toValue: 0,
-      duration: pillFadeMs,
-      easing,
+      toValue: focused ? 1 : 0,
+      duration: 180,
       useNativeDriver,
     }),
     Animated.timing(anims.labelInactiveOpacity, {
-      toValue: 1,
-      duration: pillFadeMs,
-      easing,
+      toValue: focused ? 0 : 1,
+      duration: 180,
       useNativeDriver,
     }),
   ])
-}
-
-function setInstantFocus(anims, focused) {
-  anims.pillOpacity.setValue(focused ? 1 : 0)
-  anims.pillScale.setValue(focused ? 1 : 0.85)
-  anims.iconActiveOpacity.setValue(focused ? 1 : 0)
-  anims.iconInactiveOpacity.setValue(focused ? 0 : 1)
-  anims.labelActiveOpacity.setValue(focused ? 1 : 0)
-  anims.labelInactiveOpacity.setValue(focused ? 0 : 1)
 }
 
 export default function SakinSolmaTabBar({
@@ -126,26 +57,39 @@ export default function SakinSolmaTabBar({
   navigation,
   tabIcons,
   reduceMotion,
-  transitionMs,
-  pillFadeMs,
 }) {
   const tabAnimsRef = useRef({})
-  const didMountRef = useRef(false)
+  const pillTranslateX = useRef(new Animated.Value(0)).current
+  const [itemWidth, setItemWidth] = useState(0)
+
+  useEffect(() => {
+    if (itemWidth <= 0) {
+      return
+    }
+
+    const targetX = state.index * itemWidth + (itemWidth - PILL_WIDTH) / 2
+
+    if (reduceMotion) {
+      pillTranslateX.setValue(targetX)
+    } else {
+      Animated.spring(pillTranslateX, {
+        toValue: targetX,
+        stiffness: 420,
+        damping: 34,
+        mass: 1,
+        useNativeDriver,
+      }).start()
+    }
+  }, [itemWidth, pillTranslateX, reduceMotion, state.index])
 
   useEffect(() => {
     state.routes.forEach((route, index) => {
       const focused = index === state.index
       const anims = ensureTabAnims(tabAnimsRef.current, route.key, focused)
-
-      if (reduceMotion || !didMountRef.current) {
-        setInstantFocus(anims, focused)
-        return
-      }
-
-      runFocusAnimation(anims, focused, transitionMs, pillFadeMs).start()
+      const animation = runFocusAnimation(anims, focused, reduceMotion)
+      animation?.start()
     })
-    didMountRef.current = true
-  }, [pillFadeMs, reduceMotion, state.index, state.routes, transitionMs])
+  }, [reduceMotion, state.index, state.routes])
 
   const focusedRouteKey = state.routes[state.index]?.key
   const tabBarStyle = descriptors[focusedRouteKey]?.options?.tabBarStyle ?? {}
@@ -153,7 +97,29 @@ export default function SakinSolmaTabBar({
   const tabBarLabelStyle = descriptors[focusedRouteKey]?.options?.tabBarLabelStyle ?? {}
 
   return (
-    <View accessibilityRole="tablist" style={[styles.bar, tabBarStyle]}>
+    <View
+      accessibilityRole="tablist"
+      onLayout={(event) => {
+        const width = event.nativeEvent.layout.width
+        const nextItemWidth = width / Math.max(state.routes.length, 1)
+        setItemWidth(nextItemWidth)
+        const targetX = state.index * nextItemWidth + (nextItemWidth - PILL_WIDTH) / 2
+        pillTranslateX.setValue(targetX)
+      }}
+      style={[styles.bar, tabBarStyle]}
+    >
+      {itemWidth > 0 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.slidingPill,
+            {
+              transform: [{ translateX: pillTranslateX }],
+            },
+          ]}
+        />
+      ) : null}
+
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key]
         const focused = index === state.index
@@ -193,26 +159,15 @@ export default function SakinSolmaTabBar({
             onLongPress={onLongPress}
             style={[styles.item, tabBarItemStyle]}
           >
-            <View style={styles.iconWrap}>
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  styles.pill,
-                  {
-                    opacity: anims.pillOpacity,
-                    transform: [{ scale: anims.pillScale }],
-                  },
-                ]}
+            <Animated.View
+              style={[styles.iconStack, { transform: [{ scale: anims.iconScale }] }]}
+            >
+              <Ionicons
+                name={focused ? iconMeta.active : iconMeta.inactive}
+                color={focused ? colors.accent : colors.muted}
+                size={iconSize.tab}
               />
-              <View style={styles.iconStack}>
-                <Animated.View style={[styles.iconLayer, { opacity: anims.iconInactiveOpacity }]}>
-                  <Ionicons name={iconMeta.inactive} color={colors.muted} size={iconSize.tab} />
-                </Animated.View>
-                <Animated.View style={[styles.iconLayer, { opacity: anims.iconActiveOpacity }]}>
-                  <Ionicons name={iconMeta.active} color={colors.accent} size={iconSize.tab} />
-                </Animated.View>
-              </View>
-            </View>
+            </Animated.View>
             <View style={styles.labelStack}>
               <Animated.Text
                 numberOfLines={1}
@@ -247,6 +202,16 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
+    position: 'relative',
+  },
+  slidingPill: {
+    position: 'absolute',
+    top: (iconSize.tabTouch - PILL_HEIGHT) / 2 - 6,
+    left: 0,
+    width: PILL_WIDTH,
+    height: PILL_HEIGHT,
+    borderRadius: PILL_RADIUS,
+    backgroundColor: colors.tabPillFill,
   },
   item: {
     flex: 1,
@@ -254,26 +219,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: iconSize.tabTouch,
   },
-  iconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 38,
-    height: 28,
-    borderRadius: 14,
-  },
-  pill: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.accentSoft,
-    borderRadius: 14,
-  },
   iconStack: {
-    width: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconLayer: {
-    position: 'absolute',
+    width: iconSize.tab,
+    height: iconSize.tab,
     alignItems: 'center',
     justifyContent: 'center',
   },

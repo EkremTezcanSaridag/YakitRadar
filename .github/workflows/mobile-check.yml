@@ -35,6 +35,9 @@ jobs:
       - name: Expected change box tests
         run: npm run test:expected-change
 
+      - name: Chart nearest point tests
+        run: npm run test:chart-nearest
+
       - name: Export Android bundle
         env:
           EXPO_PUBLIC_SUPABASE_URL: https://ci-placeholder.invalid

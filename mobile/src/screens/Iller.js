@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View, StyleSheet } from 'react-native'
 import ScreenHeader from '../components/ScreenHeader'
+import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
 import { colors, shadows, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { computeNationalAverages, fuelTabs, getRealPriceRows } from '../services/fuelData'
@@ -153,15 +154,27 @@ export default function Iller() {
             return (
               <Pressable
                 key={item.key}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
                 onPress={() => setSelectedFuel(item)}
-                style={({ pressed }) => [styles.segment, selected && styles.segmentActive, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  fuelSelectorChipStyles.fuelChip,
+                  styles.fuelSegmentChip,
+                  selected && fuelSelectorChipStyles.fuelChipActive,
+                  selected && pressed && fuelSelectorChipStyles.fuelChipPressed,
+                  pressed && styles.pressed,
+                ]}
               >
                 <Ionicons
                   name={fuelIonicon[item.icon] ?? 'ellipse-outline'}
                   size={14}
-                  color={selected ? colors.onAccent : colors.mutedSoft}
+                  color={selected ? colors.onAccent : colors.muted}
                 />
-                <Text style={[styles.segmentText, selected && styles.segmentTextActive]}>{item.label}</Text>
+                <Text
+                  style={[fuelSelectorChipStyles.fuelChipText, selected && fuelSelectorChipStyles.fuelChipTextActive]}
+                >
+                  {item.label}
+                </Text>
               </Pressable>
             )
           })}
@@ -423,9 +436,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
-  segmentActive: {
-    backgroundColor: colors.accentDark,
-    borderColor: colors.accent,
+  fuelSegmentChip: {
+    flex: 0,
+    marginRight: spacing.sm,
+    minWidth: 92,
+    paddingHorizontal: spacing.md,
   },
   favoriteSegmentActive: {
     backgroundColor: colors.favoriteSoft,
@@ -448,9 +463,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     marginLeft: 5,
-  },
-  segmentTextActive: {
-    color: colors.onAccent,
   },
   insightCard: {
     alignItems: 'center',

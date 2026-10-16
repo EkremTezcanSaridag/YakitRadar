@@ -16,6 +16,7 @@ export const colors = {
   onAccent: '#000000',
   accentDark: '#17171A',
   accentSoft: '#4C8DFF29',
+  tabPillFill: 'rgba(76, 141, 255, 0.22)',
   danger: '#C96A6A',
   dangerDark: '#17171A',
   success: '#6B9E7A',
