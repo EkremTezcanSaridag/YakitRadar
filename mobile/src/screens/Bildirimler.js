@@ -3,6 +3,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
 import ScreenHeader from '../components/ScreenHeader'
 import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
 import { colors, fuelAlertIconStyle, shadows, switchThumbColor, switchTrackColors } from '../theme'
@@ -294,6 +295,8 @@ export default function Bildirimler() {
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ScreenHeader showRefresh title="Bildirimler" />
+
+        <FuelDataStatusBanner />
 
         <View style={styles.summaryCard}>
           <View style={styles.summaryIcon}>

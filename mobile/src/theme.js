@@ -69,6 +69,16 @@ export const colors = {
   stationBrandSunpet: '#00A3E0',
   stationBrandOther: '#888888',
   notificationLed: '#4C8DFF',
+  skeleton: '#1F1F25',
+  skeletonHighlight: '#2C2C34',
+  mutedAccessible: '#8A8A93',
+  toastWarning: '#FBBF24',
+  toastBorder: {
+    success: 'rgba(52,211,153,.35)',
+    error: 'rgba(255,107,107,.35)',
+    warning: 'rgba(251,191,36,.35)',
+    info: 'rgba(76,141,255,.35)',
+  },
 }
 
 export const typography = {

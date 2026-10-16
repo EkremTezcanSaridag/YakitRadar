@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFuelData } from '../hooks/useFuelData'
 import { colors, iconSize, radii, spacing, typography } from '../theme'
@@ -14,12 +14,6 @@ export default function ScreenHeader({ showRefresh = false, title }) {
           <Text allowFontScaling style={styles.screenSubtitle}>
             {refreshing ? 'Yenileniyor…' : `Son kontrol: ${data.lastUpdatedHm ?? '--:--'}`}
           </Text>
-          {!refreshing && data.dataCheckStale ? (
-            <View style={styles.staleRow}>
-              <Ionicons color={colors.mutedSoft} name="time-outline" size={14} />
-              <Text allowFontScaling style={styles.staleDataNote}>Veri eski olabilir</Text>
-            </View>
-          ) : null}
         </View>
         {showRefresh ? (
           <Pressable

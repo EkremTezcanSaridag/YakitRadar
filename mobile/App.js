@@ -26,7 +26,10 @@ import LocationOnboarding from './src/screens/LocationOnboarding'
 import { hasUserConfiguredPrimaryCity } from './src/services/favoriteCities'
 import { colors } from './src/theme'
 
-import { AccessibilityInfo, Easing, Platform, View } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, Easing, Platform, View } from 'react-native'
+import { ToastProvider } from './src/components/ToastProvider'
+import { NetworkProvider } from './src/context/NetworkContext'
+import { FuelDataProvider } from './src/hooks/useFuelData'
 
 enableScreens()
 configureNotificationHandler()
@@ -102,6 +105,7 @@ function MainTabs() {
   const tabBarFloat = safeBottom + (Platform.OS === 'ios' ? 6 : 4)
 
   return (
+    <FuelDataProvider>
     <NavigationContainer>
       <Tab.Navigator
         screenListeners={{
@@ -173,11 +177,13 @@ function MainTabs() {
         <Tab.Screen name={tabs.alerts} component={Bildirimler} />
       </Tab.Navigator>
     </NavigationContainer>
+    </FuelDataProvider>
   )
 }
 
 function AppRoot() {
   const [bootState, setBootState] = useState('loading')
+  const [showBootSpinner, setShowBootSpinner] = useState(false)
 
   useEffect(() => {
     hasUserConfiguredPrimaryCity()
@@ -185,8 +191,22 @@ function AppRoot() {
       .catch(() => setBootState('app'))
   }, [])
 
+  useEffect(() => {
+    if (bootState !== 'loading') {
+      setShowBootSpinner(false)
+      return undefined
+    }
+
+    const timer = setTimeout(() => setShowBootSpinner(true), 300)
+    return () => clearTimeout(timer)
+  }, [bootState])
+
   if (bootState === 'loading') {
-    return <View style={{ flex: 1, backgroundColor: colors.bg }} />
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+        {showBootSpinner ? <ActivityIndicator color={colors.accent} size="large" /> : null}
+      </View>
+    )
   }
 
   if (bootState === 'onboarding') {
@@ -217,10 +237,14 @@ export default function App() {
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
-        <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
-          <SupabaseConfigDevBanner />
-          <AppRoot />
-        </GestureHandlerRootView>
+        <ToastProvider>
+          <NetworkProvider>
+            <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+              <SupabaseConfigDevBanner />
+              <AppRoot />
+            </GestureHandlerRootView>
+          </NetworkProvider>
+        </ToastProvider>
       </SafeAreaProvider>
     </ErrorBoundary>
   )

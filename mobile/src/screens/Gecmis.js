@@ -11,7 +11,13 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native'
+import EmptyState from '../components/EmptyState'
+import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
 import ScreenHeader from '../components/ScreenHeader'
+import { SkeletonBlock, SkeletonChart, SkeletonGroup } from '../components/SkeletonLoader'
+import { useNetworkStatus } from '../context/NetworkContext'
+import { useDeferredSkeleton } from '../hooks/useDeferredSkeleton'
+import { resolveFuelEmptyState } from '../services/fuelDataViewState'
 import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
 import { colors, radii, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
@@ -79,7 +85,11 @@ function buildLineGeometry(values, width) {
 
 export default function Gecmis() {
   const { width: windowWidth } = useWindowDimensions()
-  const { data } = useFuelData()
+  const { data, loading, refresh, refreshing } = useFuelData()
+  const { isOffline } = useNetworkStatus()
+  const hasRealPrices = data.hasRealPrices
+  const fuelEmptyState = resolveFuelEmptyState({ loading, fuelData: data, isOffline })
+  const showSkeleton = useDeferredSkeleton(loading && !data.history?.length)
   const [selectedFuelKey, setSelectedFuelKey] = useState('benzin95')
   const [period, setPeriod] = useState(7)
   const [selectedPointIndex, setSelectedPointIndex] = useState(-1)
@@ -143,11 +153,17 @@ export default function Gecmis() {
       ? clampChartTooltipLeft(selectedPoint.x, tooltipWidth, chartWidth)
       : spacing.sm
 
+  const hasHistory = (data.history?.length ?? 0) > 0
+  const insufficientPeriod = !loading && hasHistory && fuelValues.length > 0 && fuelValues.length < 2
+  const noHistory = !loading && !hasHistory && !fuelEmptyState
+
   const chartAccessibilityLabel = selectedValue
     ? `${formatDecimalTr(selectedValue.price)} lira, ${formatHistoryChartTooltipDate(selectedValue.date)}${
         Number.isFinite(dayDiff) ? `, dünden fark ${formatSignedCurrencyTr(dayDiff)}` : ''
       }`
-    : 'Fiyat grafiği'
+    : fuelValues.length
+      ? 'Fiyat grafiği'
+      : 'Fiyat grafiği, veri yok'
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -155,6 +171,21 @@ export default function Gecmis() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ScreenHeader title="Geçmiş" />
 
+        <FuelDataStatusBanner />
+
+        {fuelEmptyState ? (
+          <EmptyState
+            actionLabel={fuelEmptyState.actionLabel}
+            busy={refreshing}
+            message={fuelEmptyState.message}
+            onAction={refresh}
+            title={fuelEmptyState.title}
+            variant={fuelEmptyState.variant}
+          />
+        ) : null}
+
+        {!fuelEmptyState ? (
+        <>
         <View style={styles.periodRow}>
           {historyPeriods.map((item) => {
             const active = period === item.value
@@ -197,6 +228,37 @@ export default function Gecmis() {
           })}
         </View>
 
+        {showSkeleton ? (
+          <SkeletonGroup label="Geçmiş fiyatlar yükleniyor">
+            <SkeletonBlock height={32} style={styles.chartPriceSkeleton} width={120} />
+            <SkeletonChart />
+          </SkeletonGroup>
+        ) : null}
+
+        {noHistory ? (
+          <EmptyState
+            actionLabel="Yenile"
+            compact
+            message="Fiyatlar biriktikçe grafik burada görünecek."
+            onAction={refresh}
+            title="Henüz geçmiş verisi yok"
+            variant="empty"
+          />
+        ) : null}
+
+        {insufficientPeriod ? (
+          <EmptyState
+            compact
+            message="Daha uzun bir dönem seçmeyi dene."
+            secondaryLabel="30G'ye geç"
+            onSecondary={() => setPeriod(30)}
+            title="Bu dönem için yeterli veri yok"
+            variant="empty"
+          />
+        ) : null}
+
+        {fuelValues.length >= 2 && !showSkeleton ? (
+        <>
         <View style={styles.chartHeader}>
           <Text style={styles.chartPrice}>{latest ? formatDecimalTr(latest.price) : '--'}</Text>
           <Text style={styles.chartUnit}>₺/L · {activeFuel.label}</Text>
@@ -303,6 +365,10 @@ export default function Gecmis() {
             <Text style={styles.statValue}>{formatDecimalTr(historyView.maxPrice)}</Text>
           </View>
         </View>
+        </>
+        ) : null}
+        </>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   )
@@ -317,6 +383,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.screen,
     paddingTop: spacing.sm,
     paddingBottom: 96,
+  },
+  chartPriceSkeleton: {
+    marginBottom: spacing.md,
+    marginTop: spacing.md,
   },
   periodRow: {
     flexDirection: 'row',
