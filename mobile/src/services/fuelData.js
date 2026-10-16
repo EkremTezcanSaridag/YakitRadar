@@ -1309,6 +1309,7 @@ function buildFuelData({
     cacheSavedAt,
     cacheSavedAtLabel,
     servedFromCache,
+    syncedAtIso: syncedAt.toISOString(),
   }
 }
 

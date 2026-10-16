@@ -4,9 +4,11 @@ import {
   FUEL_DATA_CACHE_VERSION,
   formatCacheSavedAtLabel,
   parsePersistedFuelDataEntry,
-  shouldShowFuelDataEmptyState,
-  shouldShowOfflineBanner,
 } from '../src/services/fuelDataPersistence.js'
+import {
+  resolveFuelEmptyState,
+  resolveStatusBanner,
+} from '../src/services/fuelDataViewState.js'
 import { withTimeout } from '../src/utils/withTimeout.js'
 
 const payload = {
@@ -32,17 +34,35 @@ assert.equal(
   false,
 )
 
-const offlineData = {
+const cachedFuelData = {
   hasRealPrices: true,
   networkFetchFailed: true,
-  cacheSavedAtLabel: '16 Eki 10:00',
+  cacheSavedAt: '2026-10-16T10:00:00+03:00',
+  dataCheckStale: true,
 }
-assert.equal(shouldShowOfflineBanner(offlineData), true)
-assert.equal(shouldShowOfflineBanner({ ...offlineData, networkFetchFailed: false }), false)
 
-assert.equal(shouldShowFuelDataEmptyState({ hasRealPrices: false }, false), true)
-assert.equal(shouldShowFuelDataEmptyState({ hasRealPrices: false }, true), false)
-assert.equal(shouldShowFuelDataEmptyState({ hasRealPrices: true }, false), false)
+const offlineBanner = resolveStatusBanner({ isOffline: true, fuelData: cachedFuelData })
+assert.equal(offlineBanner?.variant, 'offline')
+assert.match(offlineBanner.text, /İnternet yok/)
+
+const staleBanner = resolveStatusBanner({
+  isOffline: false,
+  fuelData: { hasRealPrices: true, dataCheckStale: true, lastUpdatedHm: '14:30' },
+})
+assert.equal(staleBanner?.variant, 'stale')
+
+assert.equal(resolveFuelEmptyState({ loading: true, fuelData: {}, isOffline: false }), null)
+assert.equal(resolveFuelEmptyState({ loading: false, fuelData: { hasRealPrices: true }, isOffline: false }), null)
+
+const offlineEmpty = resolveFuelEmptyState({ loading: false, fuelData: {}, isOffline: true })
+assert.equal(offlineEmpty.variant, 'offline')
+
+const errorEmpty = resolveFuelEmptyState({
+  loading: false,
+  fuelData: { error: new Error('x') },
+  isOffline: false,
+})
+assert.equal(errorEmpty.variant, 'error')
 
 assert.equal(formatCacheSavedAtLabel('2026-10-16T10:00:00+03:00')?.includes(':'), true)
 assert.equal(formatCacheSavedAtLabel('invalid'), null)

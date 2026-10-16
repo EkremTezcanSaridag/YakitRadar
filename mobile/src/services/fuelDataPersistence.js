@@ -48,18 +48,6 @@ export function parsePersistedFuelDataEntry(raw) {
   }
 }
 
-export function shouldShowOfflineBanner(fuelData) {
-  return Boolean(fuelData?.networkFetchFailed && fuelData?.hasRealPrices && fuelData?.cacheSavedAtLabel)
-}
-
-export function shouldShowFuelDataEmptyState(fuelData, loading) {
-  if (loading) {
-    return false
-  }
-
-  return !fuelData?.hasRealPrices
-}
-
 export function formatCacheSavedAtLabel(isoValue) {
   if (!isoValue) {
     return null
