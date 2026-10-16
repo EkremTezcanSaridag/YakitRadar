@@ -6,6 +6,7 @@ permissions:
 on:
   schedule:
     - cron: '17 * * * *'  # Her saat 17. dakikada (UTC, GitHub Actions scheduler)
+    - cron: '10 5 * * *'  # Sabah TR (~08:10) sessiz saat kuyrugu ve beklenen degisim
   push:
     branches:
       - main

@@ -11,6 +11,14 @@ from supabase import create_client
 
 from http_client import SCRAPER_REQUEST_TIMEOUT, make_request_with_retry
 from market_signals import build_market_signal
+from notification_rules import (
+    dedupe_price_changes,
+    expected_change_dedupe_key,
+    filter_expected_change_signals,
+    fuel_matches_tracked,
+    istanbul_quiet_hours_active,
+    price_change_dedupe_key,
+)
 from price_memory_validation import sanitize_price_memory_items
 
 load_dotenv()
@@ -400,9 +408,69 @@ def sessiz_saatte_mi(token_kayit):
     if not token_kayit.get("quiet_hours", True):
         return False
 
-    saat = datetime.now(ISTANBUL_TZ).hour
+    return istanbul_quiet_hours_active(datetime.now(ISTANBUL_TZ))
 
-    return saat >= 22 or saat < 8
+
+def bugun_signal_tarihi():
+    return datetime.now(ISTANBUL_TZ).strftime("%Y-%m-%d")
+
+
+def pending_fiyat_degisimleri_kaydet(degisimler):
+    signal_date = bugun_signal_tarihi()
+    now_iso = datetime.now(ISTANBUL_TZ).isoformat()
+    kaydedilen = 0
+
+    for degisim in degisimler or []:
+        if degisim.get("source") in {"price_memory", "expected_change"}:
+            continue
+
+        dedupe_key = price_change_dedupe_key(degisim, signal_date)
+
+        try:
+            supabase.table("pending_price_notifications").upsert(
+                {
+                    "dedupe_key": dedupe_key,
+                    "change_payload": degisim,
+                    "detected_at": now_iso,
+                },
+                on_conflict="dedupe_key",
+            ).execute()
+            kaydedilen += 1
+        except Exception as hata:
+            print(f"Bekleyen fiyat bildirimi kaydedilemedi ({dedupe_key}): {hata}")
+
+    if kaydedilen:
+        print(f"Sessiz saat kuyruguna {kaydedilen} fiyat degisimi eklendi")
+
+
+def bekleyen_fiyat_degisimlerini_oku():
+    try:
+        sonuc = (
+            supabase.table("pending_price_notifications")
+            .select("dedupe_key, change_payload")
+            .is_("sent_at", "null")
+            .execute()
+        )
+    except Exception as hata:
+        print(f"Bekleyen fiyat bildirimleri okunamadi: {hata}")
+        return []
+
+    return sonuc.data or []
+
+
+def bekleyen_fiyat_degisimlerini_gonderildi_isaretle(dedupe_keys):
+    if not dedupe_keys:
+        return
+
+    now_iso = datetime.now(ISTANBUL_TZ).isoformat()
+
+    try:
+        supabase.table("pending_price_notifications").update({"sent_at": now_iso}).in_(
+            "dedupe_key",
+            dedupe_keys,
+        ).execute()
+    except Exception as hata:
+        print(f"Bekleyen fiyat bildirimleri gonderildi olarak isaretlenemedi: {hata}")
 
 
 def token_icin_degisim_sec(token_kayit, degisimler):
@@ -432,6 +500,24 @@ def bildirim_mesaji_olustur(token_kayit, degisim):
     yon = "artti" if degisim["diff"] > 0 else "dustu"
     hareket = "artis" if degisim["diff"] > 0 else "indirim"
     yeni_fiyat = degisim.get("new_price")
+
+    if degisim.get("source") == "expected_change":
+        amount = abs(float(degisim.get("diff") or 0))
+        hareket = "artis" if degisim.get("direction") == "increase" else "indirim"
+        timing = degisim.get("timing") or "yakinda"
+
+        return {
+            "to": token_kayit["expo_push_token"],
+            "sound": "default",
+            "title": f"Beklenen {degisim['fuel']} {hareket}",
+            "body": (
+                f"Piyasa analizi: yaklasik {amount:.2f} TL/litre {hareket} beklentisi ({timing})."
+            ),
+            "data": {
+                "fuel": degisim["fuel"],
+                "type": "expected_change",
+            },
+        }
 
     if degisim.get("source") == "price_memory":
         return {
@@ -643,8 +729,198 @@ def test_bildirimi_gonder(installation_id):
         print(f"Test bildirimi gonderilemedi: {hata}")
 
 
+def beklenen_degisim_bugun_gonderildi_mi(signal_date, fuel):
+    dedupe_key = expected_change_dedupe_key(signal_date, fuel)
+
+    try:
+        sonuc = (
+            supabase.table("notification_logs")
+            .select("id")
+            .eq("reason", "expected_change")
+            .contains("details", {"dedupe_key": dedupe_key})
+            .limit(1)
+            .execute()
+        )
+    except Exception as hata:
+        print(f"Beklenen degisim bildirim logu okunamadi: {hata}")
+        return False
+
+    return bool(sonuc.data)
+
+
+def beklenen_degisim_degisimi_olustur(signal_entry, signal_date):
+    amount = float(signal_entry.get("expected_amount_tl") or signal_entry.get("expected_amount") or 0)
+
+    return {
+        "city": "Turkiye geneli",
+        "fuel": signal_entry.get("fuel", "Yakıt"),
+        "field": None,
+        "old_price": signal_entry.get("current_price"),
+        "new_price": signal_entry.get("expected_price"),
+        "diff": amount if signal_entry.get("direction") == "increase" else -amount,
+        "direction": signal_entry.get("direction", "neutral"),
+        "timing": signal_entry.get("timing"),
+        "source": "expected_change",
+        "signal_date": signal_date,
+    }
+
+
+def beklenen_degisim_bildirimleri_gonder(market_row):
+    if istanbul_quiet_hours_active(datetime.now(ISTANBUL_TZ)):
+        bildirim_log_kaydet(
+            0,
+            0,
+            status="skipped",
+            reason="expected_change_quiet_hours",
+            details={"signal_date": market_row.get("signal_date")},
+        )
+        return
+
+    signal_date = market_row.get("signal_date") or bugun_signal_tarihi()
+    uygun_sinyaller = filter_expected_change_signals(market_row)
+
+    if not uygun_sinyaller:
+        return
+
+    tokenlar = push_tokenlarini_oku()
+
+    if not tokenlar:
+        bildirim_log_kaydet(
+            0,
+            len(uygun_sinyaller),
+            status="skipped",
+            reason="expected_change_no_tokens",
+            details={"signal_date": signal_date},
+        )
+        return
+
+    toplam_gonderilen = 0
+
+    for signal_entry in uygun_sinyaller:
+        fuel = signal_entry.get("fuel", "Yakıt")
+
+        if beklenen_degisim_bugun_gonderildi_mi(signal_date, fuel):
+            continue
+
+        degisim = beklenen_degisim_degisimi_olustur(signal_entry, signal_date)
+        dedupe_key = expected_change_dedupe_key(signal_date, fuel)
+        mesajlar = []
+        skipped_quiet_count = 0
+        skipped_empty_token_count = 0
+        skipped_no_match_count = 0
+
+        for token_kayit in tokenlar:
+            if sessiz_saatte_mi(token_kayit):
+                skipped_quiet_count += 1
+                continue
+
+            if not token_kayit.get("expo_push_token"):
+                skipped_empty_token_count += 1
+                continue
+
+            tracked = liste_degeri(token_kayit.get("tracked_fuels"))
+
+            if not fuel_matches_tracked(fuel, tracked):
+                skipped_no_match_count += 1
+                continue
+
+            secilen = token_icin_degisim_sec(token_kayit, [degisim])
+
+            if not secilen:
+                skipped_no_match_count += 1
+                continue
+
+            mesajlar.append(bildirim_mesaji_olustur(token_kayit, secilen))
+
+        if not mesajlar:
+            bildirim_log_kaydet(
+                0,
+                1,
+                status="skipped",
+                reason="expected_change_no_matching_devices",
+                token_count=len(tokenlar),
+                skipped_quiet_count=skipped_quiet_count,
+                skipped_empty_token_count=skipped_empty_token_count,
+                skipped_no_match_count=skipped_no_match_count,
+                details={"dedupe_key": dedupe_key, "fuel": fuel, "signal_date": signal_date},
+            )
+            continue
+
+        gonderilen = 0
+        expo_responses = []
+
+        try:
+            for parca in parcalara_bol(mesajlar, 100):
+                response = requests.post(
+                    EXPO_PUSH_URL,
+                    headers={
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                    },
+                    json=parca,
+                    timeout=SCRAPER_REQUEST_TIMEOUT,
+                )
+                response.raise_for_status()
+                expo_responses.append(response.json())
+                gonderilen += len(parca)
+        except Exception as hata:
+            bildirim_log_kaydet(
+                gonderilen,
+                1,
+                status="error",
+                reason="expected_change_expo_api_error",
+                token_count=len(tokenlar),
+                candidate_count=len(mesajlar),
+                error_message=str(hata),
+                details={"dedupe_key": dedupe_key, "fuel": fuel, "expo_responses": expo_responses},
+            )
+            continue
+
+        bildirim_log_kaydet(
+            gonderilen,
+            1,
+            status="sent",
+            reason="expected_change",
+            token_count=len(tokenlar),
+            candidate_count=len(mesajlar),
+            skipped_quiet_count=skipped_quiet_count,
+            skipped_empty_token_count=skipped_empty_token_count,
+            skipped_no_match_count=skipped_no_match_count,
+            details={
+                "dedupe_key": dedupe_key,
+                "fuel": fuel,
+                "signal_date": signal_date,
+                "signal": signal_entry,
+                "expo_responses": expo_responses,
+            },
+        )
+        toplam_gonderilen += gonderilen
+        print(f"Beklenen degisim bildirimi gonderildi: {fuel} ({gonderilen} cihaz)")
+
+    if toplam_gonderilen:
+        print(f"Toplam {toplam_gonderilen} beklenen degisim push bildirimi gonderildi")
+
+
 def fiyat_bildirimleri_gonder(degisimler, price_memory=None):
     notification_reason = None
+    signal_date = bugun_signal_tarihi()
+    bekleyen_kayitlar = []
+    bekleyen_dedupe_keys = []
+
+    degisimler = list(degisimler or [])
+
+    if istanbul_quiet_hours_active(datetime.now(ISTANBUL_TZ)):
+        if degisimler:
+            pending_fiyat_degisimleri_kaydet(degisimler)
+        degisimler = []
+    else:
+        bekleyen_kayitlar = bekleyen_fiyat_degisimlerini_oku()
+        bekleyen_dedupe_keys = [kayit["dedupe_key"] for kayit in bekleyen_kayitlar]
+        bekleyen_degisimler = [kayit["change_payload"] for kayit in bekleyen_kayitlar]
+        degisimler = dedupe_price_changes(bekleyen_degisimler + degisimler, signal_date)
+
+        if bekleyen_degisimler:
+            print(f"Sessiz saat kuyrugundan {len(bekleyen_degisimler)} bekleyen fiyat degisimi eklendi")
 
     if not degisimler:
         hafiza_degisimi = hafiza_degisimi_olustur(price_memory)
@@ -784,11 +1060,14 @@ def fiyat_bildirimleri_gonder(degisimler, price_memory=None):
         )
         return
 
+    if bekleyen_dedupe_keys:
+        bekleyen_fiyat_degisimlerini_gonderildi_isaretle(bekleyen_dedupe_keys)
+
     bildirim_log_kaydet(
         gonderilen,
         len(degisimler),
         status="sent",
-        reason=notification_reason,
+        reason=notification_reason or ("pending_quiet_hours_flush" if bekleyen_dedupe_keys else None),
         token_count=len(tokenlar),
         candidate_count=len(mesajlar),
         skipped_quiet_count=skipped_quiet_count,
@@ -799,6 +1078,7 @@ def fiyat_bildirimleri_gonder(degisimler, price_memory=None):
             "expo_responses": expo_responses,
             "price_memory": price_memory or {},
             "trigger": notification_reason or "price_change",
+            "flushed_pending_keys": bekleyen_dedupe_keys,
         },
     )
     print(f"{gonderilen} push bildirimi Expo Push API'ye gonderildi")
@@ -856,6 +1136,8 @@ if __name__ == "__main__":
             "remembered_at": price_memory.get("price_memory", {}).get("remembered_at"),
         },
     )
+
+    beklenen_degisim_bildirimleri_gonder(sinyal or {})
 
     if os.getenv("SEND_TEST_NOTIFICATION", "").lower() == "true":
         test_bildirimi_gonder(os.getenv("TEST_NOTIFICATION_INSTALLATION_ID", ""))
