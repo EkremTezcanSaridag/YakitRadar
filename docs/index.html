@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Yakıt Radar — Gizlilik Politikası</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --surface: #0e0e10;
+      --text: #f5f5f7;
+      --muted: #a1a1aa;
+      --accent: #4c8dff;
+      --border: #26262b;
+      --max: 42rem;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      font-size: 1rem;
+    }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 1rem;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 600;
+    }
+    header p {
+      margin: 0.35rem 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    main {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+    h2 {
+      font-size: 1.1rem;
+      margin: 2rem 0 0.75rem;
+      color: var(--accent);
+    }
+    h3 {
+      font-size: 1rem;
+      margin: 1.25rem 0 0.5rem;
+    }
+    p, li { color: var(--text); }
+    .muted { color: var(--muted); }
+    .summary {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.1rem;
+      margin-bottom: 1.5rem;
+    }
+    .summary h2 { margin-top: 0; }
+    a { color: var(--accent); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin: 0.75rem 0;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.6rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--surface); color: var(--muted); font-weight: 600; }
+    footer {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 0 1rem 2rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Yakıt Radar</h1>
+    <p>Gizlilik Politikası · Son güncelleme: 16 Ekim 2026</p>
+  </header>
+  <main>
+    <section class="summary" lang="en">
+      <h2>English summary</h2>
+      <p>Yakıt Radar is a fuel-price companion app. We do not collect names, phone numbers, or payment data. Preferences are stored on your device; public fuel prices are read from our backend. If you enable notifications, an anonymous installation ID and Expo push token may be stored on our server. Coarse location is used only on-device to suggest a province; coordinates are not sent to our servers. Google AdMob may process advertising IDs for in-app ads, subject to consent where required (including Google UMP in the EEA/UK). Contact <a href="mailto:ets123main@gmail.com">ets123main@gmail.com</a> for access or deletion requests.</p>
+    </section>
+
+    <p>Yakıt Radar (“uygulama”, “biz”), akaryakıt pompa fiyatlarını takip etmenize yardımcı olan bir mobil uygulamadır. Hesap oluşturmanız gerekmez; ad, soyad, telefon, e-posta veya ödeme bilgisi toplamayız.</p>
+
+    <h2>1. Veri sorumlusu ve iletişim</h2>
+    <p>Veri sorumlusu: Yakıt Radar (<code>com.pompametre.app</code>). Gizlilik ve silme talepleri: <a href="mailto:ets123main@gmail.com">ets123main@gmail.com</a></p>
+
+    <h2>2. İşlenen veriler</h2>
+    <h3>Cihazda (AsyncStorage)</h3>
+    <p>İl listeleri, yakıt tercihi, bildirim ayarları, özel fiyat alarmları, araç profili, yakıt önbelleği ve uygulama içinde üretilen <strong>kurulum kimliği</strong> yalnızca cihazınızda saklanır. Konumla il seçildiğinde yalnızca il adı kaydedilir; GPS koordinatları kalıcı tutulmaz.</p>
+    <h3>Yaklaşık konum</h3>
+    <p><strong>ACCESS_COARSE_LOCATION</strong> yalnızca ön planda, il tahmini için kullanılır. Koordinatlar <strong>sunucuya gönderilmez</strong>.</p>
+    <h3>Sunucu (Supabase)</h3>
+    <p>Genel fiyat tabloları anonim okunur. Bildirim açıksa <code>register_push_token</code> ile kurulum kimliği, Expo push token, platform, uygulama sürümü ve bildirim tercihleri (iller, yakıt türleri, sessiz saatler vb.) kaydedilir.</p>
+    <h3>Reklamlar (AdMob)</h3>
+    <p>Google Mobile Ads SDK reklam tanımlayıcısı (GAID) işleyebilir. EEA/UK’de UMP onayı olmadan reklam yüklenmez; kişiselleştirme seçiminiz reklam isteklerine yansır. Ayrıntılar için <a href="https://policies.google.com/privacy">Google Gizlilik Politikası</a>.</p>
+
+    <h2>3. Üçüncü taraflar</h2>
+    <p>Supabase (veri), Google AdMob (reklam), Expo Push / FCM / APNs (bildirim).</p>
+
+    <h2>4. İzinler</h2>
+    <table>
+      <thead><tr><th>İzin</th><th>Amaç</th></tr></thead>
+      <tbody>
+        <tr><td>POST_NOTIFICATIONS</td><td>Fiyat uyarıları (isteğe bağlı)</td></tr>
+        <tr><td>ACCESS_COARSE_LOCATION</td><td>Yalnızca cihazda il tahmini</td></tr>
+      </tbody>
+    </table>
+
+    <h2>5. Saklama ve güvenlik</h2>
+    <p>Yerel veriler uygulama silinene kadar cihazda kalır. Sunucu iletişimi TLS ile şifrelenir. Push kayıtları tercihlerinizle güncellenir; silme için e-posta ile başvurun.</p>
+
+    <h2>6. Çocuklar</h2>
+    <p>13 yaş altına yönelik değildir.</p>
+
+    <h2>7. Haklarınız</h2>
+    <p>Erişim, düzeltme ve silme talepleri için <a href="mailto:ets123main@gmail.com">ets123main@gmail.com</a>. Bildirimleri cihaz ve uygulama ayarlarından kapatabilirsiniz.</p>
+
+    <p class="muted">Tam metin için depodaki <code>PRIVACY_POLICY.md</code> dosyasına bakın. Play Console özeti: <code>data-safety.md</code>.</p>
+  </main>
+  <footer>
+    Yakıt Radar · com.pompametre.app
+  </footer>
+</body>
+</html>
