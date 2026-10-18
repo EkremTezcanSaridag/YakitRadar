@@ -77,23 +77,6 @@ function framesEqual(first, second) {
   )
 }
 
-function toSpecItemFrame(layout, borderWidth, paddingHorizontal, paddingTop) {
-  if (!layout) {
-    return null
-  }
-
-  const border = Number.isFinite(borderWidth) ? borderWidth : 0
-  const padH = Number.isFinite(paddingHorizontal) ? paddingHorizontal : 0
-  const padT = Number.isFinite(paddingTop) ? paddingTop : 0
-
-  return {
-    x: layout.x + border + padH + border,
-    y: layout.y + border + padT + border,
-    width: layout.width,
-    height: layout.height,
-  }
-}
-
 export default function SakinSolmaTabBar({
   state,
   descriptors,
@@ -116,36 +99,28 @@ export default function SakinSolmaTabBar({
   const focusedRouteKey = focusedRoute?.key
 
   const tabBarStyle = descriptors[focusedRouteKey]?.options?.tabBarStyle ?? {}
-  const flattenedBarStyle = StyleSheet.flatten(tabBarStyle)
-  const borderWidth = flattenedBarStyle.borderWidth ?? 0
-  const paddingHorizontal = flattenedBarStyle.paddingHorizontal ?? 0
-  const paddingTop = flattenedBarStyle.paddingTop ?? 0
 
   const visibleRoutes = useMemo(
     () => state.routes.filter((route) => !isRouteHidden(descriptors[route.key].options)),
     [descriptors, state.routes],
   )
 
-  const syncItemFrame = useCallback(
-    (routeKey) => {
-      const layout = itemLayoutsRef.current[routeKey]
-      const specFrame = toSpecItemFrame(layout, borderWidth, paddingHorizontal, paddingTop)
+  const syncItemFrame = useCallback((routeKey) => {
+    const layout = itemLayoutsRef.current[routeKey]
 
-      if (!specFrame) {
-        return
+    if (!layout) {
+      return
+    }
+
+    setItemFrames((current) => {
+      const previous = current[routeKey]
+      if (framesEqual(previous, layout)) {
+        return current
       }
 
-      setItemFrames((current) => {
-        const previous = current[routeKey]
-        if (framesEqual(previous, specFrame)) {
-          return current
-        }
-
-        return { ...current, [routeKey]: specFrame }
-      })
-    },
-    [borderWidth, paddingHorizontal, paddingTop],
-  )
+      return { ...current, [routeKey]: layout }
+    })
+  }, [])
 
   const syncIconFrame = useCallback((routeKey) => {
     const layout = iconLayoutsRef.current[routeKey]
@@ -170,8 +145,8 @@ export default function SakinSolmaTabBar({
 
   const focusedItemFrame = focusedRouteKey ? itemFrames[focusedRouteKey] : null
   const focusedIconFrame = focusedRouteKey ? iconFrames[focusedRouteKey] : null
-  const pillTranslateTarget = computeTabPillTranslateX(focusedItemFrame, borderWidth)
-  const pillTopTarget = computeTabPillTop(focusedItemFrame, focusedIconFrame, borderWidth)
+  const pillTranslateTarget = computeTabPillTranslateX(focusedItemFrame)
+  const pillTopTarget = computeTabPillTop(focusedItemFrame, focusedIconFrame)
   const pillReady = allTabsMeasured && pillTranslateTarget != null && pillTopTarget != null
 
   useEffect(() => {
@@ -299,8 +274,8 @@ export default function SakinSolmaTabBar({
           >
             <Animated.View
               onLayout={(event) => {
-                const { y, height, width } = event.nativeEvent.layout
-                iconLayoutsRef.current[route.key] = { y, height, width }
+                const { x, y, height, width } = event.nativeEvent.layout
+                iconLayoutsRef.current[route.key] = { x, y, height, width }
                 syncIconFrame(route.key)
               }}
               style={[styles.iconStack, { transform: [{ scale: anims.iconScale }] }]}
