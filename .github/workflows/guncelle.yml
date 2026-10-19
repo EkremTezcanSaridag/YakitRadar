@@ -5,7 +5,7 @@ permissions:
 
 on:
   schedule:
-    - cron: '17 * * * *'  # Her saat 17. dakikada (UTC, GitHub Actions scheduler)
+    - cron: '7,27,47 * * * *'  # UTC; :00/:17 yoğunluğundan kaçınır
     - cron: '10 5 * * *'  # Sabah TR (~08:10) sessiz saat kuyrugu ve beklenen degisim
   push:
     branches:
@@ -33,18 +33,52 @@ jobs:
       cancel-in-progress: false
 
     steps:
+      - name: Zamanlanmış koşu — freshness gate uygulanacak mı?
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "${{ github.event.schedule }}" != "10 5 * * *" ]; then
+            echo "use_freshness_gate=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "use_freshness_gate=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Gate için minimal checkout
+        if: steps.gate.outputs.use_freshness_gate == 'true'
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            backend/schedule_freshness.py
+          sparse-checkout-cone-mode: false
+
+      - name: Zamanlanmış koşu — veri taze mi?
+        if: steps.gate.outputs.use_freshness_gate == 'true'
+        id: freshness
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 backend/schedule_freshness.py
+
+      - name: Atlandı (fiyatlar güncel)
+        if: steps.gate.outputs.use_freshness_gate == 'true' && steps.freshness.outputs.skip == 'true'
+        run: echo "Scraper atlandi; fiyatlar yeterince guncel."
+
       - name: Kodu çek
+        if: steps.gate.outputs.use_freshness_gate != 'true' || steps.freshness.outputs.skip != 'true'
         uses: actions/checkout@v4
 
       - name: Python kur
+        if: steps.gate.outputs.use_freshness_gate != 'true' || steps.freshness.outputs.skip != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Paketleri kur
+        if: steps.gate.outputs.use_freshness_gate != 'true' || steps.freshness.outputs.skip != 'true'
         run: pip install -r backend/requirements.txt
 
       - name: Fiyatları güncelle
+        if: steps.gate.outputs.use_freshness_gate != 'true' || steps.freshness.outputs.skip != 'true'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
