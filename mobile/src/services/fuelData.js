@@ -2,7 +2,10 @@ import { colors } from '../theme'
 import { supabase } from '../supabase'
 import { parseExpectedFuelSignals } from './expectedChange'
 import { readFuelDataCache, writeFuelDataCache } from './fuelDataCacheIO'
+import { buildSonKontrolMeta } from './fuelDataCheckMeta'
 import { formatCacheSavedAtLabel } from './fuelDataPersistence'
+
+export { DATA_CHECK_STALE_MS, snapshotFuelPricesForCompare } from './fuelDataCheckMeta'
 import { formatCurrencyTr, formatSignedCurrencyTr } from '../utils/priceFormat'
 import { FUEL_FETCH_TIMEOUT_MS, withTimeout } from '../utils/withTimeout'
 
@@ -352,7 +355,6 @@ function formatSyncTimeHm(date = new Date()) {
 }
 
 const GUNCELLEME_TEXT_RE = /^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/
-const DATA_CHECK_STALE_MS = 3 * 60 * 60 * 1000
 
 function parseGuncellemeIstanbul(value) {
   if (!value) {
@@ -375,45 +377,6 @@ function parseGuncellemeIstanbul(value) {
   return {
     hm: `${hour}:${minute}`,
     instant,
-  }
-}
-
-function formatHmEuropeIstanbul(date) {
-  return new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Istanbul',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(date)
-}
-
-function buildSonKontrolMeta(prices, syncedAt) {
-  let latest = null
-
-  for (const row of prices) {
-    const parsed = parseGuncellemeIstanbul(row.dataUpdatedAt)
-
-    if (!parsed) {
-      continue
-    }
-
-    if (!latest || parsed.instant > latest.instant) {
-      latest = parsed
-    }
-  }
-
-  if (latest) {
-    return {
-      dataCheckStale: Date.now() - latest.instant.getTime() > DATA_CHECK_STALE_MS,
-      lastUpdatedHm: latest.hm,
-      lastUpdatedLabel: 'Son kontrol',
-    }
-  }
-
-  return {
-    dataCheckStale: Date.now() - syncedAt.getTime() > DATA_CHECK_STALE_MS,
-    lastUpdatedHm: formatHmEuropeIstanbul(syncedAt),
-    lastUpdatedLabel: 'Son kontrol',
   }
 }
 
@@ -1282,7 +1245,7 @@ function buildFuelData({
 }) {
   const realPrices = getRealPriceRows(prices)
   const cityRows = buildCityRows(prices)
-  const sonKontrol = buildSonKontrolMeta(realPrices, syncedAt)
+  const sonKontrol = buildSonKontrolMeta(syncedAt)
 
   return {
     bestCity: cityRows[0] ?? null,

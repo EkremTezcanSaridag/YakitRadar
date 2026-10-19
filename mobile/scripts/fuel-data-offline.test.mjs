@@ -5,6 +5,7 @@ import {
   formatCacheSavedAtLabel,
   parsePersistedFuelDataEntry,
 } from '../src/services/fuelDataPersistence.js'
+import { DATA_CHECK_STALE_MS, snapshotFuelPricesForCompare } from '../src/services/fuelDataCheckMeta.js'
 import {
   resolveFuelEmptyState,
   resolveStatusBanner,
@@ -50,6 +51,17 @@ const staleBanner = resolveStatusBanner({
   fuelData: { hasRealPrices: true, dataCheckStale: true, lastUpdatedHm: '14:30' },
 })
 assert.equal(staleBanner?.variant, 'stale')
+assert.match(staleBanner.text, /6 saatten uzun süredir kontrol edilmedi/)
+
+assert.equal(DATA_CHECK_STALE_MS, 6 * 60 * 60 * 1000)
+
+const snapA = snapshotFuelPricesForCompare([
+  { il: 'Ankara', benzin_95: 50, motorin: 51, lpg: 30, guncelleme: '2026-10-16 10:00' },
+])
+const snapB = snapshotFuelPricesForCompare([
+  { il: 'Ankara', benzin_95: 50, motorin: 51, lpg: 30, guncelleme: '2026-10-16 10:00' },
+])
+assert.equal(snapA, snapB)
 
 assert.equal(resolveFuelEmptyState({ loading: true, fuelData: {}, isOffline: false }), null)
 assert.equal(resolveFuelEmptyState({ loading: false, fuelData: { hasRealPrices: true }, isOffline: false }), null)

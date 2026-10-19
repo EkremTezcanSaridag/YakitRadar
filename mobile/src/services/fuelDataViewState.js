@@ -33,10 +33,9 @@ export function resolveStatusBanner({ isOffline, fuelData }) {
   }
 
   if (fuelData.dataCheckStale) {
-    const kontrol = fuelData.lastUpdatedHm ?? timeLabel
     return {
       variant: 'stale',
-      text: `Fiyatlar güncel olmayabilir · Son kontrol ${kontrol}`,
+      text: 'Fiyatlar 6 saatten uzun süredir kontrol edilmedi',
       actionLabel: 'Yenile',
     }
   }
