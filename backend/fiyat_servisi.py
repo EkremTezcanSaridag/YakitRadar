@@ -21,6 +21,17 @@ from notification_rules import (
     price_change_dedupe_key,
 )
 from price_memory_validation import sanitize_price_memory_items
+from price_scrape_guard import (
+    MIN_SCRAPED_CITY_COUNT,
+    PriceSanityError,
+    PriceSourceValidationError,
+    assert_bulk_price_deviation_ok,
+    assert_scraped_city_count,
+    log_scrape_failure_summary,
+    validate_aytemiz_akaryakit_page,
+    validate_aytemiz_lpg_page,
+    validate_gecmis_daily_deltas,
+)
 
 load_dotenv()
 
@@ -31,7 +42,7 @@ MAX_REASONABLE_PRICE_CHANGE = float(os.getenv("MAX_REASONABLE_PRICE_CHANGE", "8.
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 FUEL_PRICES_URL = "https://www.aytemiz.com.tr/akaryakit-fiyatlari/benzin-fiyatlari"
 LPG_PRICES_URL = "https://www.aytemiz.com.tr/akaryakit-fiyatlari/lpg-fiyatlari"
-MIN_EXPECTED_CITY_COUNT = 80
+MIN_EXPECTED_CITY_COUNT = MIN_SCRAPED_CITY_COUNT
 AYTEMIZ_HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
@@ -96,6 +107,13 @@ def akaryakit_fiyatlarini_cek():
         raise RuntimeError(f"Akaryakit sayfasindan fiyatlar cekilemedi: {e}")
 
     soup = BeautifulSoup(response.text, "html.parser")
+
+    try:
+        validate_aytemiz_akaryakit_page(soup)
+    except PriceSourceValidationError as hata:
+        log_scrape_failure_summary("akaryakit", response, match_count=0)
+        raise RuntimeError(str(hata)) from hata
+
     duz_metin = soup.get_text(separator=" ")
     desen = (
         r"([A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?:\s?/\s?[A-ZÇĞİÖŞÜ][a-zçğıöşü]+)?)"
@@ -118,6 +136,16 @@ def akaryakit_fiyatlarini_cek():
         }
 
     if len(il_verileri) < MIN_EXPECTED_CITY_COUNT:
+        ornek = [
+            f"{kayit['il']} benzin={kayit.get('benzin_95')}"
+            for kayit in list(il_verileri.values())[:5]
+        ]
+        log_scrape_failure_summary(
+            "akaryakit",
+            response,
+            match_count=len(il_verileri),
+            sample_rows=ornek,
+        )
         raise RuntimeError(f"Akaryakit sayfasindan yalnizca {len(il_verileri)} il okunabildi")
 
     return il_verileri
@@ -130,6 +158,13 @@ def lpg_fiyatlarini_cek():
         print(f"HATA: LPG fiyatlari cekilemedi: {e}")
         raise RuntimeError(f"LPG sayfasindan fiyatlar cekilemedi: {e}")
     soup = BeautifulSoup(response.text, "html.parser")
+
+    try:
+        validate_aytemiz_lpg_page(soup)
+    except PriceSourceValidationError as hata:
+        log_scrape_failure_summary("lpg", response, match_count=0)
+        raise RuntimeError(str(hata)) from hata
+
     lpg_tablosu = next(
         (tablo for tablo in soup.find_all("table") if "oto lpg" in tablo.get_text(" ", strip=True).lower()),
         None,
@@ -152,6 +187,13 @@ def lpg_fiyatlarini_cek():
         lpg_verileri[hucreler[0]] = hucreler[1]
 
     if len(lpg_verileri) < MIN_EXPECTED_CITY_COUNT:
+        ornek = [f"{il}={fiyat}" for il, fiyat in list(lpg_verileri.items())[:5]]
+        log_scrape_failure_summary(
+            "lpg",
+            response,
+            match_count=len(lpg_verileri),
+            sample_rows=ornek,
+        )
         raise RuntimeError(f"LPG sayfasindan yalnizca {len(lpg_verileri)} il okunabildi")
 
     return lpg_verileri
@@ -207,7 +249,9 @@ def tum_fiyatlari_cek():
     if eksik_lpg:
         raise RuntimeError(f"LPG fiyati eslesmeyen iller: {', '.join(eksik_lpg)}")
 
-    return istanbul_bolgelerini_birlestir(il_verileri)
+    merged = istanbul_bolgelerini_birlestir(il_verileri)
+    assert_scraped_city_count(len(merged))
+    return merged
 
 
 def mevcut_fiyatlari_oku():
@@ -361,12 +405,12 @@ def gecmis_kaydet(veri):
         motorin_degisim = str(round(ort_motorin - float(onceki_kayit["motorin"]), 2))
         lpg_degisim = str(round(ort_lpg - float(onceki_kayit["lpg"]), 2))
 
-        if abs(float(benzin_degisim)) > MAX_REASONABLE_PRICE_CHANGE:
-            benzin_degisim = "0.00"
-        if abs(float(motorin_degisim)) > MAX_REASONABLE_PRICE_CHANGE:
-            motorin_degisim = "0.00"
-        if abs(float(lpg_degisim)) > MAX_REASONABLE_PRICE_CHANGE:
-            lpg_degisim = "0.00"
+        validate_gecmis_daily_deltas(
+            float(benzin_degisim),
+            float(motorin_degisim),
+            float(lpg_degisim),
+            MAX_REASONABLE_PRICE_CHANGE,
+        )
 
     kayit_verisi = {
         "tarih": bugun,
@@ -1133,10 +1177,17 @@ if __name__ == "__main__":
         for il in sorted(veri.keys()):
             print(f"  {il}: {veri[il]['benzin_95']}")
 
+        try:
+            assert_bulk_price_deviation_ok(onceki_fiyatlar, veri)
+        except PriceSanityError as hata:
+            print(hata)
+            raise SystemExit(1) from hata
+
         fiyat_degisim_gecmisi_kaydet(degisimler)
         supabase_yaz(veri)
-
-    gecmis_kaydet(veri)
+        gecmis_kaydet(veri)
+    elif veri is not None:
+        gecmis_kaydet(veri)
     onceki_pompa_hafizasi = gunluk_pompa_hafizasi_oku()
 
     try:
