@@ -292,12 +292,37 @@ def tcmb_url_for_date(day):
     return f"https://www.tcmb.gov.tr/kurlar/{day:%Y%m}/{day:%d%m%Y}.xml"
 
 
+TCMB_NOT_FOUND_FALLBACK_MAX_STEPS = 5
+
+
+def previous_business_day(day):
+    candidate = day - timedelta(days=1)
+    while candidate.weekday() >= 5:
+        candidate -= timedelta(days=1)
+    return candidate
+
+
+def _is_http_not_found(error):
+    response = getattr(error, "response", None)
+    return response is not None and response.status_code == 404
+
+
 def fetch_usd_try_for_date(day):
-    try:
-        response = make_request_with_retry(tcmb_url_for_date(day))
-    except Exception as e:
-        print(f"HATA: TCMB kur verisi cekilemedi ({day}): {e}")
-        raise
+    lookup_day = day
+    response = None
+    source_url = None
+
+    for step in range(TCMB_NOT_FOUND_FALLBACK_MAX_STEPS + 1):
+        source_url = tcmb_url_for_date(lookup_day)
+        try:
+            response = make_request_with_retry(source_url)
+            break
+        except requests.exceptions.RequestException as error:
+            if _is_http_not_found(error) and step < TCMB_NOT_FOUND_FALLBACK_MAX_STEPS:
+                lookup_day = previous_business_day(lookup_day)
+                continue
+            print(f"HATA: TCMB kur verisi cekilemedi ({day}): {error}")
+            raise
 
     root = ElementTree.fromstring(response.content)
     usd_node = root.find("./Currency[@CurrencyCode='USD']")
@@ -311,10 +336,10 @@ def fetch_usd_try_for_date(day):
         return None
 
     return {
-        "date": day,
+        "date": lookup_day,
         "rate": rate,
         "source": "TCMB",
-        "source_url": "https://www.tcmb.gov.tr/kurlar/today.xml",
+        "source_url": source_url,
     }
 
 
