@@ -12,7 +12,9 @@ export default function ScreenHeader({ showRefresh = false, title }) {
         <View style={styles.copy}>
           <Text allowFontScaling style={styles.screenTitle}>{title}</Text>
           <Text allowFontScaling style={styles.screenSubtitle}>
-            {refreshing ? 'Yenileniyor…' : `Son kontrol: ${data.lastUpdatedHm ?? '--:--'}`}
+            {refreshing
+              ? 'Yenileniyor…'
+              : `Fiyatlar en son ${data.lastUpdatedHm ?? '--:--'}'de kontrol edildi`}
           </Text>
         </View>
         {showRefresh ? (
