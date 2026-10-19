@@ -34,6 +34,11 @@ from groq_market_analysis import (
     resolve_market_summary,
     strip_news_title_source_suffix,
 )
+from groq_payload_limits import (
+    GROQ_MAX_NEWS_ITEMS,
+    limit_groq_analysis_payload,
+    shrink_groq_payload_for_retry,
+)
 from news_article_sources import enrich_items_with_article_bodies, fetch_publisher_news_items
 
 load_dotenv()
@@ -1088,24 +1093,8 @@ def resolve_analysis_mode(ai_result):
     return "rules"
 
 
-def call_groq_analysis(payload):
-    api_key = os.getenv("GROQ_API_KEY")
-
-    if not api_key:
-        print(
-            "UYARI: GROQ_API_KEY tanimli degil; Groq analizi atlanacak, kural tabanli analiz kullanilacak."
-        )
-        return None
-
-    model = os.getenv("GROQ_MODEL") or "openai/gpt-oss-120b"
-    pump_averages = payload.get("pump_averages_tl_per_l") or {}
-    current_prices = {
-        "Benzin": pump_averages.get("Benzin"),
-        "Motorin": pump_averages.get("Motorin"),
-        "LPG": pump_averages.get("LPG"),
-    }
-
-    prompt = (
+def build_groq_analysis_prompt(payload: dict) -> str:
+    return (
         "Türkiye akaryakıt piyasası için verilen haberleri ve sayısal bağlamı kullanarak ileriye dönük pompa beklentisi çıkar.\n"
         "VERİ KAYNAKLARI (güvenilir, kod tarafından sağlandı):\n"
         "- pump_averages_tl_per_l: bugünkü 81 il pompa ortalamaları (₺/L)\n"
@@ -1143,65 +1132,119 @@ def call_groq_analysis(payload):
         f"Analiz verisi:\n{json.dumps(payload, ensure_ascii=False)}"
     )
 
+
+def log_groq_request_stats(stats: dict[str, int], prompt_chars: int) -> None:
+    print(
+        "Groq istek boyutu: "
+        f"news_items={stats.get('news_items', 0)} "
+        f"payload_chars={stats.get('payload_chars', 0)} "
+        f"prompt_chars={prompt_chars}"
+    )
+
+
+def _parse_groq_chat_response(payload: dict, parsed: dict, model: str) -> dict:
+    pump_averages = payload.get("pump_averages_tl_per_l") or {}
+    current_prices = {
+        "Benzin": pump_averages.get("Benzin"),
+        "Motorin": pump_averages.get("Motorin"),
+        "LPG": pump_averages.get("LPG"),
+    }
+
+    news_extractions = payload.get("news_amount_extractions") or []
+    fuel_signals = parse_groq_fuel_signals(parsed, current_prices, news_extractions)
+    direction = derive_overall_direction(fuel_signals)
+    timing = parsed.get("timing") or DEFAULT_TIMING
+    confidence = parsed.get("confidence") or DEFAULT_CONFIDENCE
+
+    if direction == "neutral":
+        timing = DEFAULT_TIMING
+        confidence = DEFAULT_CONFIDENCE
+
+    summary = resolve_market_summary(parsed.get("summary"), fuel_signals)
+    source_disagreement_note = (
+        SOURCE_DISAGREEMENT_NOTE if payload.get("news_amount_source_disagreement") else None
+    )
+
+    primary_signal = next(
+        (
+            signal
+            for signal in fuel_signals
+            if signal.get("direction") in {"increase", "decrease"}
+            and signal.get("expected_amount_tl") is not None
+        ),
+        None,
+    )
+
+    return {
+        "model": f"groq:{model}",
+        "direction": direction,
+        "target_fuel": primary_signal.get("fuel") if primary_signal else "Yok",
+        "expected_amount": primary_signal.get("expected_amount_tl") if primary_signal else None,
+        "timing": timing,
+        "summary": summary,
+        "source_disagreement_note": source_disagreement_note,
+        "confidence": confidence,
+        "watch_level": "high" if direction != "neutral" else "low",
+        "key_reason": parsed.get("key_reason", ""),
+        "fuel_signals": fuel_signals,
+        "groq_raw": parsed,
+    }
+
+
+def _request_groq_chat_completion(api_key: str, model: str, payload: dict) -> dict:
+    prompt = build_groq_analysis_prompt(payload)
+    response = requests.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.1,
+            "response_format": {"type": "json_object"},
+        },
+        timeout=SCRAPER_REQUEST_TIMEOUT,
+    )
+    response.raise_for_status()
+    result = response.json()
+    output_text = result["choices"][0]["message"]["content"]
+    parsed = json.loads(output_text)
+    return _parse_groq_chat_response(payload, parsed, model)
+
+
+def call_groq_analysis(payload):
+    api_key = os.getenv("GROQ_API_KEY")
+
+    if not api_key:
+        print(
+            "UYARI: GROQ_API_KEY tanimli degil; Groq analizi atlanacak, kural tabanli analiz kullanilacak."
+        )
+        return None
+
+    model = os.getenv("GROQ_MODEL") or "openai/gpt-oss-120b"
+    limited_payload, stats = limit_groq_analysis_payload(payload)
+    log_groq_request_stats(stats, len(build_groq_analysis_prompt(limited_payload)))
+
     try:
-        response = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.1,
-                "response_format": {"type": "json_object"},
-            },
-            timeout=SCRAPER_REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-        result = response.json()
-        output_text = result["choices"][0]["message"]["content"]
-        parsed = json.loads(output_text)
+        return _request_groq_chat_completion(api_key, model, limited_payload)
+    except requests.HTTPError as error:
+        status_code = error.response.status_code if error.response is not None else None
 
-        news_extractions = payload.get("news_amount_extractions") or []
-        fuel_signals = parse_groq_fuel_signals(parsed, current_prices, news_extractions)
-        direction = derive_overall_direction(fuel_signals)
-        timing = parsed.get("timing") or DEFAULT_TIMING
-        confidence = parsed.get("confidence") or DEFAULT_CONFIDENCE
+        if status_code == 413:
+            retry_payload, retry_stats = shrink_groq_payload_for_retry(limited_payload)
+            log_groq_request_stats(retry_stats, len(build_groq_analysis_prompt(retry_payload)))
+            print("Groq 413: payload kucultulup bir kez yeniden deneniyor")
 
-        if direction == "neutral":
-            timing = DEFAULT_TIMING
-            confidence = DEFAULT_CONFIDENCE
+            try:
+                return _request_groq_chat_completion(api_key, model, retry_payload)
+            except Exception as retry_error:
+                print(f"Groq analizi hatasi: {retry_error}")
+                return None
 
-        summary = resolve_market_summary(parsed.get("summary"), fuel_signals)
-        source_disagreement_note = (
-            SOURCE_DISAGREEMENT_NOTE if payload.get("news_amount_source_disagreement") else None
-        )
-
-        primary_signal = next(
-            (
-                signal
-                for signal in fuel_signals
-                if signal.get("direction") in {"increase", "decrease"}
-                and signal.get("expected_amount_tl") is not None
-            ),
-            None,
-        )
-
-        return {
-            "model": f"groq:{model}",
-            "direction": direction,
-            "target_fuel": primary_signal.get("fuel") if primary_signal else "Yok",
-            "expected_amount": primary_signal.get("expected_amount_tl") if primary_signal else None,
-            "timing": timing,
-            "summary": summary,
-            "source_disagreement_note": source_disagreement_note,
-            "confidence": confidence,
-            "watch_level": "high" if direction != "neutral" else "low",
-            "key_reason": parsed.get("key_reason", ""),
-            "fuel_signals": fuel_signals,
-            "groq_raw": parsed,
-        }
+        print(f"Groq analizi hatasi: {error}")
+        return None
     except Exception as error:
         print(f"Groq analizi hatasi: {error}")
         return None
@@ -1254,7 +1297,7 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
     news_amount_extractions, news_amount_source_disagreement = aggregate_news_amount_extractions(
         news_items
     )
-    haberlerde_gecen_tutarlar = build_haberlerde_gecen_tutarlar(news_items[:10])
+    haberlerde_gecen_tutarlar = build_haberlerde_gecen_tutarlar(news_items[:GROQ_MAX_NEWS_ITEMS])
 
     ai_payload = {
         "analysis_basis": "news_and_market_context",
@@ -1277,7 +1320,7 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
             "confidence": confidence,
             "score": news_analysis["score"],
         },
-        "news": serialize_news_for_groq(news_items[:10]),
+        "news": serialize_news_for_groq(news_items[:GROQ_MAX_NEWS_ITEMS]),
         "news_analysis": news_analysis,
     }
     ai_result = call_groq_analysis(ai_payload)
