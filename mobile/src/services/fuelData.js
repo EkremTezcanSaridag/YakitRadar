@@ -355,9 +355,6 @@ function formatSyncTimeHm(date = new Date()) {
 }
 
 const GUNCELLEME_TEXT_RE = /^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/
-import { buildSonKontrolMeta, snapshotFuelPricesForCompare } from './fuelDataCheckMeta'
-
-export { DATA_CHECK_STALE_MS, snapshotFuelPricesForCompare } from './fuelDataCheckMeta'
 
 function parseGuncellemeIstanbul(value) {
   if (!value) {
