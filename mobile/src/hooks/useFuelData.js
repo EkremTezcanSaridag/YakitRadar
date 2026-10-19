@@ -3,7 +3,13 @@ import { AccessibilityInfo } from 'react-native'
 import { useReconnectEffect } from '../context/NetworkContext'
 import { pushToast } from '../components/toastController'
 import { checkAndTriggerCustomAlerts } from '../services/customAlerts'
-import { emptyFuelData, getRealPriceRows, loadFuelData, refreshMarketSignalFromRemote } from '../services/fuelData'
+import {
+  emptyFuelData,
+  getRealPriceRows,
+  loadFuelData,
+  refreshMarketSignalFromRemote,
+  snapshotFuelPricesForCompare,
+} from '../services/fuelData'
 import { scheduleWeeklySummaryNotification } from '../services/notifications'
 import { logError } from '../utils/logger'
 
@@ -28,10 +34,16 @@ function useFuelDataState() {
   })
 
   const refresh = useCallback(async ({ userInitiated = true } = {}) => {
-    setState((current) => ({
-      ...current,
-      refreshing: true,
-    }))
+    let priceSnapshotBefore = ''
+
+    setState((current) => {
+      priceSnapshotBefore = snapshotFuelPricesForCompare(current.data?.prices ?? [])
+
+      return {
+        ...current,
+        refreshing: true,
+      }
+    })
 
     const previousHadData = hadRealDataRef.current
     const data = await loadFuelData({ refresh: true })
@@ -52,9 +64,14 @@ function useFuelDataState() {
           message: 'Yenilenemedi. Son kayıtlı fiyatlar gösteriliyor.',
         })
       } else if (data.hasRealPrices && !data.networkFetchFailed) {
+        const pricesChanged =
+          priceSnapshotBefore !== snapshotFuelPricesForCompare(data.prices ?? [])
+
         pushToast({
           type: 'success',
-          message: 'Fiyatlar güncellendi',
+          message: pricesChanged
+            ? 'Fiyatlar güncellendi'
+            : `Liste yenilendi · son kontrol ${data.lastUpdatedHm ?? '--:--'}`,
         })
       }
     }
