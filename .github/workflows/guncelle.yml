@@ -46,6 +46,7 @@ jobs:
         if: steps.gate.outputs.use_freshness_gate == 'true'
         uses: actions/checkout@v4
         with:
+          path: .gate
           sparse-checkout: |
             backend/schedule_freshness.py
           sparse-checkout-cone-mode: false
@@ -57,7 +58,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python3 backend/schedule_freshness.py
+        run: python3 .gate/backend/schedule_freshness.py
 
       - name: Atlandı (fiyatlar güncel)
         if: steps.gate.outputs.use_freshness_gate == 'true' && steps.freshness.outputs.skip == 'true'
