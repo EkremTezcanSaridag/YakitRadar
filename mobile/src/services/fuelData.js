@@ -1346,7 +1346,7 @@ async function fetchRemoteFuelData({ triggerBackend = false } = {}) {
   }
 
   const refreshRequest = triggerBackend ? await triggerBackendRefresh() : null
-  const [pricesResult, historyResult, marketSignalResult, priceChangeEventsResult] = await Promise.all([
+  const [pricesResult, historyResult, marketSignalResult] = await Promise.all([
     supabase.from('fiyatlar').select('il, benzin_95, motorin, lpg, guncelleme'),
     supabase
       .from('gecmis')
@@ -1354,13 +1354,6 @@ async function fetchRemoteFuelData({ triggerBackend = false } = {}) {
       .order('tarih', { ascending: false })
       .limit(365),
     supabase.from('market_signals').select(marketSignalSelect).order('calculated_at', { ascending: false }).limit(1),
-    process.env.EXPO_PUBLIC_SKIP_PRICE_EVENTS === '1'
-      ? Promise.resolve({ data: [], error: null })
-      : supabase
-          .from('price_change_events')
-          .select('city, fuel, old_price, new_price, diff, direction, event_at, created_at')
-          .order('event_at', { ascending: false })
-          .limit(100),
   ])
 
   if (pricesResult.error) {
@@ -1371,9 +1364,7 @@ async function fetchRemoteFuelData({ triggerBackend = false } = {}) {
     pricesResult.data?.map(normalizePriceRecord).filter((row) => row !== null) ?? []
   const rawHistory = historyResult.error ? [] : historyResult.data?.map(normalizeHistoryRecord) ?? []
   const remoteHistory = deduplicateHistoryRecords(rawHistory)
-  const priceChangeEvents = priceChangeEventsResult.error
-    ? []
-    : priceChangeEventsResult.data?.map(normalizePriceChangeEvent) ?? []
+  const priceChangeEvents = []
 
   if (!remotePrices.length) {
     return null
