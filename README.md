@@ -1,37 +1,60 @@
 # Yakıt Radar
 
+Türkiye genelinde **benzin, motorin ve LPG** pompa fiyatlarını takip etmek için geliştirilen **Expo (React Native)** mobil uygulama ve **Python** backend deposudur. Veriler Supabase üzerinde tutulur; fiyat güncelleme ve push bildirimleri GitHub Actions ile zamanlanır.
 
+## Ne yapar?
 
-Yakıt Radar, Türkiye'deki akaryakıt fiyatlarını takip etmek için geliştirilen Expo + React Native mobil uygulamasıdır. Uygulama 81 il için Benzin, Mazot ve LPG fiyatlarını gösterir; şehir arama, yakıt türü filtreleme, yenileme ve fiyat geçmişi ekranlarını içerir.
+- 81 il için güncel pompa fiyatları (kaynak: Aytemiz sayfaları, backend scraper)
+- Ulusal ortalama, il karşılaştırması, geçmiş grafikleri
+- Haber ve makro verilerle **piyasa sinyali** (yön, güven, beklenen tutar tahmini — Groq ile analiz)
+- Fiyat değişiminde **push bildirim** (Expo), sessiz saat kuyruğu, beklenen değişim bildirimleri
+- Araç gideri / yakıt fişi kaydı (yerel)
+- İsteğe bağlı reklam (AdMob) ve gizlilik sayfaları
 
-## İndir
+## Mobil ekranlar
 
-[Yakıt Radar APK](https://expo.dev/artifacts/eas/aNCNLkGb-n-ZDincF11sqM16xxdWXHsCkF9QooDEryI.apk)
+| Ekran | İçerik |
+|--------|--------|
+| **Ana Sayfa** | Seçili il fiyatı, yakıt türü, ulusal ortalama, piyasa sinyali / beklenen değişim, yenileme |
+| **İller** | 81 il listesi, arama, yakıt filtresi |
+| **Geçmiş** | 7 / 30 / 90 gün trend, `gecmis` tablosundan günlük değişimler |
+| **Aracım** | Araç profili, yakıt fişi, gider özeti |
+| **Bildirimler** | Push izni, günlük / il bazlı uyarılar, sessiz saat, test bildirimi |
 
-## Özellikler
+## Mimari
 
-- 81 il için akaryakıt fiyat listesi
-- Benzin, Mazot ve LPG arasında geçiş
-- İl adına göre canlı arama
-- Ana Sayfa ve İller ekranında manuel yenileme
-- Supabase bağlantısı ve güvenli yedek veri kullanımı
-- Fiyat geçmişi, trend grafiği ve son değişiklikler
-- Son 24 saatin güncel haber başlıklarıyla üretilen Piyasa Sinyali kartı
-- Opsiyonel Gemini destekli kısa zam/indirim beklentisi analizi
-- Bildirim ayarları ekranı
-- Özel uygulama ikonu, splash screen ve README marka görseli
+```
+[Aytemiz web] ← Python fiyat_servisi.py ← GitHub Actions (guncelle.yml)
+                        ↓
+                  [Supabase: fiyatlar, gecmis, market_signals, push_tokens, …]
+                        ↓
+              [Expo mobil uygulama — anon Supabase okuma + register_push_token RPC]
+```
 
-## Teknolojiler
+### Backend (Python)
 
-- Mobile: Expo, React Native
-- Navigation: React Navigation bottom tabs
-- Veri tabanı: Supabase
-- Backend: Python, requests, BeautifulSoup
-- Otomasyon: GitHub Actions için hazır backend yapısı
+- `fiyat_servisi.py` — scrape, önceki fiyatla diff, bulk sapma koruması (`price_scrape_guard`), `gecmis` yazımı, piyasa sinyali, push
+- `market_signals.py` — haber, TCMB kuru, Groq analizi, mobil sinyal alanları
+- `notification_rules.py` — sessiz saat (22:00–08:00 İstanbul), beklenen değişim uygunluk kuralları
+- `schedule_freshness.py` — zamanlanmış koşuda veri taze ise scraper atlama (sabah `10 5 * * *` UTC koşusu hariç)
 
-## Kurulum
+### Zamanlama (`guncelle.yml`)
 
-Mobil uygulamayı çalıştırmak için:
+- Cron: `7,27,47 * * * *` UTC + sabah `10 5 * * *` (sessiz saat kuyruğu / beklenen değişim)
+- Taze veri kapısı: son `fiyatlar.guncelleme` ≤ ~45 dk ise hafif gate (scraper atlanabilir; kuyruk flush ayrı adım)
+- `workflow_dispatch` ve `main` push: tam koşu
+- Başarısız planlı koşularda issue uyarısı (GITHUB_TOKEN)
+
+### Bildirim mantığı (özet)
+
+1. Scrape sonrası `fiyatlar` ile karşılaştırma → şehir bazlı diff (|fark| &gt; 8 TL bildirimden düşer).
+2. Sessiz saatte diff → `pending_price_notifications`; 08:00 sonrası ilk uygun koşuda birleştirilip push.
+3. `market_signals` içindeki uygun sinyaller → “beklenen artış/indirim” push (güven ≥ medium, günde yakıt bazında tek).
+4. Token kaydı: mobil `register_push_token` RPC; backend `push_tokens.enabled` ve tercih alanları.
+
+## APK alma
+
+Önizleme APK üretimi: `.github/workflows/eas-preview-build.yml` (EAS). Yerel geliştirme:
 
 ```bash
 cd mobile
@@ -39,62 +62,66 @@ npm install
 npm start
 ```
 
-Backend veri çekiciyi çalıştırmak için:
+Üretilmiş APK bağlantısı EAS artifact çıktısına bağlıdır; workflow dokümantasyonuna bakın.
+
+## Ortam değişkenleri (yalnızca adlar)
+
+### Mobil (Expo public)
+
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_SKIP_PRICE_EVENTS` (opsiyonel, legacy)
+
+### Backend / Actions secrets
+
+- `SUPABASE_URL`
+- `SUPABASE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `GROQ_API_KEY`
+- `SEND_TEST_NOTIFICATION`
+- `TEST_NOTIFICATION_INSTALLATION_ID`
+- `PRICE_SANITY_OVERRIDE` (opsiyonel)
+- `MAX_REASONABLE_PRICE_CHANGE` (opsiyonel)
+- `NOTIFICATION_MIN_CHANGE` (opsiyonel)
+- AdMob: `EXPO_PUBLIC_ADMOB_*` (EAS — bkz. `mobile/docs/ads-eas-env.md`)
+
+## Kurulum
 
 ```bash
-cd backend
-pip install -r requirements.txt
-python fiyat_servisi.py
+# Mobil
+cd mobile && npm install && npm start
+
+# Backend (yerel tek koşu)
+cd backend && pip install -r requirements.txt && python fiyat_servisi.py
+
+# Backend testler
+cd backend && pip install -r requirements-dev.txt && pytest
 ```
 
-## Reklam (AdMob) ortam değişkenleri
+Supabase SQL dosyaları (`backend/supabase_*.sql`) operatör tarafından SQL Editor’da uygulanır; repoda migration otomatik çalışmaz.
 
-EAS build ve çalışma zamanı için gerekli secret adları (değerler repoda tutulmaz): [mobile/docs/ads-eas-env.md](mobile/docs/ads-eas-env.md). Preview build’lerde AdMob app ID secret’ları yoksa örnek Google test app ID’leri yedeklenir; interstitial birim kimliği olmadan reklam gösterilmez.
+## Testler
 
-## Supabase
+| Alan | Komut |
+|------|--------|
+| Backend | `cd backend && pytest` |
+| Mobil offline fuel | `cd mobile && npm run test:fuel-data-offline` |
+| Workflow YAML guard | `backend/tests/test_guncelle_workflow.py` |
 
-Mobil uygulama `fiyatlar` ve `gecmis` tablolarını okur. Bağlantı başarısız olursa veya tablo boşsa uygulama yerel yedek veriyle açılır; bu sayede ekranlar boş kalmaz ve uygulama crash vermez.
+CI: `backend-tests.yml`, `mobile-check.yml` (Android bundle export).
 
-İsteğe bağlı ortam değişkenleri:
+## Bilinen eksikler / sınırlar
 
-```bash
-EXPO_PUBLIC_SUPABASE_URL=
-EXPO_PUBLIC_SUPABASE_ANON_KEY=
-```
+- `price_change_events` tablosu her ortamda yok; mobil son değişimler için `gecmis` kullanıyor.
+- Expo push **receipt** / teslim doğrulama ve stale token temizliği geliştirme aşamasında (ayrı PR).
+- Kullanıcı hesabı yok; push `installation_id` ile cihaz bazlı.
+- İstasyon bazlı fiyat yok; il ortalamaları / pompa listesi kaynağına bağlı.
+- Groq / haber analizi hata verirse kural tabanlı sinyale düşülür.
 
-Bildirimlerin canlı çalışması için `backend/supabase_notifications.sql`, Piyasa Sinyali için `backend/supabase_market_signals.sql` ve gerçekleşen zam/indirim olayları için `backend/supabase_price_change_events.sql` dosyası Supabase SQL Editor'da çalıştırılmalıdır. Bildirim audit alanları güncellendiği için mevcut kurulumlarda `backend/supabase_notifications.sql` tekrar çalıştırılabilir. Haber destekli analiz alanları için mevcut kurulumlarda `backend/supabase_market_signals.sql` tekrar çalıştırılabilir. GitHub Actions backend akışı için `SUPABASE_URL`, `SUPABASE_KEY` ve güvenli token okuma amacıyla `SUPABASE_SERVICE_ROLE_KEY` secret olarak eklenmelidir.
+## Veri kaynağı
 
-Opsiyonel ücretsiz AI analizi için GitHub Actions secrets tarafına `GEMINI_API_KEY` eklenebilir. `GEMINI_MODEL` verilmezse backend `gemini-2.5-flash` modelini kullanır; anahtar yoksa sistem kural tabanlı analizle çalışmaya devam eder.
+Akaryakıt: Aytemiz resmi fiyat sayfaları. Makro: TCMB kurları. Haber: RSS / kaynak modülü. Analiz: Groq (yapılandırıldığında).
 
-Piyasa sinyali sosyal medya kaynaklarını filtreler, yalnızca son 24 saatteki başlıkları dikkate alır ve soru formatındaki haberleri düşük ağırlıklandırır. Pompa zam/indirim değişimleri bildirimler için korunur; beklenti yönünü etkilemez.
+## Lisans ve katkı
 
-## Uygulama Ekranları
-
-- Ana Sayfa: güncel ortalama fiyatlar, haber destekli piyasa sinyali, son yenileme zamanı ve 7 günlük trend
-- İller: 81 il listesi, yakıt türü seçimi, il arama ve yenileme
-- Geçmiş: 7/30/90 gün veya tüm kayıtlar için trend, özet metrikler ve gerçekleşen son değişiklikler
-- Bildirimler: fiyat uyarıları, sessiz saatler ve takip edilen şehir/yakıt ayarları
-
-## Yol Haritası
-
-- Tamamlandı: Expo crash düzeltmeleri
-- Tamamlandı: Koyu tema ve ekran tasarımları
-- Tamamlandı: Supabase okuma bağlantısı
-- Tamamlandı: İl arama, yakıt filtreleme ve manuel yenileme
-- Tamamlandı: Logo, app icon, splash screen ve README görseli
-- Tamamlandı: gerçek bildirim izinleri, token kaydı ve backend fiyat değişimi push akışı
-- Tamamlandı: son 24 saatlik haberlere dayalı zam/indirim beklentisi analiz fazı
-- Sıradaki: bildirim sonuçlarını yönetim/debug ekranında görünür kılmak
-
-### Planlanan Geliştirmeler
-
-- Yakıt alım kaydına istasyon, litre, not ve fiş tarihi eklenmesi
-- Aylık araç maliyeti karşılaştırmaları ve sürüş metrikleri
-- Yakıt türüne ve fiyat eşiğine göre kişisel bildirim kuralları
-- Favori şehirlerle hızlı fiyat karşılaştırması
-- Güvenilir kaynak bulunması halinde istasyon bazlı fiyat karşılaştırması
-- Ana ekranda gün özeti ve gider verisi için dışa aktarma
-
-## Veri Kaynağı
-
-Backend tarafı akaryakıt fiyatlarını web kaynağından çekip Supabase'e yazar. Piyasa Sinyali son 24 saatteki güncel haber başlıklarıyla üretilir; Gemini anahtarı varsa yalnızca bu başlıkları kısa bir beklenti analizine dönüştürür, anahtar yoksa kural tabanlı analiz üretilir. Mobil uygulama ise Supabase'den okur ve kullanıcıya koyu temalı, mobil odaklı bir arayüzle sunar.
+Depo özel kullanım içindir; katkı süreci issue / PR ile ilerler.
