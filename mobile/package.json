@@ -1,6 +1,7 @@
 {
   "name": "mobile",
   "version": "1.0.10",
+  "license": "UNLICENSED",
   "main": "index.js",
   "scripts": {
     "start": "expo start",
