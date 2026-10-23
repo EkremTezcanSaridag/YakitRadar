@@ -10,6 +10,7 @@ export const defaultVehicleProfile = {
   fuelKey: 'benzin95',
   spentAmount: '500',
   distanceKm: '300',
+  tankCapacityL: '',
 }
 
 export async function loadVehicleProfile() {

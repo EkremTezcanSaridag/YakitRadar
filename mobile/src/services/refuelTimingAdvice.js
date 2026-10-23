@@ -6,6 +6,8 @@ const FUEL_META = {
 
 const CONFIDENCE_RANK = { low: 0, medium: 1, high: 2 }
 
+export const DEFAULT_TANK_CAPACITY_L = 50
+
 function normalizeFuelLabel(value) {
   const text = String(value || '').trim().toLowerCase()
   if (text.includes('motorin')) return 'motorin'
@@ -129,22 +131,95 @@ export function computePredictionAccuracy(marketSignalHistory, history, fuelKey)
   }
 }
 
-export function buildRefuelTimingAdvice({ marketSignal, marketSignalHistory, history, fuelKey }) {
+function parseAmountTlPerLiter(value) {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed === 0) {
+    return null
+  }
+
+  return Math.abs(parsed)
+}
+
+function formatSavingsTl(total) {
+  if (!Number.isFinite(total) || total <= 0) {
+    return null
+  }
+
+  const rounded = Math.round(total)
+  return rounded.toLocaleString('tr-TR', { maximumFractionDigits: 0 })
+}
+
+export function buildRefuelSavingsLine({ tankLiters, direction, amountTlPerLiter }) {
+  const amountPerLiter = parseAmountTlPerLiter(amountTlPerLiter)
+  const dir = String(direction || 'neutral').toLowerCase()
+
+  if (!amountPerLiter || (dir !== 'decrease' && dir !== 'increase')) {
+    return null
+  }
+
+  const parsedTank = Number.parseFloat(String(tankLiters ?? '').replace(',', '.'))
+  const hasUserTank = Number.isFinite(parsedTank) && parsedTank > 0
+  const tank = hasUserTank ? parsedTank : DEFAULT_TANK_CAPACITY_L
+  const usesDefaultTank = !hasUserTank
+
+  const totalTl = tank * amountPerLiter
+  const formatted = formatSavingsTl(totalTl)
+
+  if (!formatted) {
+    return null
+  }
+
+  let message =
+    dir === 'decrease'
+      ? `Beklersen depoda yaklaşık ${formatted} TL kazanırsın`
+      : `Şimdi doldurursan yaklaşık ${formatted} TL tasarruf edersin`
+
+  if (usesDefaultTank) {
+    message = `${DEFAULT_TANK_CAPACITY_L} litrelik depoya göre, ${message}`
+  }
+
+  return {
+    kind: usesDefaultTank ? 'default_tank' : 'amount',
+    text: message,
+    usesDefaultTank,
+    totalTl,
+  }
+}
+
+export function buildRefuelTimingAdvice({
+  marketSignal,
+  marketSignalHistory,
+  history,
+  fuelKey,
+  tankLiters,
+}) {
   const meta = FUEL_META[fuelKey] ?? FUEL_META.benzin95
   const fuelSignal = pickFuelSignal(marketSignal, fuelKey)
   const direction = String(fuelSignal?.direction || marketSignal?.direction || 'neutral').toLowerCase()
   const confidence = String(fuelSignal?.confidence || marketSignal?.confidence || 'low').toLowerCase()
   const advice = resolveAdvice(direction, confidence)
   const accuracy = computePredictionAccuracy(marketSignalHistory, history, fuelKey)
+  const expectedAmount = parseAmountTlPerLiter(
+    fuelSignal?.expected_amount_tl ?? fuelSignal?.expectedAmount ?? null,
+  )
 
   return {
     fuelName: meta.name,
     direction,
     confidence,
     confidenceLabel: marketSignal?.confidenceLabel ?? confidence,
-    expectedAmount: Number(fuelSignal?.expected_amount_tl ?? fuelSignal?.expectedAmount ?? 0) || null,
+    expectedAmount,
     timing: fuelSignal?.timing ?? null,
     ...advice,
     accuracy,
+    savingsLine: buildRefuelSavingsLine({
+      tankLiters,
+      direction,
+      amountTlPerLiter: expectedAmount,
+    }),
   }
 }

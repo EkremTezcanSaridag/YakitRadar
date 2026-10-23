@@ -2,7 +2,13 @@
 
 import pytest
 
-from market_signals import ALLOWED_MARKET_SIGNAL_COLUMNS, build_market_signal, prepare_market_signal_row
+from market_signals import (
+    ALLOWED_MARKET_SIGNAL_COLUMNS,
+    build_market_signal,
+    expected_amounts_tl_per_litre_from_signals,
+    optional_amount_columns_from_signals,
+    prepare_market_signal_row,
+)
 
 
 class TestPrepareMarketSignalRow:
@@ -41,6 +47,25 @@ class TestPrepareMarketSignalRow:
         assert set(row) <= ALLOWED_MARKET_SIGNAL_COLUMNS
 
 
+class TestExpectedAmountColumns:
+    def test_optional_columns_from_signals(self):
+        signals = [
+            {"fuel": "Benzin", "direction": "decrease", "expected_amount_tl": 0.96},
+            {"fuel": "Motorin", "direction": "increase", "expected_amount_tl": 6.4},
+            {"fuel": "LPG", "direction": "neutral", "expected_amount_tl": None},
+        ]
+
+        amounts = expected_amounts_tl_per_litre_from_signals(signals)
+        assert amounts["Benzin"] == 0.96
+        assert amounts["Motorin"] == 6.4
+        assert amounts["LPG"] is None
+
+        columns = optional_amount_columns_from_signals(signals)
+        assert columns["benzin_expected_amount_tl"] == 0.96
+        assert columns["motorin_expected_amount_tl"] == 6.4
+        assert columns["lpg_expected_amount_tl"] is None
+
+
 class TestPiyasaSinyaliKaydetFailure:
     def test_supabase_failure_is_not_swallowed(self, monkeypatch):
         from fiyat_servisi import piyasa_sinyali_kaydet
@@ -76,6 +101,50 @@ class TestPiyasaSinyaliKaydetFailure:
 
         with pytest.raises(RuntimeError, match="PGRST204"):
             piyasa_sinyali_kaydet()
+
+    def test_optional_amount_columns_fallback_when_missing(self, monkeypatch):
+        from fiyat_servisi import market_signals_upsert_row
+
+        base_row = {
+            "signal_date": "2026-10-09",
+            "direction": "neutral",
+            "confidence": "low",
+            "score": 0,
+            "summary": "x",
+            "signals": [
+                {"fuel": "Motorin", "direction": "increase", "expected_amount_tl": 2.5},
+            ],
+            "analysis": {},
+            "news_items": [],
+            "sources": {},
+            "calculated_at": "2026-10-09T12:00:00+03:00",
+        }
+        calls = []
+
+        class Query:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def execute(self):
+                calls.append(self.payload)
+                if len(calls) == 1:
+                    raise RuntimeError("PGRST204 column benzin_expected_amount_tl does not exist")
+                return None
+
+        class Table:
+            def upsert(self, payload, **_kwargs):
+                return Query(payload)
+
+        class Client:
+            def table(self, _name):
+                return Table()
+
+        monkeypatch.setattr("fiyat_servisi.supabase", Client())
+        market_signals_upsert_row(base_row)
+
+        assert len(calls) == 2
+        assert "motorin_expected_amount_tl" in calls[0]
+        assert "motorin_expected_amount_tl" not in calls[1]
 
 
 class TestJobExitOnSignalSaveFailure:
