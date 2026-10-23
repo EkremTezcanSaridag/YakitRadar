@@ -122,6 +122,10 @@ CI: `backend-tests.yml`, `mobile-check.yml` (Android bundle export).
 
 Akaryakıt: Aytemiz resmi fiyat sayfaları. Makro: TCMB kurları. Haber: RSS / kaynak modülü. Analiz: Groq (yapılandırıldığında).
 
-## Lisans ve katkı
+## Lisans
 
-Depo özel kullanım içindir; katkı süreci issue / PR ile ilerler.
+Bu depo **tescilli** yazılımdır; detaylar için kök dizindeki [LICENSE](LICENSE) dosyasına bakın. Özet: kaynak kod yalnızca görüntüleme amaçlıdır; yazılı izin olmadan kopyalama, değiştirme, dağıtım, ticari kullanım ve türev uygulama yayınlama yasaktır. Mobil paket `license` alanı: `UNLICENSED`.
+
+## Katkı
+
+Öneri ve hata bildirimi issue / PR ile iletilebilir; telif ve kullanım koşulları LICENSE metninde tanımlıdır.
