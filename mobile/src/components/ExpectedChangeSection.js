@@ -6,6 +6,7 @@ import { colors, radii, spacing, typography } from '../theme'
 export default function ExpectedChangeSection({
   boxes,
   analysisTime,
+  onNavigateToVehicle,
   onRefresh,
   refreshing,
 }) {
@@ -47,6 +48,18 @@ export default function ExpectedChangeSection({
             </Text>
             {box.priceRangeLabel ? (
               <Text allowFontScaling style={styles.priceRange}>{box.priceRangeLabel}</Text>
+            ) : null}
+            {box.savingsLine && onNavigateToVehicle ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={onNavigateToVehicle}
+                style={({ pressed }) => [styles.savingsPressable, pressed && styles.pressed]}
+              >
+                <Text allowFontScaling style={styles.savings}>
+                  {box.savingsLine.body}
+                  <Text style={styles.savingsLink}> · {box.savingsLine.linkLabel}</Text>
+                </Text>
+              </Pressable>
             ) : null}
           </View>
         ))}
@@ -121,6 +134,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontVariant: ['tabular-nums'],
     fontWeight: '500',
+  },
+  savingsPressable: {
+    marginTop: spacing.sm,
+  },
+  savings: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '500',
+    lineHeight: 16,
+  },
+  savingsLink: {
+    color: colors.accent,
+    fontWeight: '700',
   },
   footerRow: {
     alignItems: 'center',
