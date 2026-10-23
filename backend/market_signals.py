@@ -1413,6 +1413,7 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
         "signals": fuel_signals,
         "analysis": {
             "mode": mode,
+            "expected_amounts_tl_per_litre": expected_amounts_tl_per_litre_from_signals(fuel_signals),
             "analysis_basis": "news_and_market_context",
             "lookback_hours": NEWS_MAX_AGE_HOURS,
             "news_score": news_analysis["score"],
@@ -1442,6 +1443,57 @@ def build_market_signal(price_changes=None, previous_price_memory=None):
     }
 
 
+OPTIONAL_MARKET_SIGNAL_AMOUNT_COLUMNS = (
+    "benzin_expected_amount_tl",
+    "motorin_expected_amount_tl",
+    "lpg_expected_amount_tl",
+)
+
+FUEL_TO_OPTIONAL_AMOUNT_COLUMN = {
+    "Benzin": "benzin_expected_amount_tl",
+    "Motorin": "motorin_expected_amount_tl",
+    "LPG": "lpg_expected_amount_tl",
+}
+
+
+def expected_amounts_tl_per_litre_from_signals(signals: list[dict]) -> dict[str, float | None]:
+    amounts: dict[str, float | None] = {"Benzin": None, "Motorin": None, "LPG": None}
+
+    for entry in signals or []:
+        fuel = entry.get("fuel")
+        if fuel not in amounts:
+            continue
+
+        raw = entry.get("expected_amount_tl")
+        if raw is None:
+            raw = entry.get("expected_amount")
+
+        if raw is None:
+            continue
+
+        try:
+            parsed = float(raw)
+        except (TypeError, ValueError):
+            continue
+
+        if parsed == 0:
+            continue
+
+        amounts[fuel] = round(abs(parsed), 4)
+
+    return amounts
+
+
+def optional_amount_columns_from_signals(signals: list[dict]) -> dict[str, float | None]:
+    amounts = expected_amounts_tl_per_litre_from_signals(signals)
+    row: dict[str, float | None] = {}
+
+    for fuel, column in FUEL_TO_OPTIONAL_AMOUNT_COLUMN.items():
+        row[column] = amounts.get(fuel)
+
+    return row
+
+
 ALLOWED_MARKET_SIGNAL_COLUMNS = frozenset(
     {
         "signal_date",
@@ -1461,6 +1513,7 @@ ALLOWED_MARKET_SIGNAL_COLUMNS = frozenset(
         "news_items",
         "sources",
         "calculated_at",
+        *OPTIONAL_MARKET_SIGNAL_AMOUNT_COLUMNS,
     }
 )
 

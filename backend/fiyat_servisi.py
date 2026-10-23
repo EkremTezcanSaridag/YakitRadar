@@ -777,6 +777,40 @@ def hafiza_degisimi_olustur(price_memory):
     return sorted(degisimler, key=lambda item: abs(item["diff"]), reverse=True)
 
 
+def _market_signal_upsert_missing_column_error(exc: BaseException) -> bool:
+    message = str(exc).lower()
+    markers = (
+        "pgrst204",
+        "column",
+        "schema cache",
+        "could not find",
+        "benzin_expected_amount_tl",
+        "motorin_expected_amount_tl",
+        "lpg_expected_amount_tl",
+    )
+    return any(marker in message for marker in markers)
+
+
+def market_signals_upsert_row(row: dict) -> None:
+    from market_signals import OPTIONAL_MARKET_SIGNAL_AMOUNT_COLUMNS, optional_amount_columns_from_signals
+
+    optional = optional_amount_columns_from_signals(row.get("signals"))
+    upsert_row = {**row, **optional}
+    optional_keys = [key for key in OPTIONAL_MARKET_SIGNAL_AMOUNT_COLUMNS if key in upsert_row]
+
+    try:
+        supabase.table("market_signals").upsert(upsert_row, on_conflict="signal_date").execute()
+    except Exception as exc:
+        if optional_keys and _market_signal_upsert_missing_column_error(exc):
+            supabase.table("market_signals").upsert(row, on_conflict="signal_date").execute()
+            print(
+                "Piyasa sinyali: opsiyonel beklenen tutar kolonlari yok; "
+                "signals JSON ile kaydedildi."
+            )
+            return
+        raise
+
+
 def piyasa_sinyali_kaydet(degisimler=None, onceki_pompa_hafizasi=None):
     from market_signals import prepare_market_signal_row
 
@@ -789,7 +823,7 @@ def piyasa_sinyali_kaydet(degisimler=None, onceki_pompa_hafizasi=None):
     except Exception as io_err:
         print(f"Yerel market_signals.json yazılamadı: {io_err}")
 
-    supabase.table("market_signals").upsert(row, on_conflict="signal_date").execute()
+    market_signals_upsert_row(row)
     print(
         "Piyasa sinyali kaydedildi: "
         f"{row['direction']} / {row['confidence']} / skor {row['score']}"
