@@ -9,11 +9,21 @@ from notification_rules import (
     istanbul_quiet_hours_active,
     is_pending_price_change_stale,
     is_single_source_low_confidence_signal,
+    pending_queue_flush_allowed,
     price_change_dedupe_key,
     should_notify_expected_change,
 )
 
 IST = ZoneInfo("Europe/Istanbul")
+
+
+class TestPendingQueueFlush:
+    def test_flush_blocked_during_quiet_hours(self):
+        assert pending_queue_flush_allowed(datetime(2026, 10, 16, 7, 59, tzinfo=IST)) is False
+
+    def test_flush_allowed_from_eight_am(self):
+        assert pending_queue_flush_allowed(datetime(2026, 10, 16, 8, 0, tzinfo=IST)) is True
+        assert pending_queue_flush_allowed(datetime(2026, 10, 16, 15, 0, tzinfo=IST)) is True
 
 
 class TestQuietHours:
