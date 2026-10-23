@@ -841,6 +841,23 @@ function normalizePriceChangeEvent(record) {
   }
 }
 
+function normalizeMarketSignalHistoryRow(record) {
+  if (!record?.signal_date) {
+    return null
+  }
+
+  const analysis = parseJsonObject(record.analysis)
+  const topLevelSignals = parseJsonList(record.signals)
+  const analysisSignals = parseJsonList(analysis.signals)
+
+  return {
+    signalDate: record.signal_date,
+    direction: record.direction,
+    confidence: record.confidence,
+    signals: topLevelSignals.length ? topLevelSignals : analysisSignals,
+  }
+}
+
 function normalizeMarketSignalRecord(record) {
   if (!record) {
     return null
@@ -1235,6 +1252,7 @@ function buildFuelData({
   source,
   error,
   marketSignal = null,
+  marketSignalHistory = [],
   priceChangeEvents = [],
   refreshRequest = null,
   syncedAt = new Date(),
@@ -1264,6 +1282,7 @@ function buildFuelData({
     lastUpdatedLabel: sonKontrol.lastUpdatedLabel,
     lastUpdatedHm: sonKontrol.lastUpdatedHm,
     marketSignal,
+    marketSignalHistory,
     prices,
     recentChanges: buildRecentChanges(history, priceChangeEvents),
     refreshRequest,
@@ -1346,14 +1365,14 @@ async function fetchRemoteFuelData({ triggerBackend = false } = {}) {
   }
 
   const refreshRequest = triggerBackend ? await triggerBackendRefresh() : null
-  const [pricesResult, historyResult, marketSignalResult] = await Promise.all([
+  const [pricesResult, historyResult, marketSignalsResult] = await Promise.all([
     supabase.from('fiyatlar').select('il, benzin_95, motorin, lpg, guncelleme'),
     supabase
       .from('gecmis')
       .select('tarih, benzin_95, motorin, lpg, benzin_degisim, motorin_degisim, lpg_degisim')
       .order('tarih', { ascending: false })
       .limit(365),
-    supabase.from('market_signals').select(marketSignalSelect).order('calculated_at', { ascending: false }).limit(1),
+    supabase.from('market_signals').select(marketSignalSelect).order('signal_date', { ascending: false }).limit(40),
   ])
 
   if (pricesResult.error) {
@@ -1370,19 +1389,23 @@ async function fetchRemoteFuelData({ triggerBackend = false } = {}) {
     return null
   }
 
-  const latestSignalRecord = marketSignalResult.data?.[0]
+  const signalRecords = marketSignalsResult.error ? [] : marketSignalsResult.data ?? []
+  const latestSignalRecord = signalRecords[0]
   const isSignalStale = latestSignalRecord?.calculated_at
     ? Date.now() - new Date(latestSignalRecord.calculated_at).getTime() > 24 * 3600 * 1000
     : true
 
   const marketSignal =
-    marketSignalResult.error || !latestSignalRecord || isSignalStale
+    marketSignalsResult.error || !latestSignalRecord || isSignalStale
       ? null
       : normalizeMarketSignalRecord(latestSignalRecord)
+
+  const marketSignalHistory = signalRecords.map(normalizeMarketSignalHistoryRow).filter(Boolean)
 
   return {
     history: remoteHistory,
     marketSignal,
+    marketSignalHistory,
     priceChangeEvents,
     prices: remotePrices,
     refreshRequest,

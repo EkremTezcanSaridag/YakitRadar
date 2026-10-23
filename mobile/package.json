@@ -12,6 +12,7 @@
     "test:chart-nearest": "node scripts/chart-nearest-point.test.mjs",
     "test:tab-pill-layout": "node scripts/tab-pill-layout.test.mjs",
     "test:fuel-data-offline": "node scripts/fuel-data-offline.test.mjs",
+    "test:refuel-timing-advice": "node scripts/refuel-timing-advice.test.mjs",
     "test:error-handling": "node scripts/error-handling.test.mjs",
     "test:ad-interstitial-policy": "node scripts/ad-interstitial-policy.test.mjs",
     "test:admob-app-config": "node scripts/admob-app-config.test.mjs"
