@@ -7,6 +7,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import CityPickerModal from '../components/CityPickerModal'
 import ExpectedChangeEmptyNote from '../components/ExpectedChangeEmptyNote'
 import ExpectedChangeSection from '../components/ExpectedChangeSection'
+import RefuelTimingCard from '../components/RefuelTimingCard'
 import EmptyState from '../components/EmptyState'
 import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
 import ScreenHeader from '../components/ScreenHeader'
@@ -39,6 +40,7 @@ import {
   shouldShowExpectedChangeEmptyNote,
 } from '../services/expectedChange'
 import { loadShowMarketNote } from '../services/uiPreferences'
+import { buildRefuelTimingAdvice } from '../services/refuelTimingAdvice'
 import { formatDecimalTr, formatPerLiterTr } from '../utils/priceFormat'
 
 const FUEL_OPTIONS = [
@@ -136,6 +138,17 @@ export default function AnaSayfa() {
 
   const fuelLabel = FUEL_OPTIONS.find((fuel) => fuel.key === fuelKey)?.label ?? 'Yakıt'
 
+  const refuelAdvice = useMemo(
+    () =>
+      buildRefuelTimingAdvice({
+        marketSignal: data.marketSignal,
+        marketSignalHistory: data.marketSignalHistory,
+        history: data.history,
+        fuelKey,
+      }),
+    [data.marketSignal, data.marketSignalHistory, data.history, fuelKey],
+  )
+
   const expectedChangeBoxes = useMemo(() => {
     const raw = data.marketSignal?.signals ?? data.marketSignal?.expectedFuelSignals
     const visible = filterVisibleExpectedFuelSignals(raw, heroCity)
@@ -171,6 +184,8 @@ export default function AnaSayfa() {
         <ScreenHeader showRefresh title="Ana Sayfa" />
 
         <FuelDataStatusBanner />
+
+        {hasRealData && data.marketSignal ? <RefuelTimingCard advice={refuelAdvice} /> : null}
 
         {showMarketNote && expectedChangeBoxes.length > 0 ? (
           <ExpectedChangeSection
