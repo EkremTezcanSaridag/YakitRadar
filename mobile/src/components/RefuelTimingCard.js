@@ -33,7 +33,7 @@ export default function RefuelTimingCard({ advice, onNavigateToVehicle }) {
       </View>
       <Text style={styles.accuracy}>{advice.accuracy?.label ?? 'Yeterli veri yok'}</Text>
       {advice.savingsLine ? (
-        advice.savingsLine.kind === 'missing_tank' && onNavigateToVehicle ? (
+        advice.savingsLine.usesDefaultTank && onNavigateToVehicle ? (
           <Pressable
             accessibilityRole="button"
             onPress={onNavigateToVehicle}

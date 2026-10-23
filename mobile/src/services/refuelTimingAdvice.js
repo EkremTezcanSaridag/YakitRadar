@@ -6,6 +6,8 @@ const FUEL_META = {
 
 const CONFIDENCE_RANK = { low: 0, medium: 1, high: 2 }
 
+export const DEFAULT_TANK_CAPACITY_L = 50
+
 function normalizeFuelLabel(value) {
   const text = String(value || '').trim().toLowerCase()
   if (text.includes('motorin')) return 'motorin'
@@ -152,53 +154,40 @@ function formatSavingsTl(total) {
 }
 
 export function buildRefuelSavingsLine({ tankLiters, direction, amountTlPerLiter }) {
-  const tank = Number.parseFloat(String(tankLiters ?? '').replace(',', '.'))
-  const hasTank = Number.isFinite(tank) && tank > 0
-
-  if (!hasTank) {
-    return {
-      kind: 'missing_tank',
-      text: 'Depo hacmini gir, ne kadar kazanacağını gösterelim',
-    }
-  }
-
   const amountPerLiter = parseAmountTlPerLiter(amountTlPerLiter)
   const dir = String(direction || 'neutral').toLowerCase()
 
-  if (!amountPerLiter || dir === 'neutral') {
-    if (dir === 'decrease') {
-      return { kind: 'fallback', text: 'İndirim bekleniyor; tutar henüz belli değil.' }
-    }
-    if (dir === 'increase') {
-      return { kind: 'fallback', text: 'Zam bekleniyor; tutar henüz belli değil.' }
-    }
-    return { kind: 'fallback', text: 'Beklenen değişim tutarı henüz belli değil.' }
+  if (!amountPerLiter || (dir !== 'decrease' && dir !== 'increase')) {
+    return null
   }
+
+  const parsedTank = Number.parseFloat(String(tankLiters ?? '').replace(',', '.'))
+  const hasUserTank = Number.isFinite(parsedTank) && parsedTank > 0
+  const tank = hasUserTank ? parsedTank : DEFAULT_TANK_CAPACITY_L
+  const usesDefaultTank = !hasUserTank
 
   const totalTl = tank * amountPerLiter
   const formatted = formatSavingsTl(totalTl)
 
   if (!formatted) {
-    return { kind: 'fallback', text: 'Beklenen değişim tutarı henüz belli değil.' }
+    return null
   }
 
-  if (dir === 'decrease') {
-    return {
-      kind: 'amount',
-      text: `Beklersen depoda yaklaşık ${formatted} TL kazanırsın`,
-      totalTl,
-    }
+  let message =
+    dir === 'decrease'
+      ? `Beklersen depoda yaklaşık ${formatted} TL kazanırsın`
+      : `Şimdi doldurursan yaklaşık ${formatted} TL tasarruf edersin`
+
+  if (usesDefaultTank) {
+    message = `${DEFAULT_TANK_CAPACITY_L} litrelik depoya göre, ${message}`
   }
 
-  if (dir === 'increase') {
-    return {
-      kind: 'amount',
-      text: `Şimdi doldurursan yaklaşık ${formatted} TL tasarruf edersin`,
-      totalTl,
-    }
+  return {
+    kind: usesDefaultTank ? 'default_tank' : 'amount',
+    text: message,
+    usesDefaultTank,
+    totalTl,
   }
-
-  return { kind: 'fallback', text: 'Beklenen değişim tutarı henüz belli değil.' }
 }
 
 export function buildRefuelTimingAdvice({

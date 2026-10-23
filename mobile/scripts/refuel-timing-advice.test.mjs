@@ -66,19 +66,21 @@ const savingsIncrease = buildRefuelSavingsLine({
 })
 assert.match(savingsIncrease.text, /80 TL tasarruf/)
 
-const savingsNoTank = buildRefuelSavingsLine({
+const savingsDefaultTank = buildRefuelSavingsLine({
   tankLiters: '',
   direction: 'decrease',
   amountTlPerLiter: 1,
 })
-assert.equal(savingsNoTank.kind, 'missing_tank')
+assert.equal(savingsDefaultTank.kind, 'default_tank')
+assert.match(savingsDefaultTank.text, /50 litrelik depoya göre/)
+assert.match(savingsDefaultTank.text, /50 TL kazanırsın/)
 
 const savingsNoAmount = buildRefuelSavingsLine({
   tankLiters: 50,
   direction: 'decrease',
   amountTlPerLiter: null,
 })
-assert.equal(savingsNoAmount.kind, 'fallback')
+assert.equal(savingsNoAmount, null)
 
 const adviceWithTank = buildRefuelTimingAdvice({
   marketSignal: {
