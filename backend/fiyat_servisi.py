@@ -11,6 +11,7 @@ from supabase import create_client
 
 from http_client import SCRAPER_REQUEST_TIMEOUT, make_request_with_retry
 from market_signals import build_market_signal
+from expo_push_client import fetch_push_receipts, parse_receipt_outcomes, send_expo_messages
 from notification_rules import (
     dedupe_price_changes,
     expected_change_dedupe_key,
@@ -20,6 +21,7 @@ from notification_rules import (
     is_pending_price_change_stale,
     price_change_dedupe_key,
 )
+from push_token_maintenance import apply_delivery_errors, disable_stale_tokens
 from price_memory_validation import sanitize_price_memory_items
 from price_scrape_guard import (
     MIN_SCRAPED_CITY_COUNT,
@@ -623,6 +625,43 @@ def parcalara_bol(liste, boyut):
         yield liste[index : index + boyut]
 
 
+def process_expo_push_delivery(messages, send_responses):
+    ticket_ids = []
+    delivery_summary = {
+        "expo_responses": send_responses,
+        "receipt_errors": [],
+        "immediate_errors": [],
+        "receipt_ok_count": 0,
+        "disabled_tokens": 0,
+    }
+
+    if not messages or not send_responses:
+        return delivery_summary
+
+    try:
+        from expo_push_client import extract_ticket_ids
+
+        ticket_ids = extract_ticket_ids(send_responses)
+        receipt_payload = fetch_push_receipts(ticket_ids) if ticket_ids else {}
+        parsed = parse_receipt_outcomes(send_responses, receipt_payload, messages)
+        delivery_summary.update(
+            {
+                "expo_receipts": parsed.get("receipt_payload"),
+                "receipt_errors": parsed.get("receipt_errors") or [],
+                "immediate_errors": parsed.get("immediate_errors") or [],
+                "receipt_ok_count": parsed.get("receipt_ok_count") or 0,
+                "ticket_ids": parsed.get("ticket_ids") or [],
+            }
+        )
+        all_errors = delivery_summary["receipt_errors"] + delivery_summary["immediate_errors"]
+        delivery_summary["disabled_tokens"] = apply_delivery_errors(supabase, all_errors)
+    except Exception as error:
+        delivery_summary["receipt_fetch_error"] = str(error)
+        print(f"Expo push receipt sorgusu basarisiz: {error}")
+
+    return delivery_summary
+
+
 def bildirim_log_kaydet(
     mesaj_sayisi,
     degisim_sayisi,
@@ -759,6 +798,7 @@ def piyasa_sinyali_kaydet(degisimler=None, onceki_pompa_hafizasi=None):
 
 
 def test_bildirimi_gonder(installation_id):
+    disable_stale_tokens(supabase)
     tokenlar = push_tokenlarini_oku()
     hedefler = [token for token in tokenlar if token.get("installation_id") == installation_id]
 
@@ -780,15 +820,18 @@ def test_bildirimi_gonder(installation_id):
     ]
 
     try:
-        response = requests.post(
-            EXPO_PUSH_URL,
-            headers={"Accept": "application/json", "Content-Type": "application/json"},
-            json=mesajlar,
-            timeout=SCRAPER_REQUEST_TIMEOUT
+        gonderilen, expo_responses = send_expo_messages(mesajlar)
+        delivery = process_expo_push_delivery(mesajlar, expo_responses)
+        bildirim_log_kaydet(
+            gonderilen,
+            0,
+            status="sent",
+            reason="test_notification",
+            token_count=len(hedefler),
+            candidate_count=len(mesajlar),
+            details=delivery,
         )
-        response.raise_for_status()
-        bildirim_log_kaydet(len(mesajlar), 0, status="sent", reason="test_notification", token_count=len(hedefler), candidate_count=len(mesajlar), details={"expo_responses": [response.json()]})
-        print(f"{len(mesajlar)} test bildirimi Expo Push API'ye gonderildi")
+        print(f"{gonderilen} test bildirimi Expo Push API'ye gonderildi")
     except Exception as hata:
         bildirim_log_kaydet(0, 0, status="error", reason="test_notification", token_count=len(hedefler), error_message=str(hata))
         print(f"Test bildirimi gonderilemedi: {hata}")
@@ -831,6 +874,7 @@ def beklenen_degisim_degisimi_olustur(signal_entry, signal_date):
 
 
 def beklenen_degisim_bildirimleri_gonder(market_row):
+    disable_stale_tokens(supabase)
     if istanbul_quiet_hours_active(datetime.now(ISTANBUL_TZ)):
         bildirim_log_kaydet(
             0,
@@ -915,19 +959,8 @@ def beklenen_degisim_bildirimleri_gonder(market_row):
         expo_responses = []
 
         try:
-            for parca in parcalara_bol(mesajlar, 100):
-                response = requests.post(
-                    EXPO_PUSH_URL,
-                    headers={
-                        "Accept": "application/json",
-                        "Content-Type": "application/json",
-                    },
-                    json=parca,
-                    timeout=SCRAPER_REQUEST_TIMEOUT,
-                )
-                response.raise_for_status()
-                expo_responses.append(response.json())
-                gonderilen += len(parca)
+            gonderilen, expo_responses = send_expo_messages(mesajlar)
+            delivery = process_expo_push_delivery(mesajlar, expo_responses)
         except Exception as hata:
             bildirim_log_kaydet(
                 gonderilen,
@@ -956,7 +989,7 @@ def beklenen_degisim_bildirimleri_gonder(market_row):
                 "fuel": fuel,
                 "signal_date": signal_date,
                 "signal": signal_entry,
-                "expo_responses": expo_responses,
+                **delivery,
             },
         )
         toplam_gonderilen += gonderilen
@@ -967,6 +1000,7 @@ def beklenen_degisim_bildirimleri_gonder(market_row):
 
 
 def fiyat_bildirimleri_gonder(degisimler, price_memory=None):
+    disable_stale_tokens(supabase)
     notification_reason = None
     signal_date = bugun_signal_tarihi()
     bekleyen_kayitlar = []
@@ -1089,20 +1123,8 @@ def fiyat_bildirimleri_gonder(degisimler, price_memory=None):
     expo_responses = []
 
     try:
-        for parca in parcalara_bol(mesajlar, 100):
-            response = requests.post(
-                EXPO_PUSH_URL,
-                headers={
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                },
-                json=parca,
-                timeout=SCRAPER_REQUEST_TIMEOUT,
-            )
-            response.raise_for_status()
-            expo_response = response.json()
-            expo_responses.append(expo_response)
-            gonderilen += len(parca)
+        gonderilen, expo_responses = send_expo_messages(mesajlar)
+        delivery = process_expo_push_delivery(mesajlar, expo_responses)
     except Exception as hata:
         print(f"Expo Push API bildirimi gonderemedi: {hata}")
         bildirim_log_kaydet(
@@ -1140,10 +1162,10 @@ def fiyat_bildirimleri_gonder(degisimler, price_memory=None):
         skipped_no_match_count=skipped_no_match_count,
         details={
             "changes": degisim_ozeti(degisimler),
-            "expo_responses": expo_responses,
             "price_memory": price_memory or {},
             "trigger": notification_reason or "price_change",
             "flushed_pending_keys": bekleyen_dedupe_keys,
+            **delivery,
         },
     )
     print(f"{gonderilen} push bildirimi Expo Push API'ye gonderildi")

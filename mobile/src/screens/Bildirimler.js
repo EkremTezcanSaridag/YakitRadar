@@ -345,6 +345,16 @@ export default function Bildirimler() {
           </View>
         </View>
 
+        <Pressable
+          accessibilityRole="button"
+          disabled={testBusy || loading}
+          onPress={handleTestNotification}
+          style={({ pressed }) => [styles.testPushButton, pressed && styles.pressed, (testBusy || loading) && styles.testPushButtonDisabled]}
+        >
+          <Ionicons name="paper-plane-outline" size={18} color={colors.onAccent} />
+          <Text style={styles.testPushButtonText}>{testBusy ? 'Gönderiliyor…' : 'Test bildirimi gönder'}</Text>
+        </Pressable>
+
         {permission.tokenError ? (
           <View style={styles.errorCard}>
             <MaterialCommunityIcons name="information-outline" size={18} color={colors.danger} />
@@ -784,6 +794,26 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 13,
     fontWeight: '600',
+  },
+  testPushButton: {
+    alignItems: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: 10,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    marginBottom: 14,
+    minHeight: 46,
+    paddingHorizontal: 16,
+    ...shadows.soft,
+  },
+  testPushButtonDisabled: {
+    opacity: 0.6,
+  },
+  testPushButtonText: {
+    color: colors.onAccent,
+    fontSize: 14,
+    fontWeight: '800',
   },
   actionRow: {
     flexDirection: 'row',

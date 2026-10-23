@@ -37,6 +37,11 @@ def istanbul_quiet_hours_active(now: datetime) -> bool:
     return hour >= 22 or hour < 8
 
 
+def pending_queue_flush_allowed(now: datetime) -> bool:
+    """Pending price notifications may be sent once Istanbul quiet hours ended (08:00+)."""
+    return not istanbul_quiet_hours_active(now)
+
+
 def normalize_fuel_key(value: Any) -> str:
     label = str(value or "").strip().lower()
     return FUEL_ALIASES.get(label, label)
