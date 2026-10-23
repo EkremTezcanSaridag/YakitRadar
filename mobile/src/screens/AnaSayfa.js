@@ -7,7 +7,6 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import CityPickerModal from '../components/CityPickerModal'
 import ExpectedChangeEmptyNote from '../components/ExpectedChangeEmptyNote'
 import ExpectedChangeSection from '../components/ExpectedChangeSection'
-import RefuelTimingCard from '../components/RefuelTimingCard'
 import EmptyState from '../components/EmptyState'
 import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
 import ScreenHeader from '../components/ScreenHeader'
@@ -40,8 +39,8 @@ import {
   shouldShowExpectedChangeEmptyNote,
 } from '../services/expectedChange'
 import { loadShowMarketNote } from '../services/uiPreferences'
+import { attachTankSavingsToBoxes } from '../services/expectedChangeSavings'
 import { loadVehicleProfile } from '../services/vehicleProfile'
-import { buildRefuelTimingAdvice } from '../services/refuelTimingAdvice'
 import { formatDecimalTr, formatPerLiterTr } from '../utils/priceFormat'
 
 const FUEL_OPTIONS = [
@@ -144,26 +143,15 @@ export default function AnaSayfa() {
 
   const fuelLabel = FUEL_OPTIONS.find((fuel) => fuel.key === fuelKey)?.label ?? 'Yakıt'
 
-  const refuelAdvice = useMemo(
-    () =>
-      buildRefuelTimingAdvice({
-        marketSignal: data.marketSignal,
-        marketSignalHistory: data.marketSignalHistory,
-        history: data.history,
-        fuelKey,
-        tankLiters: vehicleTankCapacityL,
-      }),
-    [data.marketSignal, data.marketSignalHistory, data.history, fuelKey, vehicleTankCapacityL],
-  )
-
   const expectedChangeBoxes = useMemo(() => {
     const raw = data.marketSignal?.signals ?? data.marketSignal?.expectedFuelSignals
     const visible = filterVisibleExpectedFuelSignals(raw, heroCity)
     if (!visible.length) {
       return []
     }
-    return enrichExpectedChanges(visible, heroCity)
-  }, [data.marketSignal?.signals, data.marketSignal?.expectedFuelSignals, heroCity])
+    const enriched = enrichExpectedChanges(visible, heroCity)
+    return attachTankSavingsToBoxes(enriched, vehicleTankCapacityL)
+  }, [data.marketSignal?.signals, data.marketSignal?.expectedFuelSignals, heroCity, vehicleTankCapacityL])
 
   const showExpectedChangeEmptyNote = shouldShowExpectedChangeEmptyNote({
     showMarketNote,
@@ -192,17 +180,11 @@ export default function AnaSayfa() {
 
         <FuelDataStatusBanner />
 
-        {hasRealData && data.marketSignal ? (
-          <RefuelTimingCard
-            advice={refuelAdvice}
-            onNavigateToVehicle={() => navigation.navigate('Aracım')}
-          />
-        ) : null}
-
         {showMarketNote && expectedChangeBoxes.length > 0 ? (
           <ExpectedChangeSection
             analysisTime={data.marketSignal?.updatedAt}
             boxes={expectedChangeBoxes}
+            onNavigateToVehicle={() => navigation.navigate('Aracım')}
             onRefresh={refreshMarketSignal}
             refreshing={marketSignalRefreshing}
           />

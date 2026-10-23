@@ -1372,7 +1372,7 @@ async function fetchRemoteFuelData({ triggerBackend = false } = {}) {
       .select('tarih, benzin_95, motorin, lpg, benzin_degisim, motorin_degisim, lpg_degisim')
       .order('tarih', { ascending: false })
       .limit(365),
-    supabase.from('market_signals').select(marketSignalSelect).order('signal_date', { ascending: false }).limit(40),
+    supabase.from('market_signals').select(marketSignalSelect).order('signal_date', { ascending: false }).limit(1),
   ])
 
   if (pricesResult.error) {
@@ -1400,12 +1400,10 @@ async function fetchRemoteFuelData({ triggerBackend = false } = {}) {
       ? null
       : normalizeMarketSignalRecord(latestSignalRecord)
 
-  const marketSignalHistory = signalRecords.map(normalizeMarketSignalHistoryRow).filter(Boolean)
-
   return {
     history: remoteHistory,
     marketSignal,
-    marketSignalHistory,
+    marketSignalHistory: [],
     priceChangeEvents,
     prices: remotePrices,
     refreshRequest,
