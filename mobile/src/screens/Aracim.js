@@ -315,6 +315,18 @@ export default function Aracim() {
             <TextInput value={profile.distanceKm} onChangeText={(value) => updateProfile('distanceKm', value)} keyboardType="decimal-pad" placeholder="300" placeholderTextColor={colors.muted} style={styles.input} />
             <Text style={styles.unit}>km</Text>
           </View>
+          <Text style={styles.fieldLabel}>Depo hacmi</Text>
+          <View style={styles.inputShell}>
+            <TextInput
+              value={profile.tankCapacityL ?? ''}
+              onChangeText={(value) => updateProfile('tankCapacityL', value)}
+              keyboardType="decimal-pad"
+              placeholder="45"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+            />
+            <Text style={styles.unit}>L</Text>
+          </View>
         </View>
         <Pressable onPress={handleSave} style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}>
           <Ionicons name="calculator-outline" size={18} color={colors.onAccent} />
