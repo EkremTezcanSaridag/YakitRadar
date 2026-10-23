@@ -129,22 +129,108 @@ export function computePredictionAccuracy(marketSignalHistory, history, fuelKey)
   }
 }
 
-export function buildRefuelTimingAdvice({ marketSignal, marketSignalHistory, history, fuelKey }) {
+function parseAmountTlPerLiter(value) {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed === 0) {
+    return null
+  }
+
+  return Math.abs(parsed)
+}
+
+function formatSavingsTl(total) {
+  if (!Number.isFinite(total) || total <= 0) {
+    return null
+  }
+
+  const rounded = Math.round(total)
+  return rounded.toLocaleString('tr-TR', { maximumFractionDigits: 0 })
+}
+
+export function buildRefuelSavingsLine({ tankLiters, direction, amountTlPerLiter }) {
+  const tank = Number.parseFloat(String(tankLiters ?? '').replace(',', '.'))
+  const hasTank = Number.isFinite(tank) && tank > 0
+
+  if (!hasTank) {
+    return {
+      kind: 'missing_tank',
+      text: 'Depo hacmini gir, ne kadar kazanacağını gösterelim',
+    }
+  }
+
+  const amountPerLiter = parseAmountTlPerLiter(amountTlPerLiter)
+  const dir = String(direction || 'neutral').toLowerCase()
+
+  if (!amountPerLiter || dir === 'neutral') {
+    if (dir === 'decrease') {
+      return { kind: 'fallback', text: 'İndirim bekleniyor; tutar henüz belli değil.' }
+    }
+    if (dir === 'increase') {
+      return { kind: 'fallback', text: 'Zam bekleniyor; tutar henüz belli değil.' }
+    }
+    return { kind: 'fallback', text: 'Beklenen değişim tutarı henüz belli değil.' }
+  }
+
+  const totalTl = tank * amountPerLiter
+  const formatted = formatSavingsTl(totalTl)
+
+  if (!formatted) {
+    return { kind: 'fallback', text: 'Beklenen değişim tutarı henüz belli değil.' }
+  }
+
+  if (dir === 'decrease') {
+    return {
+      kind: 'amount',
+      text: `Beklersen depoda yaklaşık ${formatted} TL kazanırsın`,
+      totalTl,
+    }
+  }
+
+  if (dir === 'increase') {
+    return {
+      kind: 'amount',
+      text: `Şimdi doldurursan yaklaşık ${formatted} TL tasarruf edersin`,
+      totalTl,
+    }
+  }
+
+  return { kind: 'fallback', text: 'Beklenen değişim tutarı henüz belli değil.' }
+}
+
+export function buildRefuelTimingAdvice({
+  marketSignal,
+  marketSignalHistory,
+  history,
+  fuelKey,
+  tankLiters,
+}) {
   const meta = FUEL_META[fuelKey] ?? FUEL_META.benzin95
   const fuelSignal = pickFuelSignal(marketSignal, fuelKey)
   const direction = String(fuelSignal?.direction || marketSignal?.direction || 'neutral').toLowerCase()
   const confidence = String(fuelSignal?.confidence || marketSignal?.confidence || 'low').toLowerCase()
   const advice = resolveAdvice(direction, confidence)
   const accuracy = computePredictionAccuracy(marketSignalHistory, history, fuelKey)
+  const expectedAmount = parseAmountTlPerLiter(
+    fuelSignal?.expected_amount_tl ?? fuelSignal?.expectedAmount ?? null,
+  )
 
   return {
     fuelName: meta.name,
     direction,
     confidence,
     confidenceLabel: marketSignal?.confidenceLabel ?? confidence,
-    expectedAmount: Number(fuelSignal?.expected_amount_tl ?? fuelSignal?.expectedAmount ?? 0) || null,
+    expectedAmount,
     timing: fuelSignal?.timing ?? null,
     ...advice,
     accuracy,
+    savingsLine: buildRefuelSavingsLine({
+      tankLiters,
+      direction,
+      amountTlPerLiter: expectedAmount,
+    }),
   }
 }

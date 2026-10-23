@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons'
-import { StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { colors, radii, spacing, typography } from '../theme'
 
 const ACTION_ICON = {
@@ -8,7 +8,7 @@ const ACTION_ICON = {
   neutral: 'help-circle-outline',
 }
 
-export default function RefuelTimingCard({ advice }) {
+export default function RefuelTimingCard({ advice, onNavigateToVehicle }) {
   if (!advice) {
     return null
   }
@@ -32,6 +32,22 @@ export default function RefuelTimingCard({ advice }) {
         ) : null}
       </View>
       <Text style={styles.accuracy}>{advice.accuracy?.label ?? 'Yeterli veri yok'}</Text>
+      {advice.savingsLine ? (
+        advice.savingsLine.kind === 'missing_tank' && onNavigateToVehicle ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onNavigateToVehicle}
+            style={({ pressed }) => [pressed && styles.pressed]}
+          >
+            <Text style={styles.savingsCta}>
+              {advice.savingsLine.text}
+              <Text style={styles.savingsCtaLink}> · Aracım</Text>
+            </Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.savings}>{advice.savingsLine.text}</Text>
+        )
+      ) : null}
     </View>
   )
 }
@@ -82,5 +98,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     marginTop: spacing.xs,
+  },
+  savings: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 19,
+    marginTop: spacing.sm,
+  },
+  savingsCta: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 19,
+    marginTop: spacing.sm,
+  },
+  savingsCtaLink: {
+    color: colors.accent,
+    fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.85,
   },
 })

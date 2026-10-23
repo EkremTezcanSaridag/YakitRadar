@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict'
-import { buildRefuelTimingAdvice, computePredictionAccuracy } from '../src/services/refuelTimingAdvice.js'
+import {
+  buildRefuelSavingsLine,
+  buildRefuelTimingAdvice,
+  computePredictionAccuracy,
+} from '../src/services/refuelTimingAdvice.js'
 
 const history = [
   { date: '2026-10-20', benzinChange: -2.5, motorinChange: -2.0, lpgChange: -0.5 },
@@ -46,5 +50,47 @@ const advice = buildRefuelTimingAdvice({
 })
 
 assert.equal(advice.action, 'wait')
+
+const savingsDecrease = buildRefuelSavingsLine({
+  tankLiters: '50',
+  direction: 'decrease',
+  amountTlPerLiter: 1.5,
+})
+assert.equal(savingsDecrease.kind, 'amount')
+assert.match(savingsDecrease.text, /75 TL kazanırsın/)
+
+const savingsIncrease = buildRefuelSavingsLine({
+  tankLiters: 40,
+  direction: 'increase',
+  amountTlPerLiter: 2,
+})
+assert.match(savingsIncrease.text, /80 TL tasarruf/)
+
+const savingsNoTank = buildRefuelSavingsLine({
+  tankLiters: '',
+  direction: 'decrease',
+  amountTlPerLiter: 1,
+})
+assert.equal(savingsNoTank.kind, 'missing_tank')
+
+const savingsNoAmount = buildRefuelSavingsLine({
+  tankLiters: 50,
+  direction: 'decrease',
+  amountTlPerLiter: null,
+})
+assert.equal(savingsNoAmount.kind, 'fallback')
+
+const adviceWithTank = buildRefuelTimingAdvice({
+  marketSignal: {
+    direction: 'decrease',
+    confidence: 'high',
+    signals: [{ fuel: 'Benzin', direction: 'decrease', expected_amount_tl: 1.5 }],
+  },
+  marketSignalHistory,
+  history,
+  fuelKey: 'benzin95',
+  tankLiters: '50',
+})
+assert.ok(adviceWithTank.savingsLine?.text.includes('kazanırsın'))
 
 console.log('refuel-timing-advice tests passed')

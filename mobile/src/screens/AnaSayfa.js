@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useFocusEffect } from '@react-navigation/native'
+import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { StatusBar } from 'expo-status-bar'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -40,6 +40,7 @@ import {
   shouldShowExpectedChangeEmptyNote,
 } from '../services/expectedChange'
 import { loadShowMarketNote } from '../services/uiPreferences'
+import { loadVehicleProfile } from '../services/vehicleProfile'
 import { buildRefuelTimingAdvice } from '../services/refuelTimingAdvice'
 import { formatDecimalTr, formatPerLiterTr } from '../utils/priceFormat'
 
@@ -50,6 +51,7 @@ const FUEL_OPTIONS = [
 ]
 
 export default function AnaSayfa() {
+  const navigation = useNavigation()
   const { data, loading, refresh, refreshMarketSignal, refreshing, marketSignalRefreshing } = useFuelData()
   const { isOffline } = useNetworkStatus()
   const [favCities, setFavCities] = useState(defaultFavoriteCities)
@@ -59,11 +61,15 @@ export default function AnaSayfa() {
   const [comparisonEditMode, setComparisonEditMode] = useState(false)
   const [showMarketNote, setShowMarketNote] = useState(true)
   const [locationMeta, setLocationMeta] = useState(null)
+  const [vehicleTankCapacityL, setVehicleTankCapacityL] = useState('')
 
   const reloadFavorites = useCallback(() => {
     loadFavoriteCities().then(setFavCities)
     loadLocationCityMeta().then(setLocationMeta)
     loadShowMarketNote().then(setShowMarketNote)
+    loadVehicleProfile().then((profile) => {
+      setVehicleTankCapacityL(profile.tankCapacityL ?? '')
+    })
   }, [])
 
   useEffect(() => {
@@ -145,8 +151,9 @@ export default function AnaSayfa() {
         marketSignalHistory: data.marketSignalHistory,
         history: data.history,
         fuelKey,
+        tankLiters: vehicleTankCapacityL,
       }),
-    [data.marketSignal, data.marketSignalHistory, data.history, fuelKey],
+    [data.marketSignal, data.marketSignalHistory, data.history, fuelKey, vehicleTankCapacityL],
   )
 
   const expectedChangeBoxes = useMemo(() => {
@@ -185,7 +192,12 @@ export default function AnaSayfa() {
 
         <FuelDataStatusBanner />
 
-        {hasRealData && data.marketSignal ? <RefuelTimingCard advice={refuelAdvice} /> : null}
+        {hasRealData && data.marketSignal ? (
+          <RefuelTimingCard
+            advice={refuelAdvice}
+            onNavigateToVehicle={() => navigation.navigate('Aracım')}
+          />
+        ) : null}
 
         {showMarketNote && expectedChangeBoxes.length > 0 ? (
           <ExpectedChangeSection
