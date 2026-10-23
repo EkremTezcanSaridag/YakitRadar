@@ -14,9 +14,9 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 240,
           "resizeMode": "contain",
-          "backgroundColor": "#000000",
+          "backgroundColor": "#101010",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#101010"
           }
         }
       ],
@@ -58,9 +58,8 @@
         "ACCESS_BACKGROUND_LOCATION"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-foreground.png",
-        "backgroundImage": "./assets/adaptive-background.png",
-        "monochromeImage": "./assets/adaptive-monochrome.png"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#101010"
       }
     },
     "web": {
