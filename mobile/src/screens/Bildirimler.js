@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigation } from '@react-navigation/native'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -92,6 +93,7 @@ function formatToken(token) {
 }
 
 export default function Bildirimler() {
+  const navigation = useNavigation()
   const { data } = useFuelData()
   const [settings, setSettings] = useState(defaultNotificationSettings)
   const [customAlerts, setCustomAlerts] = useState(defaultAlerts)
@@ -500,6 +502,16 @@ export default function Bildirimler() {
           </View>
         </View>
 
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('Hakkında')}
+          style={({ pressed }) => [styles.aboutLink, pressed && styles.pressedLink]}
+        >
+          <Ionicons color={colors.muted} name="information-circle-outline" size={18} />
+          <Text style={styles.aboutLinkText}>Hakkında ve feragat</Text>
+          <Ionicons color={colors.muted} name="chevron-forward" size={18} />
+        </Pressable>
+
       </ScrollView>
 
       {/* Yeni Fiyat Alarmı Ekle Modalı */}
@@ -814,6 +826,26 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
     fontSize: 14,
     fontWeight: '800',
+  },
+  aboutLink: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 16,
+    minHeight: 48,
+    paddingHorizontal: 14,
+  },
+  aboutLinkText: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  pressedLink: {
+    opacity: 0.85,
   },
   actionRow: {
     flexDirection: 'row',
