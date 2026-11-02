@@ -13,10 +13,18 @@ export const fuelSelectorChipStyles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.xs,
     height: 44,
+    paddingHorizontal: spacing.md,
     borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  fuelChipInline: {
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
+    alignSelf: 'center',
   },
   fuelChipActive: {
     backgroundColor: colors.accent,

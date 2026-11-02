@@ -195,10 +195,11 @@ export default function Iller() {
                 onPress={() => setSelectedFuel(item)}
                 style={({ pressed }) => [
                   fuelSelectorChipStyles.fuelChip,
+                  fuelSelectorChipStyles.fuelChipInline,
                   styles.fuelSegmentChip,
                   selected && fuelSelectorChipStyles.fuelChipActive,
                   selected && pressed && fuelSelectorChipStyles.fuelChipPressed,
-                  pressed && styles.pressed,
+                  pressed && !selected && styles.pressed,
                 ]}
               >
                 <Ionicons
@@ -474,25 +475,26 @@ const styles = StyleSheet.create({
     opacity: 0.72,
   },
   segmentRow: {
+    alignItems: 'center',
     flexDirection: 'row',
     marginBottom: 12,
   },
   segment: {
     alignItems: 'center',
+    alignSelf: 'center',
     backgroundColor: colors.bgSoft,
     borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: 'row',
+    height: 44,
+    justifyContent: 'center',
     marginRight: 8,
     paddingHorizontal: 10,
-    paddingVertical: 8,
   },
   fuelSegmentChip: {
-    flex: 0,
     marginRight: spacing.sm,
     minWidth: 92,
-    paddingHorizontal: spacing.md,
   },
   favoriteSegmentActive: {
     backgroundColor: colors.favoriteSoft,
