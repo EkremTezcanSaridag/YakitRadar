@@ -13,6 +13,7 @@ import {
 } from 'react-native'
 import EmptyState from '../components/EmptyState'
 import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
+import FuelPriceLegalNote from '../components/FuelPriceLegalNote'
 import ScreenHeader from '../components/ScreenHeader'
 import { SkeletonBlock, SkeletonChart, SkeletonGroup } from '../components/SkeletonLoader'
 import { useNetworkStatus } from '../context/NetworkContext'
@@ -172,6 +173,8 @@ export default function Gecmis() {
         <ScreenHeader title="Geçmiş" />
 
         <FuelDataStatusBanner />
+
+        {!fuelEmptyState ? <FuelPriceLegalNote compact /> : null}
 
         {fuelEmptyState ? (
           <EmptyState

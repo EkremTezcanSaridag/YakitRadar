@@ -11,6 +11,7 @@ import Iller from './src/screens/Iller'
 import Gecmis from './src/screens/Gecmis'
 import Aracim from './src/screens/Aracim'
 import Bildirimler from './src/screens/Bildirimler'
+import Hakkinda from './src/screens/Hakkinda'
 import {
   defaultNotificationSettings,
   configureNotificationHandler,
@@ -51,6 +52,7 @@ const tabs = {
   history: 'Geçmiş',
   vehicle: 'Aracım',
   alerts: 'Bildirimler',
+  about: 'Hakkında',
 }
 
 const tabIcons = {
@@ -176,6 +178,13 @@ function MainTabs() {
         <Tab.Screen name={tabs.history} component={Gecmis} />
         <Tab.Screen name={tabs.vehicle} component={Aracim} />
         <Tab.Screen name={tabs.alerts} component={Bildirimler} />
+        <Tab.Screen
+          name={tabs.about}
+          component={Hakkinda}
+          options={{
+            tabBarButton: () => null,
+          }}
+        />
       </Tab.Navigator>
     </NavigationContainer>
     </FuelDataProvider>

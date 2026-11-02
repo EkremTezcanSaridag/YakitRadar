@@ -9,6 +9,7 @@ import ExpectedChangeEmptyNote from '../components/ExpectedChangeEmptyNote'
 import ExpectedChangeSection from '../components/ExpectedChangeSection'
 import EmptyState from '../components/EmptyState'
 import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
+import FuelPriceLegalNote from '../components/FuelPriceLegalNote'
 import ScreenHeader from '../components/ScreenHeader'
 import {
   SkeletonFuelChips,
@@ -179,6 +180,8 @@ export default function AnaSayfa() {
         <ScreenHeader showRefresh title="Ana Sayfa" />
 
         <FuelDataStatusBanner />
+
+        {hasRealData ? <FuelPriceLegalNote compact /> : null}
 
         {showMarketNote && expectedChangeBoxes.length > 0 ? (
           <ExpectedChangeSection

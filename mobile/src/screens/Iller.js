@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View, StyleSheet } from 'react-native'
 import EmptyState from '../components/EmptyState'
 import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
+import FuelPriceLegalNote from '../components/FuelPriceLegalNote'
 import ScreenHeader from '../components/ScreenHeader'
 import { SkeletonGroup, SkeletonRows } from '../components/SkeletonLoader'
 import { useToast } from '../components/ToastProvider'
@@ -124,6 +125,8 @@ export default function Iller() {
         <ScreenHeader showRefresh title="İller" />
 
         <FuelDataStatusBanner />
+
+        {!fuelEmptyState ? <FuelPriceLegalNote compact /> : null}
 
         {fuelEmptyState ? (
           <EmptyState
