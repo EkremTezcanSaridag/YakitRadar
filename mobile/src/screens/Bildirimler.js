@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
+import NotificationSettingsRow from '../components/NotificationSettingsRow'
 import ScreenHeader from '../components/ScreenHeader'
 import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
 import { colors, fuelAlertIconStyle, shadows, switchThumbColor, switchTrackColors } from '../theme'
@@ -334,6 +335,7 @@ export default function Bildirimler() {
 
         <FuelDataStatusBanner />
 
+        <Text style={styles.sectionHeading}>Durum</Text>
         <View style={styles.summaryCard}>
           <View style={styles.summaryIcon}>
             <Ionicons name={permission.granted ? 'notifications-outline' : 'notifications-off-outline'} size={22} color={colors.muted} />
@@ -351,9 +353,13 @@ export default function Bildirimler() {
           accessibilityRole="button"
           disabled={testBusy || loading}
           onPress={handleTestNotification}
-          style={({ pressed }) => [styles.testPushButton, pressed && styles.pressed, (testBusy || loading) && styles.testPushButtonDisabled]}
+          style={({ pressed }) => [
+            styles.testPushButton,
+            pressed && styles.pressed,
+            (testBusy || loading) && styles.testPushButtonDisabled,
+          ]}
         >
-          <Ionicons name="paper-plane-outline" size={18} color={colors.onAccent} />
+          <Ionicons name="paper-plane-outline" size={18} color={colors.accent} />
           <Text style={styles.testPushButtonText}>{testBusy ? 'Gönderiliyor…' : 'Test bildirimi gönder'}</Text>
         </Pressable>
 
@@ -375,16 +381,11 @@ export default function Bildirimler() {
           </View>
         ) : null}
 
-        {/* Kişisel Fiyat Alarmları Paneli */}
+        <Text style={styles.sectionHeading}>Fiyat alarmları</Text>
         <View style={styles.panel}>
-          <View style={styles.panelHeaderRow}>
-            <View style={styles.panelHeaderCopy}>
-              <Text style={styles.panelTitle}>Kişisel Fiyat Alarmları</Text>
-              <Text style={styles.panelSubtitle}>Hedef eşiklere ulaşıldığında anında bildirim alırsınız.</Text>
-            </View>
-          </View>
+          <Text style={styles.panelIntro}>Hedef eşiklere ulaşıldığında anında bildirim alırsınız.</Text>
 
-          {customAlerts.map((alertItem, idx) => {
+          {customAlerts.map((alertItem) => {
             const condMeta = alertConditions.find((c) => c.id === alertItem.condition) ?? alertConditions[0]
             const isMotorin = alertItem.fuelKey === 'motorin'
             const isLpg = alertItem.fuelKey === 'lpg'
@@ -392,32 +393,33 @@ export default function Bildirimler() {
             const fuelIconStyle = fuelAlertIconStyle(alertItem.fuelKey)
 
             return (
-              <View key={alertItem.id} style={[styles.customAlertRow, idx === 0 && styles.rowFirst]}>
+              <View key={alertItem.id} style={styles.customAlertRow}>
                 <View style={[styles.customAlertIconBox, { backgroundColor: fuelIconStyle.backgroundColor }]}>
                   <MaterialCommunityIcons name={fuelIcon} size={18} color={fuelIconStyle.color} />
                 </View>
                 <View style={styles.customAlertInfo}>
                   <Text style={styles.customAlertTitle}>{alertItem.city} · {alertItem.fuelTitle}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                  <View style={styles.customAlertDescRow}>
                     <MaterialCommunityIcons name={condMeta.icon} size={13} color={fuelIconStyle.color} />
                     <Text style={styles.customAlertDesc}>
                       {alertItem.condition === 'news_hike'
-                        ? 'Groq AI zam haberi tespit edince uyar'
+                        ? 'Zam haberi tespit edince uyar'
                         : alertItem.condition === 'below_price'
-                        ? `Fiyat ${alertItem.targetValue} TL altına düşünce uyar`
-                        : `Fiyat ${alertItem.targetValue} TL aşınca uyar`}
+                          ? `Fiyat ${alertItem.targetValue} TL altına düşünce uyar`
+                          : `Fiyat ${alertItem.targetValue} TL aşınca uyar`}
                     </Text>
                   </View>
                 </View>
                 <View style={styles.customAlertActions}>
                   <Switch
+                    ios_backgroundColor={colors.switchTrackOff}
                     onValueChange={() => handleToggleAlert(alertItem.id)}
-                    thumbColor={switchThumbColor(alertItem.isEnabled)}
+                    thumbColor={Platform.OS === 'android' ? switchThumbColor(alertItem.isEnabled) : undefined}
                     trackColor={switchTrackColors}
                     value={alertItem.isEnabled}
                   />
                   <Pressable onPress={() => handleDeleteAlert(alertItem.id)} style={styles.deleteAlertBtn}>
-                    <MaterialCommunityIcons name="trash-can-outline" size={16} color={colors.danger} />
+                    <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.danger} />
                   </Pressable>
                 </View>
               </View>
@@ -430,76 +432,53 @@ export default function Bildirimler() {
           </Pressable>
         </View>
 
+        <Text style={styles.sectionHeading}>Görünüm ve uyarılar</Text>
         <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Görünüm</Text>
-          <View style={[styles.row, styles.rowFirst]}>
-            <View style={styles.rowIcon}>
-              <Ionicons name="pulse-outline" size={18} color={colors.muted} />
-            </View>
-            <View style={styles.rowCopy}>
-              <Text style={styles.rowTitle}>Beklenen değişimi göster</Text>
-              <Text style={styles.rowDesc}>Ana sayfada beklenen pompa değişim kutularını gösterir.</Text>
-            </View>
-            <Switch
-              onValueChange={async (value) => {
-                setShowMarketNote(value)
-                await saveShowMarketNote(value)
-              }}
-              thumbColor={switchThumbColor(showMarketNote)}
-              trackColor={switchTrackColors}
-              value={showMarketNote}
+          <NotificationSettingsRow
+            description="Ana sayfada beklenen pompa değişim kutularını gösterir."
+            icon={<Ionicons name="pulse-outline" size={18} color={colors.muted} />}
+            isFirst
+            onValueChange={async (value) => {
+              setShowMarketNote(value)
+              await saveShowMarketNote(value)
+            }}
+            title="Beklenen değişimi göster"
+            value={showMarketNote}
+          />
+
+          {notificationRows.map((row) => (
+            <NotificationSettingsRow
+              key={row.key}
+              description={row.desc}
+              disabled={permissionBusy}
+              icon={<MaterialCommunityIcons name={row.icon} size={18} color={colors.accent} />}
+              onValueChange={(value) => updateSetting(row.key, value)}
+              title={row.title}
+              value={row.value}
             />
-          </View>
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Uyarı Ayarları</Text>
-
-          {notificationRows.map((row, index) => (
-            <View key={row.key} style={[styles.row, index === 0 && styles.rowFirst]}>
-              <View style={styles.rowIcon}>
-                <MaterialCommunityIcons name={row.icon} size={18} color={colors.accent} />
-              </View>
-              <View style={styles.rowCopy}>
-                <Text style={styles.rowTitle}>{row.title}</Text>
-                <Text style={styles.rowDesc}>{row.desc}</Text>
-              </View>
-              <Switch
-                disabled={permissionBusy}
-                onValueChange={(value) => updateSetting(row.key, value)}
-                thumbColor={switchThumbColor(row.value)}
-                trackColor={switchTrackColors}
-                value={row.value}
-              />
-            </View>
           ))}
-        </View>
 
-        <View style={styles.panel}>
-          <View style={styles.panelTop}>
-            <View>
-              <Text style={styles.panelTitle}>Sessiz Saatler</Text>
-              <Text style={styles.panelSubtitle}>Kritik olmayan bildirimleri duraklatır.</Text>
-            </View>
-            <Switch
-              onValueChange={(value) => updateSetting('quietHours', value)}
-              thumbColor={switchThumbColor(settings.quietHours)}
-              trackColor={switchTrackColors}
-              value={settings.quietHours}
-            />
-          </View>
+          <NotificationSettingsRow
+            description="Kritik olmayan bildirimleri 22:00–08:00 arasında duraklatır."
+            icon={<MaterialCommunityIcons name="weather-night" size={18} color={colors.muted} />}
+            onValueChange={(value) => updateSetting('quietHours', value)}
+            title="Sessiz saatler"
+            value={settings.quietHours}
+          />
 
-          <View style={styles.timeRow}>
-            <View style={styles.timeChip}>
-              <MaterialCommunityIcons name="weather-night" size={15} color={colors.accent} />
-              <Text style={styles.timeText}>22:00</Text>
+          {settings.quietHours ? (
+            <View style={styles.timeRow}>
+              <View style={styles.timeChip}>
+                <MaterialCommunityIcons name="weather-night" size={15} color={colors.accent} />
+                <Text style={styles.timeText}>22:00</Text>
+              </View>
+              <View style={styles.timeLine} />
+              <View style={styles.timeChip}>
+                <MaterialCommunityIcons name="white-balance-sunny" size={15} color={colors.accent} />
+                <Text style={styles.timeText}>08:00</Text>
+              </View>
             </View>
-            <View style={styles.timeLine} />
-            <View style={styles.timeChip}>
-              <MaterialCommunityIcons name="white-balance-sunny" size={15} color={colors.accent} />
-              <Text style={styles.timeText}>08:00</Text>
-            </View>
-          </View>
+          ) : null}
         </View>
 
         <Pressable
@@ -809,23 +788,40 @@ const styles = StyleSheet.create({
   },
   testPushButton: {
     alignItems: 'center',
-    backgroundColor: colors.accent,
+    backgroundColor: colors.bgSoft,
+    borderColor: colors.border,
     borderRadius: 10,
+    borderWidth: 1,
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'center',
     marginBottom: 14,
     minHeight: 46,
     paddingHorizontal: 16,
-    ...shadows.soft,
   },
   testPushButtonDisabled: {
     opacity: 0.6,
   },
   testPushButtonText: {
-    color: colors.onAccent,
+    color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
+  },
+  sectionHeading: {
+    color: colors.mutedSoft,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+    marginTop: 8,
+    textTransform: 'uppercase',
+  },
+  panelIntro: {
+    color: colors.mutedSoft,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 17,
+    marginBottom: 4,
   },
   aboutLink: {
     alignItems: 'center',
@@ -1065,10 +1061,11 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   customAlertRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    borderTopWidth: 1,
     borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    minHeight: 56,
     paddingVertical: 10,
   },
   customAlertIconBox: {
@@ -1091,14 +1088,22 @@ const styles = StyleSheet.create({
   },
   customAlertDesc: {
     color: colors.mutedSoft,
+    flex: 1,
     fontSize: 10,
     fontWeight: '700',
+  },
+  customAlertDescRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
     marginTop: 2,
   },
   customAlertActions: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    flexDirection: 'row',
+    gap: 4,
+    justifyContent: 'flex-end',
+    width: 88,
   },
   deleteAlertBtn: {
     padding: 4,

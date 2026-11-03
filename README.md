@@ -11,6 +11,22 @@ Türkiye genelinde **benzin, motorin ve LPG** pompa fiyatlarını takip etmek i�
 - Araç gideri / yakıt fişi kaydı (yerel)
 - İsteğe bağlı reklam (AdMob) ve gizlilik sayfaları
 
+## Sürüm 1.0.12 (özet)
+
+- Fiyat ekranlarında **kaynak ve feragat** notu; **Hakkında** ekranı (Bildirimler altından erişim)
+- **Kişisel fiyat alarmları** ve beklenen değişim kutuları (piyasa sinyali)
+- Tasarruf satırı beklenen değişim kartlarında (depo hacmine göre)
+- İller ekranı filtre çipi hizalama iyileştirmeleri
+
+## Ekran görüntüleri
+
+Görseller ayrı PR ile eklenecek:
+
+| Ekran | Dosya |
+|--------|--------|
+| İller | `docs/screenshots/iller.png` |
+| Bildirimler | `docs/screenshots/bildirimler.png` |
+
 ## Mobil ekranlar
 
 | Ekran | İçerik |
@@ -19,7 +35,7 @@ Türkiye genelinde **benzin, motorin ve LPG** pompa fiyatlarını takip etmek i�
 | **İller** | 81 il listesi, arama, yakıt filtresi |
 | **Geçmiş** | 7 / 30 / 90 gün trend, `gecmis` tablosundan günlük değişimler |
 | **Aracım** | Araç profili, yakıt fişi, gider özeti |
-| **Bildirimler** | Push izni, günlük / il bazlı uyarılar, sessiz saat, test bildirimi |
+| **Bildirimler** | Push izni, fiyat alarmları, uyarı tercihleri, sessiz saat, test bildirimi, Hakkında bağlantısı |
 
 ## Mimari
 
@@ -106,6 +122,7 @@ Supabase SQL dosyaları (`backend/supabase_*.sql`) operatör tarafından SQL Edi
 |------|--------|
 | Backend | `cd backend && pytest` |
 | Mobil offline fuel | `cd mobile && npm run test:fuel-data-offline` |
+| İller filtre çipleri | `cd mobile && npm run test:iller-filter-chip` |
 | Workflow YAML guard | `backend/tests/test_guncelle_workflow.py` |
 
 CI: `backend-tests.yml`, `mobile-check.yml` (Android bundle export).

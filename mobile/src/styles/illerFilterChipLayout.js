@@ -1,0 +1,1 @@
+export const ILLER_FILTER_CHIP_HEIGHT = 40
