@@ -9,7 +9,7 @@ import FuelPriceLegalNote from '../components/FuelPriceLegalNote'
 import ScreenHeader from '../components/ScreenHeader'
 import { SkeletonGroup, SkeletonRows } from '../components/SkeletonLoader'
 import { useToast } from '../components/ToastProvider'
-import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
+import { illerFilterChipStyles } from '../styles/illerFilterChipStyles'
 import { colors, shadows, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { computeNationalAverages, fuelTabs, getRealPriceRows } from '../services/fuelData'
@@ -169,17 +169,26 @@ export default function Iller() {
           {selectedFuelTitle} · {loading && !hasRealPrices ? 'Yükleniyor…' : hasRealPrices ? `${cities.length} il` : '—'}
         </Text>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segmentRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={illerFilterChipStyles.row}>
           <Pressable
             onPress={() => setShowOnlyFavorites((prev) => !prev)}
-            style={({ pressed }) => [styles.segment, showOnlyFavorites && styles.favoriteSegmentActive, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              illerFilterChipStyles.chip,
+              showOnlyFavorites && illerFilterChipStyles.chipFavoriteActive,
+              pressed && styles.pressed,
+            ]}
           >
             <Ionicons
               name={showOnlyFavorites ? 'heart' : 'heart-outline'}
               size={14}
               color={showOnlyFavorites ? colors.favorite : colors.mutedSoft}
             />
-            <Text style={[styles.segmentText, showOnlyFavorites && styles.favoriteSegmentText]}>
+            <Text
+              style={[
+                illerFilterChipStyles.chipText,
+                showOnlyFavorites && illerFilterChipStyles.chipFavoriteTextActive,
+              ]}
+            >
               Favoriler ({favoriteCities.length})
             </Text>
           </Pressable>
@@ -194,12 +203,9 @@ export default function Iller() {
                 accessibilityState={{ selected }}
                 onPress={() => setSelectedFuel(item)}
                 style={({ pressed }) => [
-                  fuelSelectorChipStyles.fuelChip,
-                  fuelSelectorChipStyles.fuelChipInline,
-                  styles.fuelSegmentChip,
-                  selected && fuelSelectorChipStyles.fuelChipActive,
-                  selected && pressed && fuelSelectorChipStyles.fuelChipPressed,
-                  pressed && !selected && styles.pressed,
+                  illerFilterChipStyles.chip,
+                  selected && illerFilterChipStyles.chipFuelActive,
+                  pressed && styles.pressed,
                 ]}
               >
                 <Ionicons
@@ -208,7 +214,10 @@ export default function Iller() {
                   color={selected ? colors.onAccent : colors.muted}
                 />
                 <Text
-                  style={[fuelSelectorChipStyles.fuelChipText, selected && fuelSelectorChipStyles.fuelChipTextActive]}
+                  style={[
+                    illerFilterChipStyles.chipText,
+                    selected && illerFilterChipStyles.chipFuelTextActive,
+                  ]}
                 >
                   {item.label}
                 </Text>
@@ -413,14 +422,15 @@ const styles = StyleSheet.create({
   },
   clearSearchButton: {
     alignItems: 'center',
+    alignSelf: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
-    height: 28,
+    height: 40,
     justifyContent: 'center',
     marginLeft: 8,
-    width: 28,
+    width: 40,
   },
   titleRow: {
     alignItems: 'flex-start',
