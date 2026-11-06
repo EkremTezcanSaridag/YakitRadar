@@ -171,44 +171,48 @@ export function parseExpectedFuelSignals(signalsField) {
 
   return list
     .map((signal) => {
-      if (signal?.direction === 'neutral') {
+      try {
+        if (signal?.direction === 'neutral') {
+          return null
+        }
+
+        const amountTl = parseFuelNumber(signal?.expected_amount_tl)
+
+        if (amountTl === null || amountTl === 0) {
+          return null
+        }
+
+        const fuelKey = mapSignalFuelToKey(signal?.fuel)
+        let direction = 'increase'
+
+        if (signal?.direction === 'decrease') {
+          direction = 'decrease'
+        } else if (signal?.direction === 'increase') {
+          direction = 'increase'
+        }
+
+        const nationalCurrent = parseFuelNumber(signal?.current_price)
+        const nationalExpected = parseFuelNumber(signal?.expected_price)
+        let expectedPumpPrice = nationalExpected
+
+        if (expectedPumpPrice === null && nationalCurrent !== null) {
+          const signed = direction === 'decrease' ? -Math.abs(amountTl) : Math.abs(amountTl)
+          expectedPumpPrice = nationalCurrent + signed
+        }
+
+        return {
+          amountTl: Math.abs(amountTl),
+          direction,
+          fuel: displayFuelName(signal?.fuel, fuelKey),
+          fuelKey,
+          timing: signal?.timing ?? '',
+          effectiveAt: signal?.effective_at ?? null,
+          expectedPumpPrice,
+          nationalCurrent,
+          nationalExpected,
+        }
+      } catch {
         return null
-      }
-
-      const amountTl = parseFuelNumber(signal?.expected_amount_tl)
-
-      if (amountTl === null || amountTl === 0) {
-        return null
-      }
-
-      const fuelKey = mapSignalFuelToKey(signal?.fuel)
-      let direction = 'increase'
-
-      if (signal?.direction === 'decrease') {
-        direction = 'decrease'
-      } else if (signal?.direction === 'increase') {
-        direction = 'increase'
-      }
-
-      const nationalCurrent = parseFuelNumber(signal?.current_price)
-      const nationalExpected = parseFuelNumber(signal?.expected_price)
-      let expectedPumpPrice = nationalExpected
-
-      if (expectedPumpPrice === null && nationalCurrent !== null) {
-        const signed = direction === 'decrease' ? -Math.abs(amountTl) : Math.abs(amountTl)
-        expectedPumpPrice = nationalCurrent + signed
-      }
-
-      return {
-        amountTl: Math.abs(amountTl),
-        direction,
-        fuel: displayFuelName(signal?.fuel, fuelKey),
-        fuelKey,
-        timing: signal?.timing ?? '',
-        effectiveAt: signal?.effective_at ?? null,
-        expectedPumpPrice,
-        nationalCurrent,
-        nationalExpected,
       }
     })
     .filter(Boolean)
@@ -216,9 +220,13 @@ export function parseExpectedFuelSignals(signalsField) {
 }
 
 export function filterVisibleExpectedFuelSignals(signalsField, cityRow, nowMs = Date.now()) {
-  return parseExpectedFuelSignals(signalsField).filter((change) =>
-    shouldShowExpectedChangeBox(change, cityRow, nowMs),
-  )
+  return parseExpectedFuelSignals(signalsField).filter((change) => {
+    try {
+      return shouldShowExpectedChangeBox(change, cityRow, nowMs)
+    } catch {
+      return false
+    }
+  })
 }
 
 /** Ana Sayfa: show calm empty line when market data loaded but no visible expected-change boxes. */

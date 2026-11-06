@@ -57,16 +57,20 @@ export function buildExpectedChangeSavingsLine({ tankLiters, direction, amountTl
 
 export function attachTankSavingsToBoxes(boxes, tankLiters) {
   return (boxes || []).map((box) => {
-    const savingsLine = buildExpectedChangeSavingsLine({
-      tankLiters,
-      direction: box.direction,
-      amountTlPerLiter: box.amountTl,
-    })
+    try {
+      const savingsLine = buildExpectedChangeSavingsLine({
+        tankLiters,
+        direction: box.direction,
+        amountTlPerLiter: box.amountTl,
+      })
 
-    if (!savingsLine) {
+      if (!savingsLine) {
+        return box
+      }
+
+      return { ...box, savingsLine }
+    } catch {
       return box
     }
-
-    return { ...box, savingsLine }
   })
 }
