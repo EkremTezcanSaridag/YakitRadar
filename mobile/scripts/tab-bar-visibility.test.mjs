@@ -4,6 +4,7 @@ import { isTabBarRouteHidden } from '../src/utils/tabBarVisibility.js'
 assert.equal(isTabBarRouteHidden(undefined), false)
 assert.equal(isTabBarRouteHidden({}), false)
 assert.equal(isTabBarRouteHidden({ tabBarButton: null }), true)
+assert.equal(isTabBarRouteHidden({ tabBarButton: () => null }), true)
 assert.equal(isTabBarRouteHidden({ tabBarItemStyle: { display: 'none' } }), true)
 assert.equal(isTabBarRouteHidden({ tabBarItemStyle: { display: 'flex' } }), false)
 assert.equal(
