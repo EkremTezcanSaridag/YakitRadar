@@ -108,85 +108,83 @@ function MainTabs() {
   const tabBarFloat = safeBottom + (Platform.OS === 'ios' ? 6 : 4)
 
   return (
-    <FuelDataProvider>
-      <Tab.Navigator
-        screenListeners={{
-          tabPress: () => {
-            trackAdInteraction()
-          },
-        }}
-        safeAreaInsets={{ bottom: insets.bottom }}
-        tabBar={(props) => (
-          <SakinSolmaTabBar
-            {...props}
-            pillFadeMs={pillFadeMs}
-            reduceMotion={reduceMotion}
-            tabIcons={tabIcons}
-            transitionMs={transitionMs}
-          />
-        )}
-        screenOptions={() => ({
-          headerShown: false,
-          tabBarShowLabel: false,
-          animation: reduceMotion ? 'none' : undefined,
-          transitionSpec,
-          sceneStyleInterpolator: reduceMotion ? undefined : sakinSolmaSceneInterpolator,
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: '600',
-            marginTop: 2,
-            marginBottom: 0,
-            lineHeight: 12,
-            includeFontPadding: false,
-          },
-          tabBarItemStyle: {
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: 48,
-            paddingTop: 4,
-            paddingBottom: 2,
-          },
-          tabBarStyle: {
-            position: 'absolute',
-            bottom: tabBarFloat,
-            left: 14,
-            right: 14,
-            minHeight: 68,
-            backgroundColor: colors.tabBar,
-            borderRadius: 22,
-            borderWidth: 1,
-            borderColor: colors.border,
-            paddingHorizontal: 6,
-            paddingTop: 8,
-            paddingBottom: 10,
-            shadowColor: colors.bg,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0,
-            shadowRadius: 0,
-            elevation: 0,
-          },
-          tabBarActiveTintColor: colors.accent,
-          tabBarInactiveTintColor: colors.muted,
-          sceneStyle: {
-            backgroundColor: colors.bg,
-          },
-        })}
-      >
-        <Tab.Screen name={tabs.home} component={AnaSayfa} />
-        <Tab.Screen name={tabs.cities} component={Iller} />
-        <Tab.Screen name={tabs.history} component={Gecmis} />
-        <Tab.Screen name={tabs.vehicle} component={Aracim} />
-        <Tab.Screen name={tabs.alerts} component={Bildirimler} />
-        <Tab.Screen
-          name={tabs.about}
-          component={Hakkinda}
-          options={{
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: 'none' },
-          }}
+    <Tab.Navigator
+      screenListeners={{
+        tabPress: () => {
+          trackAdInteraction()
+        },
+      }}
+      safeAreaInsets={{ bottom: insets.bottom }}
+      tabBar={(props) => (
+        <SakinSolmaTabBar
+          {...props}
+          pillFadeMs={pillFadeMs}
+          reduceMotion={reduceMotion}
+          tabIcons={tabIcons}
+          transitionMs={transitionMs}
         />
-      </Tab.Navigator>
-    </FuelDataProvider>
+      )}
+      screenOptions={() => ({
+        headerShown: false,
+        tabBarShowLabel: false,
+        animation: reduceMotion ? 'none' : undefined,
+        transitionSpec,
+        sceneStyleInterpolator: reduceMotion ? undefined : sakinSolmaSceneInterpolator,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+          marginTop: 2,
+          marginBottom: 0,
+          lineHeight: 12,
+          includeFontPadding: false,
+        },
+        tabBarItemStyle: {
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: 48,
+          paddingTop: 4,
+          paddingBottom: 2,
+        },
+        tabBarStyle: {
+          position: 'absolute',
+          bottom: tabBarFloat,
+          left: 14,
+          right: 14,
+          minHeight: 68,
+          backgroundColor: colors.tabBar,
+          borderRadius: 22,
+          borderWidth: 1,
+          borderColor: colors.border,
+          paddingHorizontal: 6,
+          paddingTop: 8,
+          paddingBottom: 10,
+          shadowColor: colors.bg,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0,
+          shadowRadius: 0,
+          elevation: 0,
+        },
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.muted,
+        sceneStyle: {
+          backgroundColor: colors.bg,
+        },
+      })}
+    >
+      <Tab.Screen name={tabs.home} component={AnaSayfa} />
+      <Tab.Screen name={tabs.cities} component={Iller} />
+      <Tab.Screen name={tabs.history} component={Gecmis} />
+      <Tab.Screen name={tabs.vehicle} component={Aracim} />
+      <Tab.Screen name={tabs.alerts} component={Bildirimler} />
+      <Tab.Screen
+        name={tabs.about}
+        component={Hakkinda}
+        options={{
+          tabBarButton: () => null,
+          tabBarItemStyle: { display: 'none' },
+        }}
+      />
+    </Tab.Navigator>
   )
 }
 
@@ -255,10 +253,12 @@ export default function App() {
       <SafeAreaProvider>
         <ToastProvider>
           <NetworkProvider>
-            <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
-              <SupabaseConfigDevBanner />
-              <AppRoot />
-            </GestureHandlerRootView>
+            <FuelDataProvider>
+              <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+                <SupabaseConfigDevBanner />
+                <AppRoot />
+              </GestureHandlerRootView>
+            </FuelDataProvider>
           </NetworkProvider>
         </ToastProvider>
       </SafeAreaProvider>
