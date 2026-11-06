@@ -93,7 +93,14 @@ export default function SakinSolmaTabBar({
   const tabBarStyle = descriptors[focusedRouteKey]?.options?.tabBarStyle ?? {}
 
   const visibleRoutes = useMemo(
-    () => state.routes.filter((route) => !isTabBarRouteHidden(descriptors[route.key].options)),
+    () =>
+      state.routes.filter((route) => {
+        const descriptor = descriptors[route.key]
+        if (!descriptor) {
+          return false
+        }
+        return !isTabBarRouteHidden(descriptor.options)
+      }),
     [descriptors, state.routes],
   )
 
@@ -189,12 +196,18 @@ export default function SakinSolmaTabBar({
 
   useEffect(() => {
     state.routes.forEach((route, index) => {
+      if (!descriptors[route.key]) {
+        return
+      }
+      if (isTabBarRouteHidden(descriptors[route.key].options)) {
+        return
+      }
       const focused = index === state.index
       const anims = ensureTabAnims(tabAnimsRef.current, route.key, focused)
       const animation = runFocusAnimation(anims, focused, reduceMotion)
       animation?.start()
     })
-  }, [reduceMotion, state.index, state.routes])
+  }, [descriptors, reduceMotion, state.index, state.routes])
 
   const tabBarItemStyle = descriptors[focusedRouteKey]?.options?.tabBarItemStyle ?? {}
   const tabBarLabelStyle = descriptors[focusedRouteKey]?.options?.tabBarLabelStyle ?? {}
@@ -216,7 +229,11 @@ export default function SakinSolmaTabBar({
       ) : null}
 
       {state.routes.map((route, index) => {
-        const { options } = descriptors[route.key]
+        const descriptor = descriptors[route.key]
+        if (!descriptor) {
+          return null
+        }
+        const { options } = descriptor
 
         if (isTabBarRouteHidden(options)) {
           return null

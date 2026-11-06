@@ -78,34 +78,39 @@ export function computeCityPriceRange(currentPrice, amountTl, direction) {
 }
 
 export function enrichExpectedChanges(changes, cityRow, nowMs = Date.now()) {
-  return changes.map((change) => {
-    const current = Number(cityRow?.[change.fuelKey]) || 0
-    const priceRange = computeCityPriceRange(current, change.amountTl, change.direction)
-    const isDecrease = change.direction === 'decrease'
-    const pendingPumpReflection = isAfterBuGeceEffectiveMidnight(change.effectiveAt, nowMs)
+  return changes.reduce((acc, change) => {
+    try {
+      const current = Number(cityRow?.[change.fuelKey]) || 0
+      const priceRange = computeCityPriceRange(current, change.amountTl, change.direction)
+      const isDecrease = change.direction === 'decrease'
+      const pendingPumpReflection = isAfterBuGeceEffectiveMidnight(change.effectiveAt, nowMs)
 
-    return {
-      ...change,
-      accessibilityLabel: formatAccessibleChangeLabel(change.fuel, change.amountTl, change.direction),
-      amountLabel: formatSignedChangeAmount(change.amountTl, change.direction),
-      priceRangeLabel: priceRange ? `${priceRange.from} → ${priceRange.to} ₺` : null,
-      subtitle: buildDirectionSubtitle(change.direction, change.timing, {
-        pendingPumpReflection,
-      }),
-      tokens: isDecrease
-        ? {
-            bg: colors.expectedDecreaseBg,
-            border: colors.expectedDecreaseBorder,
-            text: colors.expectedDecrease,
-          }
-        : {
-            bg: colors.expectedIncreaseBg,
-            border: colors.expectedIncreaseBorder,
-            text: colors.expectedIncrease,
-          },
-      trendIcon: isDecrease ? 'trending-down' : 'trending-up',
+      acc.push({
+        ...change,
+        accessibilityLabel: formatAccessibleChangeLabel(change.fuel, change.amountTl, change.direction),
+        amountLabel: formatSignedChangeAmount(change.amountTl, change.direction),
+        priceRangeLabel: priceRange ? `${priceRange.from} → ${priceRange.to} ₺` : null,
+        subtitle: buildDirectionSubtitle(change.direction, change.timing, {
+          pendingPumpReflection,
+        }),
+        tokens: isDecrease
+          ? {
+              bg: colors.expectedDecreaseBg,
+              border: colors.expectedDecreaseBorder,
+              text: colors.expectedDecrease,
+            }
+          : {
+              bg: colors.expectedIncreaseBg,
+              border: colors.expectedIncreaseBorder,
+              text: colors.expectedIncrease,
+            },
+        trendIcon: isDecrease ? 'trending-down' : 'trending-up',
+      })
+    } catch {
+      // Skip invalid cached rows instead of failing the home screen
     }
-  })
+    return acc
+  }, [])
 }
 
 export function getExpectedChangeLayout(count) {

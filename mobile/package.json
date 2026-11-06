@@ -1,6 +1,6 @@
 {
   "name": "mobile",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "license": "UNLICENSED",
   "main": "index.js",
   "scripts": {
@@ -13,6 +13,7 @@
     "test:chart-nearest": "node scripts/chart-nearest-point.test.mjs",
     "test:tab-pill-layout": "node scripts/tab-pill-layout.test.mjs",
     "test:tab-bar-visibility": "node scripts/tab-bar-visibility.test.mjs",
+    "test:sakin-solma-tab-bar": "node scripts/sakin-solma-tab-bar.test.mjs",
     "test:fuel-data-offline": "node scripts/fuel-data-offline.test.mjs",
     "test:iller-filter-chip": "node scripts/iller-filter-chip.test.mjs",
     "test:legal-copy": "node scripts/legal-copy.test.mjs",

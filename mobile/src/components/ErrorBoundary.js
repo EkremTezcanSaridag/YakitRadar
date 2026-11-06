@@ -5,6 +5,32 @@ import { colors, radii, spacing, typography } from '../theme'
 import { logError } from '../utils/logger'
 import { buildErrorDigest, reloadApp, shouldReloadAfterRecover } from '../utils/errorRecovery'
 
+const COMPONENT_STACK_MAX_LENGTH = 4000
+
+function normalizeErrorText(error) {
+  if (!error) {
+    return ''
+  }
+
+  if (typeof error === 'string') {
+    return error
+  }
+
+  if (typeof error.message === 'string' && error.message.trim()) {
+    return error.name ? `${error.name}: ${error.message}` : error.message
+  }
+
+  return String(error)
+}
+
+function truncateDetails(text, maxLen) {
+  if (!text || text.length <= maxLen) {
+    return text
+  }
+
+  return `${text.slice(0, maxLen)}\n…`
+}
+
 export class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props)
@@ -71,12 +97,14 @@ export class ErrorBoundary extends React.Component {
               Uygulama beklenmedik bir sorunla karşılaştı. Yeniden denemek için dokun.
             </Text>
 
-            {__DEV__ && this.state.error ? (
+            {this.state.error ? (
               <View style={styles.debugContainer}>
-                <Text style={styles.debugTitle}>Geliştirici ayrıntısı</Text>
-                <Text style={styles.debugText}>{this.state.error.toString()}</Text>
+                <Text style={styles.debugTitle}>Hata ayrıntısı</Text>
+                <Text style={styles.debugText}>{normalizeErrorText(this.state.error)}</Text>
                 {this.state.errorInfo?.componentStack ? (
-                  <Text style={styles.debugText}>{this.state.errorInfo.componentStack}</Text>
+                  <Text style={styles.debugText}>
+                    {truncateDetails(this.state.errorInfo.componentStack, COMPONENT_STACK_MAX_LENGTH)}
+                  </Text>
                 ) : null}
               </View>
             ) : null}

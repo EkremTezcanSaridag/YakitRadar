@@ -32,9 +32,26 @@ export function isTabBarRouteHidden(options) {
     return false
   }
 
-  if (options.tabBarButton === null) {
+  // Hidden tab: explicit `tabBarButton: null` or a custom renderer (e.g. `() => null`).
+  // Omitted `tabBarButton` is not hidden — default tab button is used.
+  if (options.tabBarButton === null || typeof options.tabBarButton === 'function') {
     return true
   }
 
   return resolveDisplay(options.tabBarItemStyle) === 'none'
+}
+
+/** Routes with missing descriptors are not drawn in a custom tab bar. */
+export function filterVisibleTabBarRoutes(routes, descriptors) {
+  if (!Array.isArray(routes) || !descriptors) {
+    return []
+  }
+
+  return routes.filter((route) => {
+    const descriptor = descriptors[route.key]
+    if (!descriptor) {
+      return false
+    }
+    return !isTabBarRouteHidden(descriptor.options)
+  })
 }
