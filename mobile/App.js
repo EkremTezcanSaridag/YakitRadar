@@ -3,7 +3,6 @@ import { enableScreens } from 'react-native-screens'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
-import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ErrorBoundary } from './src/components/ErrorBoundary'
 import { SupabaseConfigDevBanner } from './src/components/SupabaseConfigDevBanner'
@@ -38,7 +37,6 @@ enableScreens()
 configureNotificationHandler()
 
 const Tab = createBottomTabNavigator()
-const Stack = createNativeStackNavigator()
 
 const TAB_ANIM_SLOW = Math.max(
   1,
@@ -54,6 +52,7 @@ const tabs = {
   history: 'Geçmiş',
   vehicle: 'Aracım',
   alerts: 'Bildirimler',
+  about: 'Hakkında',
 }
 
 const tabIcons = {
@@ -109,7 +108,8 @@ function MainTabs() {
   const tabBarFloat = safeBottom + (Platform.OS === 'ios' ? 6 : 4)
 
   return (
-    <Tab.Navigator
+    <FuelDataProvider>
+      <Tab.Navigator
         screenListeners={{
           tabPress: () => {
             trackAdInteraction()
@@ -177,19 +177,15 @@ function MainTabs() {
         <Tab.Screen name={tabs.history} component={Gecmis} />
         <Tab.Screen name={tabs.vehicle} component={Aracim} />
         <Tab.Screen name={tabs.alerts} component={Bildirimler} />
+        <Tab.Screen
+          name={tabs.about}
+          component={Hakkinda}
+          options={{
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: 'none' },
+          }}
+        />
       </Tab.Navigator>
-  )
-}
-
-function RootNavigator() {
-  return (
-    <FuelDataProvider>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen name="Hakkında" component={Hakkinda} />
-        </Stack.Navigator>
-      </NavigationContainer>
     </FuelDataProvider>
   )
 }
@@ -229,7 +225,11 @@ function AppRoot() {
     return <LocationOnboarding onComplete={() => setBootState('app')} />
   }
 
-  return <RootNavigator />
+  return (
+    <NavigationContainer>
+      <MainTabs />
+    </NavigationContainer>
+  )
 }
 
 export default function App() {

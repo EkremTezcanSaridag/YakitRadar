@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar'
 import { Ionicons } from '@expo/vector-icons'
 import Constants from 'expo-constants'
+import { CommonActions } from '@react-navigation/native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import {
@@ -21,7 +22,18 @@ export default function Hakkinda({ navigation }) {
         <View style={styles.topRow}>
           <Pressable
             accessibilityLabel="Geri"
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              if (navigation.canGoBack()) {
+                navigation.goBack()
+                return
+              }
+              navigation.dispatch(
+                CommonActions.navigate({
+                  name: 'Bildirimler',
+                  merge: true,
+                }),
+              )
+            }}
             style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
           >
             <Ionicons color={colors.text} name="chevron-back" size={22} />

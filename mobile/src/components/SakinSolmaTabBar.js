@@ -10,6 +10,7 @@ import {
   PILL_RADIUS,
   resolvePillWidth,
 } from '../utils/tabPillLayout'
+import { isTabBarRouteHidden } from '../utils/tabBarVisibility'
 
 const useNativeDriver = Platform.OS !== 'web'
 const FOCUSED_ICON_SCALE = 1.08
@@ -55,15 +56,6 @@ function runFocusAnimation(anims, focused, reduceMotion) {
   ])
 }
 
-function isRouteHidden(options) {
-  if (options.tabBarButton === null) {
-    return true
-  }
-
-  const itemStyle = StyleSheet.flatten(options.tabBarItemStyle ?? {})
-  return itemStyle.display === 'none'
-}
-
 function framesEqual(first, second) {
   if (!first || !second) {
     return false
@@ -101,7 +93,7 @@ export default function SakinSolmaTabBar({
   const tabBarStyle = descriptors[focusedRouteKey]?.options?.tabBarStyle ?? {}
 
   const visibleRoutes = useMemo(
-    () => state.routes.filter((route) => !isRouteHidden(descriptors[route.key].options)),
+    () => state.routes.filter((route) => !isTabBarRouteHidden(descriptors[route.key].options)),
     [descriptors, state.routes],
   )
 
@@ -226,7 +218,7 @@ export default function SakinSolmaTabBar({
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key]
 
-        if (isRouteHidden(options)) {
+        if (isTabBarRouteHidden(options)) {
           return null
         }
 
