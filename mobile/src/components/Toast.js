@@ -128,12 +128,10 @@ export default function Toast({
 
 const styles = StyleSheet.create({
   container: {
-    alignSelf: 'center',
     left: spacing.lg,
     maxWidth: 480,
     position: 'absolute',
     right: spacing.lg,
-    width: '100%',
     zIndex: 1000,
   },
   box: {
@@ -146,6 +144,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+    width: '100%',
   },
   message: {
     color: colors.text,
