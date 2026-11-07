@@ -24,6 +24,11 @@ on:
         required: false
         default: ''
         type: string
+      price_sanity_override:
+        description: Bu koşuda toplu fiyat sapma kontrolünü atla (yalnızca elle tetikleme; zamanlanmış koşular etkilenmez)
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   guncelle:
@@ -110,6 +115,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           SEND_TEST_NOTIFICATION: ${{ inputs.test_notification }}
           TEST_NOTIFICATION_INSTALLATION_ID: ${{ inputs.test_installation_id }}
+          PRICE_SANITY_OVERRIDE: ${{ inputs.price_sanity_override == true && '1' || '' }}
         run: python backend/fiyat_servisi.py
 
   guncelle-schedule-alert:
