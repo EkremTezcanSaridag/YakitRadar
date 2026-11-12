@@ -188,6 +188,26 @@ class TestFiyatDegisimleriniHesapla:
         
         # The unreasonable benzin change should be filtered
         assert all(d["fuel"] != "Benzin" for d in result)
+
+    def test_lpg_change_above_generic_limit_is_kept(self):
+        """LPG uses a wider daily change limit (12 TL) than benzin/motorin."""
+        onceki = {
+            "Bursa": {
+                "benzin_95": "78,00",
+                "motorin": "98,00",
+                "lpg": "41,00"
+            }
+        }
+        yeni = {
+            "Bursa": {
+                "benzin_95": "78,00",
+                "motorin": "98,00",
+                "lpg": "50,30"  # 9.3 TL, above 8 but below the LPG limit
+            }
+        }
+        result = fiyat_degisimlerini_hesapla(onceki, yeni)
+
+        assert any(d["fuel"] == "LPG" for d in result)
     
     def test_sorted_by_magnitude(self):
         """Test results are sorted by change magnitude."""
