@@ -83,6 +83,31 @@ def github_step_summary(markdown):
         print(f"Adim ozeti yazilamadi: {hata}")
 
 
+def github_output(name, value):
+    path = os.getenv("GITHUB_OUTPUT")
+    if not path:
+        return
+
+    try:
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(f"{name}={value}\n")
+    except OSError as hata:
+        print(f"GitHub output yazilamadi: {hata}")
+
+
+def publish_data_health(scraping_basarili, blocked_fields, warnings):
+    """Expose data-health signals to later workflow steps."""
+    if not scraping_basarili:
+        github_output("scrape_ok", "false")
+        return
+
+    github_output("scrape_ok", "true")
+    github_output("sanity_blocked", "true" if blocked_fields else "false")
+
+    if blocked_fields:
+        github_output("sanity_summary", " | ".join(warnings))
+
+
 def fiyat_parse(deger):
     if deger is None:
         return None
@@ -1237,28 +1262,39 @@ if __name__ == "__main__":
         print(f"UYARI: Akaryakit scraping sirasinda hata olustu: {hata}")
         if onceki_fiyatlar and len(onceki_fiyatlar) >= 50:
             print("Supabase'deki mevcut fiyat kayitlari yedek veri olarak kullaniliyor...")
+            print(
+                "UYARI: Scraper basarisiz oldugu icin fiyatlar ve gecmis yazilmayacak; "
+                "sinyal ve bildirimler yedek veriyle calisacak."
+            )
             veri = onceki_fiyatlar
         else:
+            publish_data_health(False, [], [])
             raise
 
     sanity_report = None
+    sanity_warnings = []
+
     if scraping_basarili:
         veri, sanity_report = apply_price_sanity_guard(onceki_fiyatlar, veri)
         blocked_fields = sanity_report["blocked_fields"]
 
         if blocked_fields:
-            warnings = price_sanity_warnings(sanity_report)
-            for warning in warnings:
+            sanity_warnings = price_sanity_warnings(sanity_report)
+            for warning in sanity_warnings:
                 print(f"UYARI: {warning}")
                 print(f"::warning::{warning}")
             github_step_summary(
                 "## Fiyat sanity uyarisi\n\n"
-                + "\n".join(f"- {warning}" for warning in warnings)
+                + "\n".join(f"- {warning}" for warning in sanity_warnings)
             )
 
-            if len(blocked_fields) == len(FUEL_FIELDS):
-                print("HATA: Tum yakit alanlari anormal sapma gosterdi; yazma iptal edildi.")
-                raise SystemExit(1)
+        publish_data_health(True, blocked_fields, sanity_warnings)
+
+        if len(blocked_fields) == len(FUEL_FIELDS):
+            print("HATA: Tum yakit alanlari anormal sapma gosterdi; yazma iptal edildi.")
+            raise SystemExit(1)
+    else:
+        publish_data_health(False, [], [])
 
     degisimler = fiyat_degisimlerini_hesapla(onceki_fiyatlar, veri) if scraping_basarili else []
     klasor = os.path.dirname(os.path.abspath(__file__))
@@ -1273,8 +1309,8 @@ if __name__ == "__main__":
         fiyat_degisim_gecmisi_kaydet(degisimler)
         supabase_yaz(veri)
         gecmis_kaydet(veri)
-    elif veri is not None:
-        gecmis_kaydet(veri)
+    else:
+        print("UYARI: Scraper basarisiz; gecmis tablosuna yedek veri yazilmadi.")
     onceki_pompa_hafizasi = gunluk_pompa_hafizasi_oku()
 
     try:

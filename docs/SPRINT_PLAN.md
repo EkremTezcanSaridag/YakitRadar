@@ -36,11 +36,11 @@
 
 ## Sprint 2 — P1: Veri kalitesi ve gözlemlenebilirlik
 
-- [ ] Scraper başarısızken `gecmis`'e aynı ortalamayı "0,00 değişim"le yazmayı durdur; yalnızca gerçek scrape gününde yaz.
-- [ ] Guard bloklarını workflow özetinde ve issue/uyarı olarak görünür yap.
-- [ ] Freshness gate'in bazı zamanlanmış koşularda devre dışı kalmasını düzelt.
-- [ ] Başarılı koşuda `Scheduled guncelle workflow failed` issue'sunu otomatik kapat.
-- [ ] Scraper hata mesajlarına kaynak HTTP durumu + eşleşen il sayısı ekle (mevcut log iyileştirmesi).
+- [x] Scraper başarısızken `gecmis`'e aynı ortalamayı "0,00 değişim"le yazmayı durdur; yalnızca gerçek scrape gününde yaz.
+- [x] Guard bloklarını workflow özetinde ve issue/uyarı olarak görünür yap (step output + `Fiyat güncelleme sağlık uyarısı` issue).
+- [x] Freshness gate tanısı: `gate_event_name` / `gate_schedule` logları eklendi. 13:43 `gate=false` bulgusu gecikmiş sabah koşusu; sabah 05:10 UTC koşusu bilinçli olarak gate'siz.
+- [x] Başarılı koşuda `Scheduled guncelle workflow failed` ve veri sağlık issue'larını otomatik kapat.
+- [x] Scraper hata mesajlarına kaynak HTTP durumu + eşleşen il sayısı ekle (`log_scrape_failure_summary` zaten `http_status` ve `match_count` yazıyor; testlerle korunuyor).
 
 **Kabul kriteri:** Başarısız scrape geçmiş grafiğini bozmuyor; guard blokları run özetinde görünüyor.
 
