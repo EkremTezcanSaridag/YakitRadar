@@ -44,6 +44,9 @@ jobs:
       - name: Fuel data offline tests
         run: npm run test:fuel-data-offline
 
+      - name: Fuel data freshness tests
+        run: npm run test:fuel-data-freshness
+
       - name: Error handling tests
         run: npm run test:error-handling
 

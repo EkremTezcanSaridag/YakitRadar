@@ -9,6 +9,7 @@ export default function ExpectedChangeSection({
   onNavigateToVehicle,
   onRefresh,
   refreshing,
+  stale = false,
 }) {
   if (!boxes?.length) {
     return null
@@ -19,6 +20,11 @@ export default function ExpectedChangeSection({
   return (
     <View style={styles.section}>
       <Text allowFontScaling style={styles.heading}>BEKLENEN DEĞİŞİM</Text>
+      {stale ? (
+        <Text allowFontScaling style={styles.staleNote}>
+          Fiyatlar 24 saatten eski · Tasarruf tahmini gizlendi
+        </Text>
+      ) : null}
       <View style={styles.grid}>
         {boxes.map((box, index) => (
           <View
@@ -49,7 +55,7 @@ export default function ExpectedChangeSection({
             {box.priceRangeLabel ? (
               <Text allowFontScaling style={styles.priceRange}>{box.priceRangeLabel}</Text>
             ) : null}
-            {box.savingsLine && onNavigateToVehicle ? (
+            {box.savingsLine && onNavigateToVehicle && !stale ? (
               <Pressable
                 accessibilityRole="button"
                 onPress={onNavigateToVehicle}
@@ -96,6 +102,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     marginBottom: spacing.md,
     textTransform: 'uppercase',
+  },
+  staleNote: {
+    color: colors.toastWarning,
+    fontSize: typography.caption,
+    fontWeight: '600',
+    marginBottom: spacing.sm,
+    marginTop: -spacing.xs,
   },
   grid: {
     flexDirection: 'row',

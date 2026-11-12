@@ -310,6 +310,7 @@ def mevcut_fiyatlari_oku():
 
 def fiyat_degisimlerini_hesapla(onceki, yeni):
     degisimler = []
+    atlanan = 0
 
     for il_adi, yeni_kayit in yeni.items():
         onceki_kayit = onceki.get(il_adi)
@@ -329,10 +330,13 @@ def fiyat_degisimlerini_hesapla(onceki, yeni):
             if abs(fark) < NOTIFICATION_MIN_CHANGE:
                 continue
 
-            if abs(fark) > max_reasonable_change_for(alan):
+            limit = max_reasonable_change_for(alan)
+            if abs(fark) > limit:
+                atlanan += 1
                 print(
-                    f"Olagan disi fiyat farki bildirimden atlandi: {il_adi} {yakit_adi} "
-                    f"{eski_fiyat:.2f} -> {yeni_fiyat:.2f}"
+                    f"::warning::Olagan disi fiyat farki bildirimden atlandi: {il_adi} "
+                    f"{yakit_adi} {eski_fiyat:.2f} -> {yeni_fiyat:.2f} "
+                    f"({fark:+.2f} TL, limit {limit:.2f} TL)"
                 )
                 continue
 
@@ -347,6 +351,11 @@ def fiyat_degisimlerini_hesapla(onceki, yeni):
                     "direction": "increase" if fark > 0 else "decrease",
                 }
             )
+
+    if atlanan:
+        print(
+            f"UYARI: {atlanan} fiyat degisimi olagan disi oldugu icin bildirimden atlandi"
+        )
 
     return sorted(degisimler, key=lambda item: abs(item["diff"]), reverse=True)
 

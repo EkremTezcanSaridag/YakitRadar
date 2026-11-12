@@ -71,7 +71,7 @@ class TestPiyasaSinyaliKaydetFailure:
         from fiyat_servisi import piyasa_sinyali_kaydet
 
         monkeypatch.setattr(
-            "market_signals.build_market_signal",
+            "fiyat_servisi.build_market_signal",
             lambda *_args, **_kwargs: {
                 "signal_date": "2026-10-09",
                 "direction": "neutral",
