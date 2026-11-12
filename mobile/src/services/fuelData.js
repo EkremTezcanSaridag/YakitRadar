@@ -2,10 +2,16 @@ import { colors } from '../theme'
 import { supabase } from '../supabase'
 import { parseExpectedFuelSignals } from './expectedChange'
 import { readFuelDataCache, writeFuelDataCache } from './fuelDataCacheIO'
-import { buildSonKontrolMeta } from './fuelDataCheckMeta'
+import { buildSonKontrolMeta, buildSourceFreshness } from './fuelDataCheckMeta'
 import { formatCacheSavedAtLabel } from './fuelDataPersistence'
 
-export { DATA_CHECK_STALE_MS, snapshotFuelPricesForCompare } from './fuelDataCheckMeta'
+export {
+  DATA_CHECK_STALE_MS,
+  SOURCE_STALE_MS,
+  buildSourceFreshness,
+  formatSourceUpdatedLabel,
+  snapshotFuelPricesForCompare,
+} from './fuelDataCheckMeta'
 import { formatCurrencyTr, formatSignedCurrencyTr } from '../utils/priceFormat'
 import { FUEL_FETCH_TIMEOUT_MS, withTimeout } from '../utils/withTimeout'
 
@@ -1264,6 +1270,7 @@ function buildFuelData({
   const realPrices = getRealPriceRows(prices)
   const cityRows = buildCityRows(prices)
   const sonKontrol = buildSonKontrolMeta(syncedAt)
+  const sourceFreshness = buildSourceFreshness(prices)
 
   return {
     bestCity: cityRows[0] ?? null,
@@ -1271,6 +1278,7 @@ function buildFuelData({
     currentDateLabel: formatTodayLabel(),
     error,
     history,
+    ...sourceFreshness,
     historyChartDomain: buildHistoryDomain(history),
     historyChartLabels: buildHistoryLabels(history),
     historyMetrics: buildHistoryMetrics(history),

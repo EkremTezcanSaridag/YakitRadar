@@ -40,6 +40,18 @@ export function resolveStatusBanner({ isOffline, fuelData }) {
     }
   }
 
+  if (fuelData.sourceStale) {
+    const sourceLabel = fuelData.sourceUpdatedLabel
+      ? `Kaynak: ${fuelData.sourceUpdatedLabel}`
+      : 'Kaynak tarihi bilinmiyor'
+
+    return {
+      variant: 'stale',
+      text: `Fiyatlar 24 saatten eski · ${sourceLabel}`,
+      actionLabel: 'Yenile',
+    }
+  }
+
   return null
 }
 

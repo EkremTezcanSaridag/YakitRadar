@@ -61,10 +61,10 @@
 
 ## Sprint 4 — P2: Mobil tazelik UX
 
-- [ ] "Son güncelleme" yaşına göre banner: 24 saatten eskiyse belirgin uyarı.
-- [ ] Ana Sayfa ve İller ekranlarında kaynak güncelleme tarihini göster.
-- [ ] Offline cache ile bayat veriyi ayırt et.
-- [ ] Bayat veri durumunda fiyat karşılaştırma/tasarruf kartlarını gizle veya işaretle.
+- [x] "Son güncelleme" yaşına göre banner: kaynak verisi 24 saatten eskiyse belirgin uyarı (`Fiyatlar 24 saatten eski · Kaynak: …`).
+- [x] Ana Sayfa ve İller ekranlarında kaynak güncelleme tarihini göster (`Kaynak güncelleme: 12 Kas 2026 08:05`).
+- [x] Offline cache ile bayat veriyi ayırt et (offline banner cache saatini, kaynak satırı bayatlığı ayrı gösteriyor).
+- [x] Bayat veri durumunda tasarruf kartlarını işaretle: `Bayat veri` rozeti + tasarruf tahmini gizleniyor.
 
 **Kabul kriteri:** Kullanıcı bayat veriyle taze veriyi karıştırmıyor.
 

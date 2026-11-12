@@ -169,6 +169,13 @@ export default function Iller() {
           {selectedFuelTitle} · {loading && !hasRealPrices ? 'Yükleniyor…' : hasRealPrices ? `${cities.length} il` : '—'}
         </Text>
 
+        {data.sourceUpdatedLabel ? (
+          <Text style={[styles.sourceText, data.sourceStale && styles.sourceTextStale]}>
+            Kaynak güncelleme: {data.sourceUpdatedLabel}
+            {data.sourceStale ? ' · Bayat veri' : ''}
+          </Text>
+        ) : null}
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={illerFilterChipStyles.row}>
           <Pressable
             onPress={() => setShowOnlyFavorites((prev) => !prev)}
@@ -350,6 +357,16 @@ const styles = StyleSheet.create({
     fontSize: typography.caption,
     fontWeight: '500',
     marginBottom: spacing.md,
+  },
+  sourceText: {
+    color: colors.mutedSoft,
+    fontSize: typography.micro,
+    marginBottom: spacing.md,
+    marginTop: -spacing.sm,
+  },
+  sourceTextStale: {
+    color: colors.toastWarning,
+    fontWeight: '600',
   },
   flatListBlock: {
     borderTopWidth: 1,

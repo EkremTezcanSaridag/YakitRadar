@@ -190,6 +190,7 @@ export default function AnaSayfa() {
             onNavigateToVehicle={() => navigation.navigate('Aracım')}
             onRefresh={refreshMarketSignal}
             refreshing={marketSignalRefreshing}
+            stale={data.sourceStale}
           />
         ) : null}
         {showExpectedChangeEmptyNote ? <ExpectedChangeEmptyNote /> : null}
@@ -231,6 +232,14 @@ export default function AnaSayfa() {
             <Text allowFontScaling style={styles.heroUnit}>₺/L</Text>
           </View>
           <Text allowFontScaling style={styles.heroFuelHint}>{fuelLabel}</Text>
+          <Text
+            allowFontScaling
+            style={[styles.sourceUpdatedText, data.sourceStale && styles.sourceUpdatedStale]}
+          >
+            {data.sourceUpdatedLabel
+              ? `Kaynak güncelleme: ${data.sourceUpdatedLabel}${data.sourceStale ? ' · Bayat veri' : ''}`
+              : 'Kaynak güncelleme: —'}
+          </Text>
           {locationMeta?.source === 'location' && locationMeta.city === heroCity?.city ? (
             <Pressable
               accessibilityRole="button"
@@ -280,7 +289,14 @@ export default function AnaSayfa() {
 
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionLabel}>Karşılaştırma</Text>
+            <View style={styles.sectionLabelRow}>
+              <Text style={styles.sectionLabel}>Karşılaştırma</Text>
+              {data.sourceStale ? (
+                <View style={styles.staleBadge}>
+                  <Text style={styles.staleBadgeText}>Bayat veri</Text>
+                </View>
+              ) : null}
+            </View>
             <Pressable
               accessibilityRole="button"
               onPress={() => setComparisonEditMode((value) => !value)}
@@ -468,6 +484,15 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     marginTop: spacing.xs,
   },
+  sourceUpdatedText: {
+    color: colors.mutedSoft,
+    fontSize: typography.caption,
+    marginTop: spacing.xs,
+  },
+  sourceUpdatedStale: {
+    color: colors.toastWarning,
+    fontWeight: '600',
+  },
   locationNoteRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -495,6 +520,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing.md,
+  },
+  sectionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flexShrink: 1,
+  },
+  staleBadge: {
+    borderColor: colors.toastWarning,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 1,
+  },
+  staleBadgeText: {
+    color: colors.toastWarning,
+    fontSize: typography.micro,
+    fontWeight: '700',
   },
   sectionLabel: {
     color: colors.mutedSoft,
