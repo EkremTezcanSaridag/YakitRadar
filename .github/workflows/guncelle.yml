@@ -42,6 +42,8 @@ jobs:
       - name: Zamanlanmış koşu — freshness gate uygulanacak mı?
         id: gate
         run: |
+          echo "gate_event_name=${{ github.event_name }}"
+          echo "gate_schedule=${{ github.event.schedule }}"
           if [ "${{ github.event_name }}" = "schedule" ] && [ "${{ github.event.schedule }}" != "10 5 * * *" ]; then
             echo "use_freshness_gate=true" >> "$GITHUB_OUTPUT"
           else
@@ -107,6 +109,7 @@ jobs:
         run: pip install -r backend/requirements.txt
 
       - name: Fiyatları güncelle
+        id: fiyat_guncelle
         if: steps.gate.outputs.use_freshness_gate != 'true' || steps.freshness.outputs.skip != 'true'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -117,6 +120,83 @@ jobs:
           TEST_NOTIFICATION_INSTALLATION_ID: ${{ inputs.test_installation_id }}
           PRICE_SANITY_OVERRIDE: ${{ inputs.price_sanity_override == true && '1' || '' }}
         run: python backend/fiyat_servisi.py
+
+      - name: Veri sağlık uyarısı için issue aç veya güncelle
+        if: ${{ always() && (steps.fiyat_guncelle.outputs.scrape_ok == 'false' || steps.fiyat_guncelle.outputs.sanity_blocked == 'true') }}
+        uses: actions/github-script@v7
+        env:
+          SCRAPE_OK: ${{ steps.fiyat_guncelle.outputs.scrape_ok }}
+          SANITY_BLOCKED: ${{ steps.fiyat_guncelle.outputs.sanity_blocked }}
+          SANITY_SUMMARY: ${{ steps.fiyat_guncelle.outputs.sanity_summary }}
+        with:
+          script: |
+            const title = 'Fiyat güncelleme sağlık uyarısı';
+            const reasons = [];
+            if (process.env.SCRAPE_OK === 'false') {
+              reasons.push('Scraper başarısız oldu; fiyatlar ve geçmiş yazılmadı, yedek veri kullanıldı.');
+            }
+            if (process.env.SANITY_BLOCKED === 'true') {
+              reasons.push(`Sanity guard bazı alanları blokladı: ${process.env.SANITY_SUMMARY || 'detay yok'}`);
+            }
+            if (reasons.length === 0) {
+              return;
+            }
+            const body = [
+              ...reasons.map((reason) => `- ${reason}`),
+              `- Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `- Time (UTC): ${new Date().toISOString()}`,
+            ].join('\n');
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 50,
+            });
+            const existing = issues.find((issue) => issue.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+            });
+
+      - name: Veri sağlık uyarısı issue'sunu kapat
+        if: ${{ steps.fiyat_guncelle.outcome == 'success' && steps.fiyat_guncelle.outputs.scrape_ok == 'true' && steps.fiyat_guncelle.outputs.sanity_blocked != 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Fiyat güncelleme sağlık uyarısı';
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 50,
+            });
+            const existing = issues.find((issue) => issue.title === title);
+            if (!existing) {
+              return;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              body: `Veri sağlığı normale döndü; koşu başarılı.\n\n- Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              state: 'closed',
+            });
 
   guncelle-schedule-alert:
     runs-on: ubuntu-latest
@@ -159,4 +239,39 @@ jobs:
               repo: context.repo.repo,
               title,
               body,
+            });
+
+  guncelle-schedule-recovery:
+    runs-on: ubuntu-latest
+    needs: guncelle
+    if: ${{ success() && github.event_name == 'schedule' }}
+    permissions:
+      issues: write
+    steps:
+      - name: Başarılı koşuda hata issue'sunu kapat
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Scheduled guncelle workflow failed';
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 20,
+            });
+            const existing = issues.find((issue) => issue.title === title);
+            if (!existing) {
+              return;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              body: `Recovered: scheduled run succeeded.\n\n- Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              state: 'closed',
             });
