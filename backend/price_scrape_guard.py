@@ -9,10 +9,20 @@ from typing import Any, Mapping, Sequence
 
 BULK_PRICE_DEVIATION_RATIO = 0.10
 BULK_PRICE_DEVIATION_MAJORITY = 0.50
+LPG_BULK_PRICE_DEVIATION_RATIO = 0.25
 MIN_SCRAPED_CITY_COUNT = 75
 AKARYAKIT_HEADER_SCAN_CHARS = 2500
 
 FUEL_FIELDS_FOR_SANITY = ("benzin_95", "motorin", "lpg")
+
+# LPG is more volatile than benzin/motorin (tax adjustments can move it >20% in
+# one step), so it uses a wider deviation window. Benzin/motorin keep the strict
+# 10% window; a suspicious field is withheld without blocking the other fields.
+FIELD_DEVIATION_RATIOS = {
+    "benzin_95": BULK_PRICE_DEVIATION_RATIO,
+    "motorin": BULK_PRICE_DEVIATION_RATIO,
+    "lpg": LPG_BULK_PRICE_DEVIATION_RATIO,
+}
 
 
 class PriceSanityError(RuntimeError):
@@ -78,35 +88,109 @@ def bulk_deviation_stats(
     }
 
 
+def evaluate_bulk_price_deviation(
+    previous_by_city: Mapping[str, Mapping[str, Any]],
+    new_by_city: Mapping[str, Mapping[str, Any]],
+    *,
+    env: Mapping[str, str] | None = None,
+    ratio_by_field: Mapping[str, float] | None = None,
+) -> dict[str, Any]:
+    """Build a per-fuel sanity report without raising.
+
+    A field is marked ``blocked`` when more than half of the comparable cities
+    move beyond that field's ratio window. Callers can then keep the previous
+    values for blocked fields instead of aborting the whole price update.
+    """
+    override = is_price_sanity_override_enabled(env)
+    ratios = ratio_by_field or FIELD_DEVIATION_RATIOS
+    fields: dict[str, dict[str, Any]] = {}
+    blocked_fields: list[str] = []
+
+    if previous_by_city and not override:
+        for field in FUEL_FIELDS_FOR_SANITY:
+            ratio_threshold = ratios.get(field, BULK_PRICE_DEVIATION_RATIO)
+            stats = bulk_deviation_stats(previous_by_city, new_by_city, field, ratio_threshold)
+            blocked = (
+                stats["comparable"] > 0
+                and stats["deviating_share"] > BULK_PRICE_DEVIATION_MAJORITY
+            )
+            fields[field] = {
+                **stats,
+                "ratio_threshold": ratio_threshold,
+                "blocked": blocked,
+            }
+            if blocked:
+                blocked_fields.append(field)
+
+    return {
+        "override": override,
+        "blocked_fields": blocked_fields,
+        "fields": fields,
+    }
+
+
+def price_sanity_warnings(report: Mapping[str, Any]) -> list[str]:
+    """Human readable warnings for blocked fields."""
+    warnings: list[str] = []
+    for field in report.get("blocked_fields", []):
+        stats = report.get("fields", {}).get(field, {})
+        warnings.append(
+            f"{field}: {stats.get('deviating', 0)}/{stats.get('comparable', 0)} il "
+            f"%{stats.get('ratio_threshold', BULK_PRICE_DEVIATION_RATIO) * 100:.0f} "
+            "esigini asti; eski deger korunuyor"
+        )
+    return warnings
+
+
+def apply_price_sanity_guard(
+    previous_by_city: Mapping[str, Mapping[str, Any]],
+    new_by_city: Mapping[str, Mapping[str, Any]],
+    *,
+    env: Mapping[str, str] | None = None,
+    ratio_by_field: Mapping[str, float] | None = None,
+) -> tuple[Mapping[str, Mapping[str, Any]], dict[str, Any]]:
+    """Return price data safe to write plus a per-fuel sanity report.
+
+    Blocked fields keep their previous values so a single volatile fuel (LPG)
+    cannot freeze benzin/motorin updates. New cities without a previous value
+    keep the freshly scraped value even when their field is blocked.
+    """
+    report = evaluate_bulk_price_deviation(
+        previous_by_city,
+        new_by_city,
+        env=env,
+        ratio_by_field=ratio_by_field,
+    )
+    blocked_fields = report["blocked_fields"]
+
+    if not blocked_fields:
+        return new_by_city, report
+
+    sanitized: dict[str, Mapping[str, Any]] = {}
+    for city, row in new_by_city.items():
+        fixed = dict(row)
+        previous_row = previous_by_city.get(city)
+        if previous_row:
+            for field in blocked_fields:
+                old_value = previous_row.get(field)
+                if old_value is not None:
+                    fixed[field] = old_value
+        sanitized[city] = fixed
+
+    return sanitized, report
+
+
 def assert_bulk_price_deviation_ok(
     previous_by_city: Mapping[str, Mapping[str, Any]],
     new_by_city: Mapping[str, Mapping[str, Any]],
     *,
     env: Mapping[str, str] | None = None,
 ) -> None:
-    if is_price_sanity_override_enabled(env):
-        return
-
-    if not previous_by_city:
-        return
-
-    failures: list[str] = []
-
-    for field in FUEL_FIELDS_FOR_SANITY:
-        stats = bulk_deviation_stats(previous_by_city, new_by_city, field)
-        if stats["comparable"] == 0:
-            continue
-
-        if stats["deviating_share"] > BULK_PRICE_DEVIATION_MAJORITY:
-            failures.append(
-                f"{field}: {stats['deviating']}/{stats['comparable']} cities exceed "
-                f"{BULK_PRICE_DEVIATION_RATIO * 100:.0f}% change"
-            )
-
-    if failures:
+    report = evaluate_bulk_price_deviation(previous_by_city, new_by_city, env=env)
+    if report["blocked_fields"]:
         raise PriceSanityError(
             "Bulk price deviation check failed; Supabase write aborted. "
-            + "; ".join(failures)
+            + "; ".join(price_sanity_warnings(report))
         )
 
 
@@ -115,15 +199,22 @@ def validate_gecmis_daily_deltas(
     motorin_degisim: float,
     lpg_degisim: float,
     max_daily_change: float,
+    *,
+    lpg_max_daily_change: float | None = None,
+    env: Mapping[str, str] | None = None,
 ) -> None:
-    for label, value in (
-        ("benzin_degisim", benzin_degisim),
-        ("motorin_degisim", motorin_degisim),
-        ("lpg_degisim", lpg_degisim),
+    if is_price_sanity_override_enabled(env):
+        return
+
+    lpg_limit = max_daily_change if lpg_max_daily_change is None else lpg_max_daily_change
+    for label, value, limit in (
+        ("benzin_degisim", benzin_degisim, max_daily_change),
+        ("motorin_degisim", motorin_degisim, max_daily_change),
+        ("lpg_degisim", lpg_degisim, lpg_limit),
     ):
-        if abs(value) > max_daily_change:
+        if abs(value) > limit:
             raise PriceSanityError(
-                f"Gecmis {label} change {value} exceeds limit {max_daily_change}; record rejected"
+                f"Gecmis {label} change {value} exceeds limit {limit}; record rejected"
             )
 
 

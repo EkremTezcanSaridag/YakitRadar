@@ -25,7 +25,7 @@ on:
         default: ''
         type: string
       price_sanity_override:
-        description: Bu koşuda toplu fiyat sapma kontrolünü atla (yalnızca elle tetikleme; zamanlanmış koşular etkilenmez)
+        description: Bu koşuda toplu fiyat sapma ve günlük değişim kontrollerini atla (yalnızca elle tetikleme; zamanlanmış koşular etkilenmez)
         required: false
         default: false
         type: boolean

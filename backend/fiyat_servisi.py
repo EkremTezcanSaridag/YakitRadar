@@ -25,11 +25,11 @@ from push_token_maintenance import apply_delivery_errors, disable_stale_tokens
 from price_memory_validation import sanitize_price_memory_items
 from price_scrape_guard import (
     MIN_SCRAPED_CITY_COUNT,
-    PriceSanityError,
     PriceSourceValidationError,
-    assert_bulk_price_deviation_ok,
+    apply_price_sanity_guard,
     assert_scraped_city_count,
     log_scrape_failure_summary,
+    price_sanity_warnings,
     validate_aytemiz_akaryakit_page,
     validate_aytemiz_lpg_page,
     validate_gecmis_daily_deltas,
@@ -41,6 +41,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
 NOTIFICATION_MIN_CHANGE = float(os.getenv("NOTIFICATION_MIN_CHANGE", "0.01"))
 MAX_REASONABLE_PRICE_CHANGE = float(os.getenv("MAX_REASONABLE_PRICE_CHANGE", "8.0"))
+MAX_REASONABLE_LPG_CHANGE = float(os.getenv("MAX_REASONABLE_LPG_CHANGE", "12.0"))
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 FUEL_PRICES_URL = "https://www.aytemiz.com.tr/akaryakit-fiyatlari/benzin-fiyatlari"
 LPG_PRICES_URL = "https://www.aytemiz.com.tr/akaryakit-fiyatlari/lpg-fiyatlari"
@@ -64,6 +65,22 @@ FUEL_FIELDS = {
     "motorin": "Motorin",
     "lpg": "LPG",
 }
+
+
+def max_reasonable_change_for(field):
+    return MAX_REASONABLE_LPG_CHANGE if field == "lpg" else MAX_REASONABLE_PRICE_CHANGE
+
+
+def github_step_summary(markdown):
+    path = os.getenv("GITHUB_STEP_SUMMARY")
+    if not path:
+        return
+
+    try:
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(markdown.rstrip() + "\n")
+    except OSError as hata:
+        print(f"Adim ozeti yazilamadi: {hata}")
 
 
 def fiyat_parse(deger):
@@ -287,7 +304,7 @@ def fiyat_degisimlerini_hesapla(onceki, yeni):
             if abs(fark) < NOTIFICATION_MIN_CHANGE:
                 continue
 
-            if abs(fark) > MAX_REASONABLE_PRICE_CHANGE:
+            if abs(fark) > max_reasonable_change_for(alan):
                 print(
                     f"Olagan disi fiyat farki bildirimden atlandi: {il_adi} {yakit_adi} "
                     f"{eski_fiyat:.2f} -> {yeni_fiyat:.2f}"
@@ -412,6 +429,7 @@ def gecmis_kaydet(veri):
             float(motorin_degisim),
             float(lpg_degisim),
             MAX_REASONABLE_PRICE_CHANGE,
+            lpg_max_daily_change=MAX_REASONABLE_LPG_CHANGE,
         )
 
     kayit_verisi = {
@@ -1223,6 +1241,25 @@ if __name__ == "__main__":
         else:
             raise
 
+    sanity_report = None
+    if scraping_basarili:
+        veri, sanity_report = apply_price_sanity_guard(onceki_fiyatlar, veri)
+        blocked_fields = sanity_report["blocked_fields"]
+
+        if blocked_fields:
+            warnings = price_sanity_warnings(sanity_report)
+            for warning in warnings:
+                print(f"UYARI: {warning}")
+                print(f"::warning::{warning}")
+            github_step_summary(
+                "## Fiyat sanity uyarisi\n\n"
+                + "\n".join(f"- {warning}" for warning in warnings)
+            )
+
+            if len(blocked_fields) == len(FUEL_FIELDS):
+                print("HATA: Tum yakit alanlari anormal sapma gosterdi; yazma iptal edildi.")
+                raise SystemExit(1)
+
     degisimler = fiyat_degisimlerini_hesapla(onceki_fiyatlar, veri) if scraping_basarili else []
     klasor = os.path.dirname(os.path.abspath(__file__))
 
@@ -1232,12 +1269,6 @@ if __name__ == "__main__":
 
         for il in sorted(veri.keys()):
             print(f"  {il}: {veri[il]['benzin_95']}")
-
-        try:
-            assert_bulk_price_deviation_ok(onceki_fiyatlar, veri)
-        except PriceSanityError as hata:
-            print(hata)
-            raise SystemExit(1) from hata
 
         fiyat_degisim_gecmisi_kaydet(degisimler)
         supabase_yaz(veri)
