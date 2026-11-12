@@ -48,12 +48,14 @@
 
 ## Sprint 3 — P1: Bildirim doğruluğu
 
-- [ ] LPG büyük değişimlerinde bildirim üret (yakıt bazlı eşik).
-- [ ] Aynı gün/aynı fiyat için tekrar bildirim engelini test et.
-- [ ] Sessiz saat kuyruğu ve 08:00 flush akışını uçtan uca test et.
-- [ ] `MAX_REASONABLE_PRICE_CHANGE` nedeniyle sessizce düşen bildirimleri logla.
+- [x] LPG büyük değişimlerinde bildirim üret (yakıt bazlı eşik: benzin/motorin 8 TL, LPG 12 TL).
+- [x] Aynı gün/aynı fiyat için tekrar bildirim engelini test et (kuyruk + taze scrape aynı değişimi tek bildirime indiriyor; ikinci koşu tekrar göndermiyor).
+- [x] Sessiz saat kuyruğu ve 08:00 flush akışını uçtan uca test et (kuyruğa yazma → sabah tek gönderim → gönderildi işaretleme; hatalı gönderimde kuyruk korunuyor).
+- [x] `MAX_REASONABLE_PRICE_CHANGE` nedeniyle sessizce düşen bildirimleri logla (`::warning::` + limit ve toplam sayaç).
 
 **Kabul kriteri:** LPG 9,3 TL artışında tek bildirim gidiyor; mükerrer bildirim yok.
+
+**Ek (test sağlığı):** `test_market_signal_storage` yanlış hedefi (`market_signals.build_market_signal`) mock'luyordu; gerçek ağ çağrısı yapıp suite'i dakikalarca bekletiyordu. `fiyat_servisi.build_market_signal` olarak düzeltildi — tam suite 192 sn'den ~6 sn'ye indi.
 
 ---
 
