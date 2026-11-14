@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { colors } from '../theme'
+import { isDuplicateDriveCalculation } from '../utils/expenseRecordDedupe'
 
 const storageKey = '@yakit-radar/vehicle-profile'
 const expenseHistoryStorageKey = '@yakit-radar/vehicle-expense-history'
@@ -57,6 +58,11 @@ export async function addVehicleExpenseRecord(record) {
     createdAt: record.receiptDate ? new Date(record.receiptDate).toISOString() : new Date().toISOString(),
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   }
+
+  if (history.some((existing) => isDuplicateDriveCalculation(nextRecord, existing))) {
+    return history
+  }
+
   const nextHistory = [nextRecord, ...history].slice(0, maxExpenseHistoryRecords)
 
   await AsyncStorage.setItem(expenseHistoryStorageKey, JSON.stringify(nextHistory))

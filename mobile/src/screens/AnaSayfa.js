@@ -18,7 +18,7 @@ import {
   SkeletonRows,
 } from '../components/SkeletonLoader'
 import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
-import { colors, radii, spacing, typography } from '../theme'
+import { colors, layout, radii, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { computeNationalAverages, getRealPriceRows } from '../services/fuelData'
 import { useNetworkStatus } from '../context/NetworkContext'
@@ -421,9 +421,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   content: {
+    alignSelf: 'center',
+    maxWidth: layout.contentMaxWidth,
     paddingHorizontal: spacing.screen,
     paddingTop: spacing.sm,
     paddingBottom: 96,
+    width: '100%',
   },
   emptyDataBlock: {
     alignItems: 'flex-start',

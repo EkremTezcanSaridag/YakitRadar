@@ -10,7 +10,7 @@ import ScreenHeader from '../components/ScreenHeader'
 import { SkeletonGroup, SkeletonRows } from '../components/SkeletonLoader'
 import { useToast } from '../components/ToastProvider'
 import { illerFilterChipStyles } from '../styles/illerFilterChipStyles'
-import { colors, shadows, spacing, typography } from '../theme'
+import { colors, layout, shadows, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { computeNationalAverages, fuelTabs, getRealPriceRows } from '../services/fuelData'
 import { useNetworkStatus } from '../context/NetworkContext'
@@ -364,10 +364,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   content: {
+    alignSelf: 'center',
     backgroundColor: colors.bg,
+    maxWidth: layout.contentMaxWidth,
     paddingHorizontal: spacing.screen,
     paddingTop: spacing.sm,
     paddingBottom: 96,
+    width: '100%',
   },
   leadText: {
     color: colors.mutedSoft,

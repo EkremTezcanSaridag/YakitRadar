@@ -11,7 +11,7 @@ import {
   FUEL_PRICE_LEGAL_SHORT,
   FUEL_PRICE_SOURCE_LINE,
 } from '../constants/legalCopy'
-import { colors, spacing, typography } from '../theme'
+import { colors, layout, spacing, typography } from '../theme'
 
 export default function Hakkinda({ navigation }) {
   const version = Constants.expoConfig?.version ?? '—'
@@ -78,9 +78,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
+    alignSelf: 'center',
+    maxWidth: layout.contentMaxWidth,
     paddingBottom: spacing.xl,
     paddingHorizontal: spacing.screen,
     paddingTop: spacing.sm,
+    width: '100%',
   },
   topRow: {
     alignItems: 'center',

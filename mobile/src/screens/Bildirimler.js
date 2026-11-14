@@ -5,11 +5,13 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { getPrivacyPolicyUrl } from '../config/publicLinks'
+import EmptyState from '../components/EmptyState'
 import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
 import NotificationSettingsRow from '../components/NotificationSettingsRow'
 import ScreenHeader from '../components/ScreenHeader'
+import { useToast } from '../components/ToastProvider'
 import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
-import { colors, fuelAlertIconStyle, shadows, switchThumbColor, switchTrackColors } from '../theme'
+import { colors, fuelAlertIconStyle, layout, shadows, switchThumbColor, switchTrackColors } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { fuelTabs } from '../services/fuelData'
 import {
@@ -97,6 +99,7 @@ function formatToken(token) {
 
 export default function Bildirimler() {
   const navigation = useNavigation()
+  const toast = useToast()
   const { data } = useFuelData()
   const [settings, setSettings] = useState(defaultNotificationSettings)
   const [customAlerts, setCustomAlerts] = useState(defaultAlerts)
@@ -300,11 +303,11 @@ export default function Bildirimler() {
 
     try {
       await requestRemoteTestNotification()
-      Alert.alert('Backend testi sırada', 'GitHub Action tamamlandığında gerçek push bildirimi bu cihaza gönderilecek.')
+      toast.info('Backend testi sırada. GitHub Action tamamlanınca push bildirimi gelecek.')
     } catch (error) {
       try {
         await sendTestNotification()
-        Alert.alert('Test Bildirimi Gönderildi', 'Yerel bildirim kanalı test edildi. Bildirim çubuğunuzu kontrol edin.')
+        toast.info('Test bildirimi gönderildi. Bildirim çubuğunu kontrol et.')
       } catch (localError) {
         Alert.alert('Bildirim gönderilemedi', localError?.message ?? error?.message ?? 'Beklenmeyen bir sorun oluştu.')
       }
@@ -326,7 +329,7 @@ export default function Bildirimler() {
 
     setCustomAlerts(updatedAlerts)
     setNewAlertModalOpen(false)
-    Alert.alert('Fiyat Alarmı Eklendi', `${alertCity} ${selectedFuelMeta.title} için özel alarmınız aktif tutuldu.`)
+    toast.success(`${alertCity} ${selectedFuelMeta.title} alarmı eklendi.`)
   }
 
   async function handleToggleAlert(id) {
@@ -343,6 +346,7 @@ export default function Bildirimler() {
         onPress: async () => {
           const updated = await deleteCustomAlert(id)
           setCustomAlerts(updated)
+          toast.success('Alarm silindi.')
         },
       },
     ])
@@ -405,6 +409,16 @@ export default function Bildirimler() {
         <Text style={styles.sectionHeading}>Fiyat alarmları</Text>
         <View style={styles.panel}>
           <Text style={styles.panelIntro}>Hedef eşiklere ulaşıldığında anında bildirim alırsınız.</Text>
+
+          {customAlerts.length === 0 ? (
+            <EmptyState
+              compact
+              icon="bell-plus-outline"
+              message="Şehir ve yakıt seçerek hedef fiyat alarmı oluştur."
+              title="Henüz fiyat alarmın yok"
+              variant="empty"
+            />
+          ) : null}
 
           {customAlerts.map((alertItem) => {
             const condMeta = alertConditions.find((c) => c.id === alertItem.condition) ?? alertConditions[0]
@@ -644,10 +658,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   content: {
+    alignSelf: 'center',
     backgroundColor: colors.bg,
+    maxWidth: layout.contentMaxWidth,
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 96,
+    width: '100%',
   },
   header: {
     alignItems: 'center',

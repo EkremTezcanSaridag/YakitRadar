@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import CityPickerModal from '../components/CityPickerModal'
-import { colors, radii, spacing, typography } from '../theme'
+import { colors, layout, radii, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { markPrimaryCityConfigured } from '../services/favoriteCities'
 import { resolveHomeCityFromDeviceLocation } from '../services/locationCity'
@@ -99,10 +99,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   content: {
+    alignSelf: 'center',
     flex: 1,
     justifyContent: 'center',
+    maxWidth: layout.contentMaxWidth,
     paddingHorizontal: spacing.screen,
     paddingBottom: spacing.xxl,
+    width: '100%',
   },
   iconWrap: {
     width: 72,

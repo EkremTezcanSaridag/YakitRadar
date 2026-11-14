@@ -16,10 +16,11 @@ import {
 import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
 import ScreenHeader from '../components/ScreenHeader'
 import { SkeletonBlock, SkeletonCard, SkeletonGroup } from '../components/SkeletonLoader'
+import { useToast } from '../components/ToastProvider'
 import { useDeferredSkeleton } from '../hooks/useDeferredSkeleton'
 import { useFuelData } from '../hooks/useFuelData'
 import { shouldShowFuelDataSkeleton } from '../services/fuelDataViewState'
-import { colors, shadows, spacing, typography } from '../theme'
+import { colors, layout, shadows, spacing, typography } from '../theme'
 import { formatCurrencyTr, formatDecimalTr } from '../utils/priceFormat'
 
 const fuelIonicon = {
@@ -77,6 +78,7 @@ function ResultRow({ icon, label, value }) {
 
 export default function Aracim() {
   const { data, loading } = useFuelData()
+  const toast = useToast()
   const [profile, setProfile] = useState(defaultVehicleProfile)
   const [cityPickerOpen, setCityPickerOpen] = useState(false)
   const [resultOpen, setResultOpen] = useState(false)
@@ -226,7 +228,7 @@ export default function Aracim() {
     setReceiptAmount('')
     setReceiptLiters('')
     setReceiptNotes('')
-    Alert.alert('Fiş Kaydedildi', `${receiptStation} yakıt alımı gider geçmişinize eklendi.`)
+    toast.success(`${receiptStation} · ${formatCurrencyTr(amt)} gider geçmişine eklendi.`)
   }
 
   async function handleDeleteRecord(id) {
@@ -238,6 +240,7 @@ export default function Aracim() {
         onPress: async () => {
           const nextHistory = await deleteVehicleExpenseRecord(id)
           setExpenseHistory(nextHistory)
+          toast.success('Gider kaydı silindi.')
         },
       },
     ])
@@ -572,7 +575,7 @@ export default function Aracim() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 96 },
+  content: { alignSelf: 'center', maxWidth: layout.contentMaxWidth, width: '100%', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 96 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerMark: { width: 38, height: 38, borderRadius: 8, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   headerText: { flex: 1, marginLeft: 10 }, brand: { color: colors.text, fontSize: 20, fontWeight: '800' }, subtitle: { color: colors.muted, fontSize: 12, marginTop: 2 },
