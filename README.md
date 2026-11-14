@@ -151,10 +151,13 @@ Supabase SQL dosyaları (`backend/supabase_*.sql`) operatör tarafından SQL Edi
 | Fiyat guard | `pytest tests/test_price_scrape_guard.py` |
 | Bildirim hattı | `pytest tests/test_notification_pipeline.py` |
 | Veri sağlığı çıktıları | `pytest tests/test_data_health_outputs.py` |
+| Mobil (tümü) | `cd mobile && npm test` |
 | Mobil tazelik | `cd mobile && npm run test:fuel-data-freshness` |
 | Mobil offline fuel | `cd mobile && npm run test:fuel-data-offline` |
 | İller filtre çipleri | `cd mobile && npm run test:iller-filter-chip` |
 | Gizlilik bağlantısı | `cd mobile && npm run test:privacy-links` |
+
+`npm test`, `mobile/scripts/*.test.mjs` altındaki tüm test dosyalarını sırayla çalıştırır; CI de aynı komutu kullanır. Web ekran görüntüsü senaryoları için `mobile/e2e/expected-change-screenshots.mjs` (Playwright gerekir, `WEB_BASE_URL` ve `SCREENSHOT_DIR` ortam değişkenleriyle yapılandırılır) kullanılabilir.
 
 CI: `backend-tests.yml`, `mobile-check.yml` (script testleri + Android bundle export).
 

@@ -9,7 +9,7 @@
 >
 > | Bulgu (Ekim 2026) | Güncel durum (Kasım 2026) |
 > |---|---|
-> | "Hiç otomatik test yok" | 25 backend test dosyası (242 test) + 17 mobil script testi; CI'da çalışıyor |
+> | "Hiç otomatik test yok" | 25 backend test dosyası (242 test) + 19 mobil script testi (`npm test`); CI'da çalışıyor |
 > | CI/CD pipeline yok | `backend-tests.yml`, `mobile-check.yml`, `guncelle.yml`, `eas-preview-build.yml` |
 > | Deployment eksik | GitHub Actions ile saatlik fiyat güncellemesi, EAS preview/production profilleri |
 > | Fiyat hattı tek yakıttan kilitleniyor | Sprint 1: yakıt bazlı sapma guard'ı ve kısmi blok |

@@ -17,23 +17,13 @@ import { useNetworkStatus } from '../context/NetworkContext'
 import { useDeferredSkeleton } from '../hooks/useDeferredSkeleton'
 import { resolveFuelEmptyState, shouldShowFuelDataSkeleton } from '../services/fuelDataViewState'
 import { formatCurrencyTr, formatSignedCurrencyTr } from '../utils/priceFormat'
+import { matchesSearch } from '../utils/turkishSearch'
 import { defaultFavoriteCities, loadFavoriteCities, setPrimaryCityManual, toggleFavoriteCity } from '../services/favoriteCities'
 
 const fuelIonicon = {
   'gas-station': 'car-sport-outline',
   'truck-outline': 'bus-outline',
   fire: 'flame-outline',
-}
-
-function normalizeSearch(value) {
-  return value
-    .toLocaleLowerCase('tr-TR')
-    .replace(/[çÇ]/g, 'c')
-    .replace(/[ğĞ]/g, 'g')
-    .replace(/[ıIİi]/g, 'i')
-    .replace(/[öÖ]/g, 'o')
-    .replace(/[şŞ]/g, 's')
-    .replace(/[üÜ]/g, 'u')
 }
 
 export default function Iller() {
@@ -78,7 +68,6 @@ export default function Iller() {
   }
 
   const cities = useMemo(() => {
-    const normalizedQuery = normalizeSearch(searchQuery.trim())
     const realPrices = getRealPriceRows(data.prices)
     const averages = computeNationalAverages(realPrices)
     const nationalAvg = averages[selectedFuelKey]
@@ -86,8 +75,7 @@ export default function Iller() {
     return realPrices
       .filter((city) => {
         if (showOnlyFavorites && !favoriteCities.includes(city.city)) return false
-        if (normalizedQuery && !normalizeSearch(city.city).includes(normalizedQuery)) return false
-        return true
+        return matchesSearch(searchQuery, city.city)
       })
       .sort((first, second) => first[selectedFuelKey] - second[selectedFuelKey])
       .map((city) => {

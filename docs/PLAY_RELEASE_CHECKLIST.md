@@ -167,7 +167,7 @@ Alternatif: herhangi bir statik hosting URL'si kullanılabilir; `docs/index.html
 
 - [ ] `npm run release:preflight -- --production` → 0 hata.
 - [ ] `cd backend && pytest -q` → tüm testler yeşil.
-- [ ] `cd mobile && npm run test:fuel-data-freshness && npm run test:privacy-links && npm run test:notification-permission-prompt` → yeşil.
+- [ ] `cd mobile && npm test` → tüm script testleri yeşil.
 - [ ] Play'den kurulan sürümde: fiyatlar geliyor, bayat veri banner'ı doğru, **ilk açılışta bildirim gerekçe ekranı bir kez çıkıyor** (kabul → sistem izni, "Şimdi değil" → tekrar sormuyor), reklamlar UMP sonrası yükleniyor.
 - [ ] Gizlilik URL'si ve Data safety formu uygulama davranışıyla tutarlı.
 - [ ] `docs/SPRINT_PLAN.md` Sprint 5 PR'ı merge edildi.

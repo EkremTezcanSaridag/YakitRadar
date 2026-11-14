@@ -9,9 +9,9 @@ Bu plan, davranış değiştirmeden bakım maliyetini düşürmeyi hedefler. Her
 | `backend/market_signals.py` | 1542 | Yüksek (ağ + analiz + karar aynı dosyada) | P1 |
 | `mobile/src/services/fuelData.js` | 1527 | Yüksek (tek modülde fetch + normalize + görünüm) | P1 |
 | `backend/fiyat_servisi.py` | 1347 | Yüksek (scrape + yazma + bildirim) | P1 |
-| `mobile/src/screens/Bildirimler.js` | 1148 | Orta (tek ekran, çok state) | P2 |
-| `mobile/src/screens/Iller.js` | 898 | Orta | P2 |
-| `mobile/src/screens/Aracim.js` | 625 | Düşük | P3 |
+| `mobile/src/screens/Bildirimler.js` | 1201 | Orta (tek ekran, çok state) | P2 |
+| `mobile/src/screens/Iller.js` | 906 | Orta | P2 |
+| `mobile/src/screens/Aracim.js` | 634 | Düşük | P3 |
 | `backend/groq_market_analysis.py` | 1347 | Orta | P2 |
 
 ---
@@ -137,6 +137,8 @@ backend/pipeline/
 - `services/cityList.js` — arama, favori filtresi, ortalama farkı hesabı.
 
 **Test:** Arama normalizasyonu (Türkçe İ/ı), favori filtresi, boş sonuç.
+
+> **Durum (14 Kasım 2026):** Arama normalizasyonu `mobile/src/utils/turkishSearch.js` (`normalizeSearch`, `matchesSearch`) olarak çıkarıldı; `Iller.js`, `CityPickerModal.js` ve `Aracim.js` aynı yardımcıyı kullanıyor. `scripts/turkish-search.test.mjs` Türkçe İ/ı, ç/ş/ğ/ö/ü ve boş sorgu davranışını kapsıyor. Liste satırı ve filtre çipleri bileşenlerine ayırma henüz yapılmadı.
 
 ---
 

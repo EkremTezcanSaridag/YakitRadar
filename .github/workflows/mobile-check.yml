@@ -29,38 +29,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Supabase URL normalizer tests
-        run: npm run test:normalize-supabase-url
-
-      - name: Expected change box tests
-        run: npm run test:expected-change
-
-      - name: Chart nearest point tests
-        run: npm run test:chart-nearest
-
-      - name: Tab pill layout tests
-        run: npm run test:tab-pill-layout
-
-      - name: Fuel data offline tests
-        run: npm run test:fuel-data-offline
-
-      - name: Fuel data freshness tests
-        run: npm run test:fuel-data-freshness
-
-      - name: Privacy links tests
-        run: npm run test:privacy-links
-
-      - name: Notification permission prompt tests
-        run: npm run test:notification-permission-prompt
-
-      - name: Error handling tests
-        run: npm run test:error-handling
-
-      - name: Ad interstitial policy tests
-        run: npm run test:ad-interstitial-policy
-
-      - name: AdMob app config tests
-        run: npm run test:admob-app-config
+      - name: Unit tests
+        run: npm test
 
       - name: Export Android bundle
         env:

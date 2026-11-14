@@ -1,9 +1,20 @@
 import { chromium } from 'playwright'
 import { mkdir } from 'node:fs/promises'
+import { resolve } from 'node:path'
 
 const BASE = process.env.WEB_BASE_URL ?? 'http://127.0.0.1:4178'
-const OUT_DIR = '/opt/cursor/artifacts/screenshots'
-const SUPABASE_HOST = 'phmmqamvornjwtcrbioh.supabase.co'
+const OUT_DIR = resolve(process.env.SCREENSHOT_DIR ?? 'e2e/screenshots')
+
+function nowStamp() {
+  const now = new Date()
+  const pad = (value) => String(value).padStart(2, '0')
+  return {
+    date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+    dateTime: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
+  }
+}
+
+const stamp = nowStamp()
 
 const priceRows = [
   {
@@ -11,21 +22,21 @@ const priceRows = [
     benzin_95: 92.01,
     motorin: 44.5,
     lpg: 28.2,
-    guncelleme: '2026-10-09 20:30',
+    guncelleme: stamp.dateTime,
   },
   {
     il: 'Ankara',
     benzin_95: 91.5,
     motorin: 44.1,
     lpg: 27.9,
-    guncelleme: '2026-10-09 20:30',
+    guncelleme: stamp.dateTime,
   },
 ]
 
 function marketSignalRow(signals) {
   const now = new Date().toISOString()
   return {
-    signal_date: '2026-10-09',
+    signal_date: stamp.date,
     direction: 'increase',
     confidence: 'high',
     score: 82,
@@ -98,7 +109,7 @@ const scenarios = [
 ]
 
 async function installRoutes(page, signals) {
-  await page.route(`**/${SUPABASE_HOST}/rest/v1/fiyatlar**`, async (route) => {
+  await page.route('**/rest/v1/fiyatlar**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -106,7 +117,7 @@ async function installRoutes(page, signals) {
     })
   })
 
-  await page.route(`**/${SUPABASE_HOST}/rest/v1/gecmis**`, async (route) => {
+  await page.route('**/rest/v1/gecmis**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -114,7 +125,7 @@ async function installRoutes(page, signals) {
     })
   })
 
-  await page.route(`**/${SUPABASE_HOST}/rest/v1/market_signals**`, async (route) => {
+  await page.route('**/rest/v1/market_signals**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -122,7 +133,7 @@ async function installRoutes(page, signals) {
     })
   })
 
-  await page.route(`**/${SUPABASE_HOST}/rest/v1/price_change_events**`, async (route) => {
+  await page.route('**/rest/v1/price_change_events**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',

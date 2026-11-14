@@ -22,6 +22,7 @@ import { useFuelData } from '../hooks/useFuelData'
 import { shouldShowFuelDataSkeleton } from '../services/fuelDataViewState'
 import { colors, layout, shadows, spacing, typography } from '../theme'
 import { formatCurrencyTr, formatDecimalTr } from '../utils/priceFormat'
+import { normalizeSearch } from '../utils/turkishSearch'
 
 const fuelIonicon = {
   'gas-station': 'car-sport-outline',
@@ -128,9 +129,9 @@ export default function Aracim() {
     }
   }, [distanceKm, price, spentAmount])
   const filteredCities = useMemo(() => {
-    const query = cityQuery.trim().toLocaleLowerCase('tr-TR')
+    const query = normalizeSearch(cityQuery)
     return query
-      ? realPrices.filter((item) => item.city.toLocaleLowerCase('tr-TR').includes(query))
+      ? realPrices.filter((item) => normalizeSearch(item.city).includes(query))
       : realPrices
   }, [cityQuery, realPrices])
   const monthlyExpenses = useMemo(() => buildMonthlyExpenses(expenseHistory), [expenseHistory])
