@@ -18,6 +18,7 @@
     "test:fuel-data-offline": "node scripts/fuel-data-offline.test.mjs",
     "test:fuel-data-freshness": "node scripts/fuel-data-freshness.test.mjs",
     "test:privacy-links": "node scripts/privacy-links.test.mjs",
+    "release:preflight": "node scripts/release-preflight.mjs",
     "test:iller-filter-chip": "node scripts/iller-filter-chip.test.mjs",
     "test:legal-copy": "node scripts/legal-copy.test.mjs",
     "test:error-handling": "node scripts/error-handling.test.mjs",

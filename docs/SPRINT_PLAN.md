@@ -83,6 +83,34 @@
 
 ---
 
+## Sprint 6 — P0: Play Store yayını (operatör ağırlıklı)
+
+**Repo tarafı (tamamlandı):**
+
+- [x] Yayın adımları: [`PLAY_RELEASE_CHECKLIST.md`](PLAY_RELEASE_CHECKLIST.md).
+- [x] Ön kontrol aracı: `cd mobile && npm run release:preflight -- --production`.
+- [x] Gizlilik sayfası (`docs/index.html`), Data safety özeti ve uygulama içi bağlantı.
+- [x] `SECURITY.md`: APK doğrulama + antivirüs itibar uyarısı rehberi.
+
+**Operatör adımları:**
+
+- [ ] Sprint 5 PR'ını merge et (dokümantasyon; kod riski yok).
+- [ ] Play Developer hesabı + kimlik doğrulama + ödeme profili.
+- [ ] EAS production ortam değişkenleri: Supabase URL/anon, gizlilik URL'si, `ADMOB_*`.
+- [ ] AdMob uygulama + interstitial birimleri + UMP/GDPR mesajı.
+- [ ] Firebase API anahtarı kısıtı/rotasyonu.
+- [ ] GitHub Pages'i `main /docs` üzerinden aç.
+- [ ] Mağaza görselleri: 512×512 ikon, 1024×500 grafik, 2–8 telefon ekran görüntüsü.
+- [ ] Play Console formları: Data safety, reklam, içerik derecelendirmesi, hedef kitle.
+- [ ] Production AAB → internal testing → kapalı test (12 tester / 14 gün) → staged rollout.
+- [ ] Yayın sonrası Android vitals ve fiyat hattı izlemesi.
+
+**Kabul kriteri:** Play'den kurulan sürümde fiyatlar akıyor, bayat veri banner'ı doğru, bildirim ve reklam akışı çalışıyor; crash/ANR oranı kabul edilebilir.
+
+**Üretim durumu (14 Kasım 2026):** Sprint 1–4 merge sonrası planlı fiyat koşuları 12 Kasım 22:18'den beri üst üste yeşil.
+
+---
+
 ## Çalışma kuralları
 
 - Her sprint kendi branch'inde: `fix/sprint-N-...`

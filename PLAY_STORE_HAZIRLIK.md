@@ -2,6 +2,8 @@
 
 Bu belge mağaza gönderimi öncesi kontrol listesi ve ilk adımları özetler. Ödeme, mağaza gönderimi ve canlı veritabanı dağıtımı bu aşamada yapılmaz.
 
+> **Güncel yayın adımları:** [`docs/PLAY_RELEASE_CHECKLIST.md`](docs/PLAY_RELEASE_CHECKLIST.md) — EAS ortam değişkenleri, AdMob, Data safety, build ve test track'leri dahil.
+
 ## (a) Veri kaynağı ve yasal risk
 
 ### Mevcut durum
