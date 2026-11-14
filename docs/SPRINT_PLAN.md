@@ -111,6 +111,22 @@
 
 ---
 
+## Sprint 7 — P1: İlk açılış bildirim izni (repo tarafı tamamlandı)
+
+**Amaç:** Kullanıcıdan uygulamayı ilk kez kullandığında, neden bildirim istendiğini açıklayan bir gerekçe ekranıyla izin istemek; reddederse bir daha sormamak.
+
+- [x] Onboarding sonrası ilk ana ekran açılışında `NotificationPermissionPrompt` gerekçe modalı.
+- [x] "Bildirimleri aç" → kanal kurulumu + `requestNotificationAccess`; "Şimdi değil" → izin istenmez.
+- [x] Gösterildi bayrağı AsyncStorage'da (`@yakit-radar/notification-permission-prompt-seen`); bir kez gösterilir.
+- [x] İzin zaten açıksa veya `canAskAgain === false` ise modal gösterilmez.
+- [x] Web build'de native izin modalı gösterilmez.
+- [x] Bildirim ayar satırlarındaki Switch'lere erişilebilirlik etiketi; kalıcı red durumunda "Ayarları aç" kısayolu.
+- [x] `scripts/notification-permission-prompt.test.mjs` ve `mobile-check.yml` adımı.
+
+**Kabul kriteri:** Yeni kurulumda gerekçe ekranı bir kez çıkıyor; kabul edilince izin + push kaydı oluşuyor; reddedilince uygulama çalışmaya devam ediyor ve tekrar sorulmuyor.
+
+---
+
 ## Çalışma kuralları
 
 - Her sprint kendi branch'inde: `fix/sprint-N-...`

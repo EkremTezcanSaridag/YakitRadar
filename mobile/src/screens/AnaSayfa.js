@@ -324,6 +324,7 @@ export default function AnaSayfa() {
                       {!isPrimary ? (
                         <Pressable
                           accessibilityLabel={`${row.city} kaldır`}
+                          accessibilityRole="button"
                           hitSlop={8}
                           onPress={() => handleRemoveComparisonCity(row.city)}
                           style={({ pressed }) => [styles.editIconBtn, pressed && styles.pressed]}
@@ -336,6 +337,8 @@ export default function AnaSayfa() {
                       <View style={styles.reorderCol}>
                         <Pressable
                           accessibilityLabel={`${row.city} yukarı`}
+                          accessibilityRole="button"
+                          accessibilityState={{ disabled: !canMoveUp }}
                           disabled={!canMoveUp}
                           hitSlop={6}
                           onPress={() => handleMoveComparisonCity(row.city, 'up')}
@@ -349,6 +352,8 @@ export default function AnaSayfa() {
                         </Pressable>
                         <Pressable
                           accessibilityLabel={`${row.city} aşağı`}
+                          accessibilityRole="button"
+                          accessibilityState={{ disabled: !canMoveDown }}
                           disabled={!canMoveDown}
                           hitSlop={6}
                           onPress={() => handleMoveComparisonCity(row.city, 'down')}

@@ -22,6 +22,8 @@ export default function NotificationSettingsRow({
       {typeof value === 'boolean' && onValueChange ? (
         <View style={styles.switchSlot}>
           <Switch
+            accessibilityHint={description}
+            accessibilityLabel={title}
             disabled={disabled}
             ios_backgroundColor={colors.switchTrackOff}
             onValueChange={onValueChange}

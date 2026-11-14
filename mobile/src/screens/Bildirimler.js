@@ -31,6 +31,7 @@ import {
   loadCustomAlerts,
   toggleCustomAlert,
 } from '../services/customAlerts'
+import { loadFavoriteCities } from '../services/favoriteCities'
 import { loadShowMarketNote, saveShowMarketNote } from '../services/uiPreferences'
 import { logError } from '../utils/logger'
 
@@ -114,6 +115,7 @@ export default function Bildirimler() {
     status: 'undetermined',
     tokenError: null,
   })
+  const [favoriteCities, setFavoriteCities] = useState([])
   const [loading, setLoading] = useState(true)
   const [permissionBusy, setPermissionBusy] = useState(false)
   const [testBusy, setTestBusy] = useState(false)
@@ -122,10 +124,10 @@ export default function Bildirimler() {
   const cityChips = data.cities.slice(0, 3).map((city) => city.name)
   const registrationMeta = useMemo(
     () => ({
-      trackedCities: cityChips,
+      trackedCities: favoriteCities.length ? favoriteCities : cityChips,
       trackedFuels: fuelChips,
     }),
-    [cityChips.join('|')],
+    [cityChips.join('|'), favoriteCities.join('|')],
   )
   const permissionCopy = getPermissionCopy(permission)
 
@@ -153,6 +155,12 @@ export default function Bildirimler() {
     loadShowMarketNote().then((enabled) => {
       if (isMounted) {
         setShowMarketNote(enabled)
+      }
+    })
+
+    loadFavoriteCities().then((cities) => {
+      if (isMounted) {
+        setFavoriteCities(cities)
       }
     })
 
@@ -230,7 +238,18 @@ export default function Bildirimler() {
     setPermissionBusy(false)
 
     if (!nextPermission.granted) {
-      Alert.alert('Bildirim izni kapalı', 'Telefon ayarlarından Yakıt Radar bildirimlerine izin vermen gerekiyor.')
+      if (nextPermission.canAskAgain === false) {
+        Alert.alert(
+          'Bildirim izni kapalı',
+          'Telefon ayarlarından Yakıt Radar bildirimlerine izin vermen gerekiyor.',
+          [
+            { text: 'Vazgeç', style: 'cancel' },
+            { text: 'Ayarları aç', onPress: () => Linking.openSettings().catch(() => {}) },
+          ],
+        )
+      } else {
+        Alert.alert('Bildirim izni kapalı', 'İzin verilmedi. Dilersen Bildirimler ekranından tekrar deneyebilirsin.')
+      }
       return false
     }
 
@@ -420,7 +439,13 @@ export default function Bildirimler() {
                     trackColor={switchTrackColors}
                     value={alertItem.isEnabled}
                   />
-                  <Pressable onPress={() => handleDeleteAlert(alertItem.id)} style={styles.deleteAlertBtn}>
+                  <Pressable
+                    accessibilityLabel={`${alertItem.city} ${alertItem.fuelTitle} alarmını sil`}
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={() => handleDeleteAlert(alertItem.id)}
+                    style={styles.deleteAlertBtn}
+                  >
                     <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.danger} />
                   </Pressable>
                 </View>
@@ -1098,7 +1123,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.bgSoft,
     alignItems: 'center',
-    justify: 'center',
+    justifyContent: 'center',
     marginRight: 10,
   },
   customAlertInfo: {

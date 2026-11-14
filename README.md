@@ -8,6 +8,7 @@ Türkiye genelinde **benzin, motorin ve LPG** pompa fiyatlarını takip etmek i�
 - Ulusal ortalama, il karşılaştırması, geçmiş grafikleri
 - Haber ve makro verilerle **piyasa sinyali** (yön, güven, beklenen tutar tahmini — Groq ile analiz)
 - Fiyat değişiminde **push bildirim** (Expo), sessiz saat kuyruğu, beklenen değişim bildirimleri
+- İlk açılışta **açıklamalı bildirim izni** (gerekçe ekranı; reddedilirse tekrar sorulmaz)
 - **Bayat veri uyarısı:** kaynak verisi 24 saatten eskiyse banner, rozet ve tasarruf tahmini gizleme
 - Araç gideri / yakıt fişi kaydı (yerel)
 - İsteğe bağlı reklam (AdMob) ve gizlilik sayfaları

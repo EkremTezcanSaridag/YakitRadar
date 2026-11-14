@@ -175,8 +175,13 @@ export default function Aracim() {
   }
 
   async function handleSave() {
+    if (spentAmount <= 0 || distanceKm <= 0) {
+      Alert.alert('Eksik Bilgi', 'Hesaplama için harcanan tutarı ve gidilen mesafeyi giriniz.')
+      return
+    }
+
     await saveVehicleProfile(profile)
-    if (spentAmount > 0 && distanceKm > 0 && price > 0) {
+    if (price > 0) {
       const nextHistory = await addVehicleExpenseRecord({
         city: selectedCity?.city ?? profile.city,
         costPerKm: calculations.costPerKm,

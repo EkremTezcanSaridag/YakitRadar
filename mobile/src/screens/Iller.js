@@ -157,6 +157,8 @@ export default function Iller() {
           {hasSearchQuery && (
             <Pressable
               accessibilityLabel="Aramayı temizle"
+              accessibilityRole="button"
+              hitSlop={8}
               onPress={() => setSearchQuery('')}
               style={({ pressed }) => [styles.clearSearchButton, pressed && styles.pressed]}
             >
@@ -178,6 +180,9 @@ export default function Iller() {
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={illerFilterChipStyles.row}>
           <Pressable
+            accessibilityLabel={`Favoriler (${favoriteCities.length})`}
+            accessibilityRole="button"
+            accessibilityState={{ selected: showOnlyFavorites }}
             onPress={() => setShowOnlyFavorites((prev) => !prev)}
             style={({ pressed }) => [
               illerFilterChipStyles.chip,
@@ -291,6 +296,7 @@ export default function Iller() {
 
           return (
             <Pressable
+              accessibilityHint="Uzun basarak bu ili ana şehir yap"
               key={city.name}
               onLongPress={() => handleMakePrimaryCity(city.name)}
               style={({ pressed }) => [styles.flatRow, pressed && styles.pressed]}
@@ -300,7 +306,18 @@ export default function Iller() {
               <View style={styles.cityInfo}>
                 <View style={styles.cityNameRow}>
                   <Text style={styles.cityName}>{city.name}</Text>
-                  <Pressable onPress={() => handleToggleFavorite(city.name)} style={styles.heartButton}>
+                  <Pressable
+                    accessibilityLabel={
+                      city.isFavorite
+                        ? `${city.name} favorilerden çıkar`
+                        : `${city.name} favorilere ekle`
+                    }
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: city.isFavorite }}
+                    hitSlop={8}
+                    onPress={() => handleToggleFavorite(city.name)}
+                    style={styles.heartButton}
+                  >
                     <Ionicons
                       name={city.isFavorite ? 'heart' : 'heart-outline'}
                       size={18}

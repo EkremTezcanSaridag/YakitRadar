@@ -197,6 +197,18 @@ export async function getNotificationPermissionStatus(settings = defaultNotifica
   }
 }
 
+export async function getNotificationPermissionSnapshot() {
+  await setupNotificationChannels()
+
+  const permission = await Notifications.getPermissionsAsync()
+
+  return {
+    canAskAgain: permission.canAskAgain !== false,
+    granted: Boolean(permission.granted || permission.status === 'granted'),
+    status: permission.status ?? 'undetermined',
+  }
+}
+
 export async function syncExistingNotificationPermission(settings = defaultNotificationSettings, metadata = {}) {
   try {
     const permission = await getNotificationPermissionStatus(settings, metadata)

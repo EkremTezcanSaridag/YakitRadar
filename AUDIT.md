@@ -9,13 +9,14 @@
 >
 > | Bulgu (Ekim 2026) | Güncel durum (Kasım 2026) |
 > |---|---|
-> | "Hiç otomatik test yok" | 25 backend test dosyası (242 test) + 16 mobil script testi; CI'da çalışıyor |
+> | "Hiç otomatik test yok" | 25 backend test dosyası (242 test) + 17 mobil script testi; CI'da çalışıyor |
 > | CI/CD pipeline yok | `backend-tests.yml`, `mobile-check.yml`, `guncelle.yml`, `eas-preview-build.yml` |
 > | Deployment eksik | GitHub Actions ile saatlik fiyat güncellemesi, EAS preview/production profilleri |
 > | Fiyat hattı tek yakıttan kilitleniyor | Sprint 1: yakıt bazlı sapma guard'ı ve kısmi blok |
 > | Scraper hatası geçmişi bozuyor | Sprint 2: başarısız scrape'te `gecmis` yazılmıyor, veri sağlık issue'su |
 > | LPG bildirimleri düşüyor | Sprint 3: yakıt bazlı bildirim eşiği (LPG 12 TL) |
 > | Mobil bayat veriyi ayırt etmiyor | Sprint 4: 24 saat kaynak tazeliği banner'ı, rozet, tasarruf gizleme |
+> | İlk açılışta bildirim izni istenmiyor | Sprint 7: gerekçe ekranı + tek seferlik izin akışı, reddedince tekrar sormama |
 > | Dokümantasyon dağınık | Sprint 5: README 1.0.17, runbook, refactor planı, gizlilik sayfaları |
 > | TypeScript / lint yok | **Açık** — öncelik düşürüldü; refactor planı kapsamında değerlendirilecek |
 > | Büyük dosyalar | **Açık** — `docs/REFACTOR_PLAN.md` ile kademeli bölme planlandı |

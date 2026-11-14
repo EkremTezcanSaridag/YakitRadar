@@ -50,6 +50,9 @@ jobs:
       - name: Privacy links tests
         run: npm run test:privacy-links
 
+      - name: Notification permission prompt tests
+        run: npm run test:notification-permission-prompt
+
       - name: Error handling tests
         run: npm run test:error-handling
 
