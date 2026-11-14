@@ -3,7 +3,8 @@ import { useNavigation } from '@react-navigation/native'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { getPrivacyPolicyUrl } from '../config/publicLinks'
 import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
 import NotificationSettingsRow from '../components/NotificationSettingsRow'
 import ScreenHeader from '../components/ScreenHeader'
@@ -117,6 +118,7 @@ export default function Bildirimler() {
   const [permissionBusy, setPermissionBusy] = useState(false)
   const [testBusy, setTestBusy] = useState(false)
   const [showMarketNote, setShowMarketNote] = useState(true)
+  const privacyPolicyUrl = getPrivacyPolicyUrl()
   const cityChips = data.cities.slice(0, 3).map((city) => city.name)
   const registrationMeta = useMemo(
     () => ({
@@ -490,6 +492,25 @@ export default function Bildirimler() {
           <Text style={styles.aboutLinkText}>Hakkında ve feragat</Text>
           <Ionicons color={colors.muted} name="chevron-forward" size={18} />
         </Pressable>
+
+        {privacyPolicyUrl ? (
+          <View style={styles.panel}>
+            <Pressable
+              accessibilityRole="link"
+              onPress={() => Linking.openURL(privacyPolicyUrl)}
+              style={({ pressed }) => [styles.row, styles.rowFirst, styles.linkRow, pressed && styles.pressed]}
+            >
+              <View style={styles.rowIcon}>
+                <Ionicons name="document-text-outline" size={18} color={colors.muted} />
+              </View>
+              <View style={styles.rowCopy}>
+                <Text style={styles.rowTitle}>Gizlilik Politikası</Text>
+                <Text style={styles.rowDesc}>Veri işleme ve haklarınız hakkında bilgi.</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.mutedSoft} />
+            </Pressable>
+          </View>
+        ) : null}
 
       </ScrollView>
 
@@ -923,6 +944,9 @@ const styles = StyleSheet.create({
   },
   rowFirst: {
     marginTop: 8,
+  },
+  linkRow: {
+    paddingRight: 2,
   },
   rowIcon: {
     alignItems: 'center',

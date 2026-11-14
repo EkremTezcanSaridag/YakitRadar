@@ -2,6 +2,8 @@
 
 Bu belge mağaza gönderimi öncesi kontrol listesi ve ilk adımları özetler. Ödeme, mağaza gönderimi ve canlı veritabanı dağıtımı bu aşamada yapılmaz.
 
+> **Güncel yayın adımları:** [`docs/PLAY_RELEASE_CHECKLIST.md`](docs/PLAY_RELEASE_CHECKLIST.md) — EAS ortam değişkenleri, AdMob, Data safety, build ve test track'leri dahil.
+
 ## (a) Veri kaynağı ve yasal risk
 
 ### Mevcut durum
@@ -29,10 +31,13 @@ Bu belge mağaza gönderimi öncesi kontrol listesi ve ilk adımları özetler. 
 
 ## (b) Gizlilik politikası ve Data safety
 
-### Açık PR #34
+### Gizlilik dokümanları (PR #34 taşındı)
 
-- **Durum:** açık — gizlilik metni, Play Data safety özeti ve uygulama içi politika bağlantısı hedefleniyor.
-- **Tamamlama:** #34 birleştirildikten sonra bu belgedeki Data safety maddeleri ile çapraz kontrol yapın.
+- **Durum:** PR #34 (`cursor/privacy-policy-pages-8d41`) 16 Ekim'den beri açık ve `main`'in 83 dosya gerisinde; #53 ile çakışıyor. Tekil değeri olan gizlilik metni, statik sayfa, Data safety özeti ve uygulama içi bağlantı bu dala taşındı. PR operatör tarafından kapatılabilir.
+- **Güncel dosyalar:** [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md), [`docs/index.html`](docs/index.html) (GitHub Pages), [`docs/data-safety.md`](docs/data-safety.md).
+- **Uygulama içi bağlantı:** `EXPO_PUBLIC_PRIVACY_POLICY_URL` tanımlıysa Bildirimler ekranında **Gizlilik Politikası** satırı görünür.
+- **Yayın URL'si:** GitHub Pages etkinleştirilirse `https://ekremtezcansaridag.github.io/YakitRadar/`; alternatif olarak herhangi bir statik URL kullanılabilir.
+- **Geocoder notu:** İl adına çevirme cihaz üzerinde yapılır; Android'de işletim sisteminin geocoder servisi kullanılabilir, koordinatlar bizim sunucumuza gitmez. Data safety formunda konum "toplanıyor, paylaşılmıyor" olarak işaretlenir.
 
 ### Kod taraması — toplanan / senkronlanan veriler
 
@@ -72,7 +77,7 @@ Play Console **Data safety** formunda en az: bildirim tokeni, kurulum/cihaz tan�
 ## İlk adımlar (öncelik sırası)
 
 1. Bu PR’daki feragat + Hakkında ekranını QA ile doğrula.
-2. PR #34’ü tamamla / birleştir; mağaza gizlilik URL’sini Play’e gir.
+2. PR #34'ü kapat (içeriği bu dala taşındı); mağaza gizlilik URL'sini Play'e gir (`docs/index.html` Pages URL'si veya `EXPO_PUBLIC_PRIVACY_POLICY_URL`).
 3. Google Cloud’da API anahtarı kısıtla + gerekirse rotate.
 4. Data safety formunu kod tablosu ile doldur.
 5. EAS production build + internal testing track.

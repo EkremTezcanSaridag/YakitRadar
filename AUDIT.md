@@ -5,6 +5,24 @@
 **Versiyon:** 1.0.9  
 **Denetleyen:** Cursor AI Cloud Agent
 
+> **Güncel durum (13 Kasım 2026):** Bu rapor 9 Ekim 2026'daki durumu yansıtır ve tarihsel kayıt olarak korunur. Aşağıdaki bulguların bir kısmı sonraki sprintlerde kapatıldı. Güncel iş listesi için [`docs/SPRINT_PLAN.md`](docs/SPRINT_PLAN.md), operasyon için [`docs/OPERATIONS.md`](docs/OPERATIONS.md), refactor için [`docs/REFACTOR_PLAN.md`](docs/REFACTOR_PLAN.md) dosyalarına bakın.
+>
+> | Bulgu (Ekim 2026) | Güncel durum (Kasım 2026) |
+> |---|---|
+> | "Hiç otomatik test yok" | 25 backend test dosyası (242 test) + 16 mobil script testi; CI'da çalışıyor |
+> | CI/CD pipeline yok | `backend-tests.yml`, `mobile-check.yml`, `guncelle.yml`, `eas-preview-build.yml` |
+> | Deployment eksik | GitHub Actions ile saatlik fiyat güncellemesi, EAS preview/production profilleri |
+> | Fiyat hattı tek yakıttan kilitleniyor | Sprint 1: yakıt bazlı sapma guard'ı ve kısmi blok |
+> | Scraper hatası geçmişi bozuyor | Sprint 2: başarısız scrape'te `gecmis` yazılmıyor, veri sağlık issue'su |
+> | LPG bildirimleri düşüyor | Sprint 3: yakıt bazlı bildirim eşiği (LPG 12 TL) |
+> | Mobil bayat veriyi ayırt etmiyor | Sprint 4: 24 saat kaynak tazeliği banner'ı, rozet, tasarruf gizleme |
+> | Dokümantasyon dağınık | Sprint 5: README 1.0.17, runbook, refactor planı, gizlilik sayfaları |
+> | TypeScript / lint yok | **Açık** — öncelik düşürüldü; refactor planı kapsamında değerlendirilecek |
+> | Büyük dosyalar | **Açık** — `docs/REFACTOR_PLAN.md` ile kademeli bölme planlandı |
+> | Expo push receipt / stale token | **Açık** — ayrı PR |
+>
+> Raporun geri kalanındaki sayısal değerler (npm açıkları, bundle boyutu, ekran süreleri) o tarihe aittir; güncel ölçüm için ilgili komutları yeniden çalıştırın.
+
 ---
 
 ## 1. Yönetici Özeti

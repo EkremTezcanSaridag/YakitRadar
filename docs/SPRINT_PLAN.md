@@ -28,7 +28,7 @@
 - [x] `validate_gecmis_daily_deltas` `PRICE_SANITY_OVERRIDE`'a saygı duysun.
 - [x] Uyarıları `::warning::` ve GitHub Step Summary ile görünür yap.
 - [x] Testler: LPG %22,5 kabul; benzin ayrışınca sadece benzin blok; override; LPG 9,3 TL günlük fark kabul.
-- [ ] Acil durum için manuel override koşusu (operatör adımı — kod tarafı hazır).
+- [x] Acil durum için manuel override koşusu (kod tarafı hazır; `workflow_dispatch` → `price_sanity_override=true`; adımlar [`OPERATIONS.md`](OPERATIONS.md#3-guard-alarmı-tiryajı)).
 
 **Kabul kriteri:** Workflow yeşil, `fiyatlar` güncelleniyor, LPG 51 TL'ye geçiyor, benzin/motorin akmaya devam ediyor, testler geçiyor.
 
@@ -72,10 +72,42 @@
 
 ## Sprint 5 — P2: Bakım ve dokümantasyon
 
-- [ ] README sürümünü 1.0.17'ye, AUDIT.md'yi güncel duruma çek.
-- [ ] PR #34'ü gözden geçir; #53 ile çakışıyorsa kapat.
-- [ ] Operasyon runbook: manuel override, guard alarmı, Supabase SQL uygulama sırası.
-- [ ] Büyük dosyalar için refactor planı: `Aracim.js`, `Bildirimler.js`, `fuelData.js`, `market_signals.py`.
+- [x] README sürümünü 1.0.17'ye, AUDIT.md'yi güncel duruma çek.
+- [x] PR #34'ü gözden geçir: branch 16 Ekim'den beri `main`'in 83 dosya gerisinde ve #53 (Play Store + feragat) ile çakışıyor. Tekil değeri olan gizlilik dokümanları ve uygulama içi bağlantı bu dala taşındı; PR operatör tarafından kapatılabilir.
+- [x] Operasyon runbook: manuel override, guard alarmı, Supabase SQL uygulama sırası → [`OPERATIONS.md`](OPERATIONS.md).
+- [x] Büyük dosyalar için refactor planı: `Aracim.js`, `Bildirimler.js`, `fuelData.js`, `market_signals.py`, `fiyat_servisi.py` → [`REFACTOR_PLAN.md`](REFACTOR_PLAN.md).
+
+**Ek (PR #34 taşıması):** Gizlilik politikası güncellendi (kurulum kimliği, saklama, silme hakları, AdMob/UMP, konum), `docs/index.html` (GitHub Pages), `docs/data-safety.md`, `mobile/src/config/publicLinks.js` ve Bildirimler ekranında `EXPO_PUBLIC_PRIVACY_POLICY_URL` bağlantısı eklendi. Sourcery'nin işaret ettiği geocoder aktarımı açıkça belirtildi.
+
+**Kabul kriteri:** Yeni gelen operatör tek belgeden hattı izleyip müdahale edebiliyor; README güncel sürümü ve bağlantıları gösteriyor.
+
+---
+
+## Sprint 6 — P0: Play Store yayını (operatör ağırlıklı)
+
+**Repo tarafı (tamamlandı):**
+
+- [x] Yayın adımları: [`PLAY_RELEASE_CHECKLIST.md`](PLAY_RELEASE_CHECKLIST.md).
+- [x] Ön kontrol aracı: `cd mobile && npm run release:preflight -- --production`.
+- [x] Gizlilik sayfası (`docs/index.html`), Data safety özeti ve uygulama içi bağlantı.
+- [x] `SECURITY.md`: APK doğrulama + antivirüs itibar uyarısı rehberi.
+
+**Operatör adımları:**
+
+- [ ] Sprint 5 PR'ını merge et (dokümantasyon; kod riski yok).
+- [ ] Play Developer hesabı + kimlik doğrulama + ödeme profili.
+- [ ] EAS production ortam değişkenleri: Supabase URL/anon, gizlilik URL'si, `ADMOB_*`.
+- [ ] AdMob uygulama + interstitial birimleri + UMP/GDPR mesajı.
+- [ ] Firebase API anahtarı kısıtı/rotasyonu.
+- [ ] GitHub Pages'i `main /docs` üzerinden aç.
+- [ ] Mağaza görselleri: 512×512 ikon, 1024×500 grafik, 2–8 telefon ekran görüntüsü.
+- [ ] Play Console formları: Data safety, reklam, içerik derecelendirmesi, hedef kitle.
+- [ ] Production AAB → internal testing → kapalı test (12 tester / 14 gün) → staged rollout.
+- [ ] Yayın sonrası Android vitals ve fiyat hattı izlemesi.
+
+**Kabul kriteri:** Play'den kurulan sürümde fiyatlar akıyor, bayat veri banner'ı doğru, bildirim ve reklam akışı çalışıyor; crash/ANR oranı kabul edilebilir.
+
+**Üretim durumu (14 Kasım 2026):** Sprint 1–4 merge sonrası planlı fiyat koşuları 12 Kasım 22:18'den beri üst üste yeşil.
 
 ---
 
