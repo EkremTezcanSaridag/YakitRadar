@@ -163,6 +163,7 @@ CI: `backend-tests.yml`, `mobile-check.yml` (script testleri + Android bundle ex
 - Web sürümü (GitHub Pages): [`docs/index.html`](docs/index.html)
 - Play Data safety özeti: [`docs/data-safety.md`](docs/data-safety.md)
 - Mağaza kontrol listesi: [`PLAY_STORE_HAZIRLIK.md`](PLAY_STORE_HAZIRLIK.md)
+- Güvenlik, APK doğrulama ve antivirüs yanlış pozitifleri: [`SECURITY.md`](SECURITY.md)
 
 ## Operasyon
 
