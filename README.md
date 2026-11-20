@@ -8,12 +8,22 @@ Türkiye genelinde **benzin, motorin ve LPG** pompa fiyatlarını takip etmek i�
 - Ulusal ortalama, il karşılaştırması, geçmiş grafikleri
 - Haber ve makro verilerle **piyasa sinyali** (yön, güven, beklenen tutar tahmini — Groq ile analiz)
 - Fiyat değişiminde **push bildirim** (Expo), sessiz saat kuyruğu, beklenen değişim bildirimleri
+- **Zam / indirim gerçekleşti** bildirimi: takip edilen il ve yakıtlarda eşleşen tüm değişimler tek push'ta özetlenir (en fazla 3 satır); kullanıcı Bildirimler ekranından kapatabilir
 - İlk açılışta **açıklamalı bildirim izni** (gerekçe ekranı; reddedilirse tekrar sorulmaz)
 - **Bayat veri uyarısı:** kaynak verisi 24 saatten eskiyse banner, rozet ve tasarruf tahmini gizleme
 - Araç gideri / yakıt fişi kaydı (yerel)
 - İsteğe bağlı reklam (AdMob) ve gizlilik sayfaları
 
-## Sürüm 1.0.17 (özet)
+## Sürüm 1.0.18 (özet)
+
+**Zam / indirim bildirimleri (Sprint 8)**
+
+- Gerçek fiyat değişiminde cihaz başına tek özet push: `İstanbul · Benzin indirimi` veya `3 fiyat değişikliği · 2 zam, 1 indirim`.
+- Bildirim gövdesi eski → yeni fiyat, TL farkı ve yüzde değişimi içerir.
+- Takip edilen il/yakıt filtresi büyük/küçük harf ve Türkçe İ/ı farkına duyarsız.
+- `price_change_alerts` tercihi (varsayılan açık) `register_push_token` ile kaydedilir; kapatınca yalnızca bu bildirim susar.
+- Eski şemada kolon yoksa bildirim yine gönderilir (varsayılan açık).
+- `NOTIFICATION_DEBUG=true` ile eşleşmeyen cihazların takip listeleri loglanır.
 
 **Veri hattı (Sprint 1–3)**
 
@@ -51,7 +61,7 @@ Görseller ayrı PR ile eklenecek:
 | **İller** | 81 il listesi, arama, yakıt filtresi, kaynak güncelleme saati |
 | **Geçmiş** | 7 / 30 / 90 gün trend, `gecmis` tablosundan günlük değişimler |
 | **Aracım** | Araç profili, yakıt fişi, gider özeti |
-| **Bildirimler** | Push izni, fiyat alarmları, uyarı tercihleri, sessiz saat, test bildirimi, gizlilik politikası ve Hakkında bağlantısı |
+| **Bildirimler** | Push izni, zam/indirim bildirimi, fiyat alarmları, uyarı tercihleri, sessiz saat, test bildirimi, gizlilik politikası ve Hakkında bağlantısı |
 
 ## Mimari
 
@@ -82,9 +92,10 @@ Görseller ayrı PR ile eklenecek:
 ### Bildirim mantığı (özet)
 
 1. Scrape sonrası `fiyatlar` ile karşılaştırma → şehir bazlı diff (benzin/motorin 8 TL, **LPG 12 TL** üzeri bildirimden düşer).
-2. Sessiz saatte diff → `pending_price_notifications`; 08:00 sonrası ilk uygun koşuda birleştirilip push.
-3. `market_signals` içindeki uygun sinyaller → “beklenen artış/indirim” push (güven ≥ medium, günde yakıt bazında tek).
-4. Token kaydı: mobil `register_push_token` RPC; backend `push_tokens.enabled` ve tercih alanları.
+2. Takip edilen il/yakıtla eşleşen **tüm** gerçek değişimler cihaz başına tek push'ta toplanır (`price_change_alerts=false` ise gönderilmez).
+3. Sessiz saatte diff → `pending_price_notifications`; 08:00 sonrası ilk uygun koşuda birleştirilip push.
+4. `market_signals` içindeki uygun sinyaller → “beklenen artış/indirim” push (güven ≥ medium, günde yakıt bazında tek).
+5. Token kaydı: mobil `register_push_token` RPC; backend `push_tokens.enabled` ve tercih alanları.
 
 ## APK alma
 
@@ -94,6 +105,13 @@ Görseller ayrı PR ile eklenecek:
 2. `ref` alanına branch adı (`main` veya test branch'i) yazın.
 3. Gerekli secret: `EXPO_TOKEN` (Expo → Access tokens). EAS proje kimliği `app.json` içinde tanımlı.
 4. Build bitince EAS artifact bağlantısı workflow özetinde görünür.
+
+**GitHub Release (APK dağıtımı):** `v*` tag'i push edildiğinde `.github/workflows/release.yml` production ortamıyla imzalı APK üretir ve Release'e `yakitradar-vX.Y.Z.apk` + `SHA256SUMS.txt` ekler.
+
+1. `mobile/app.json`, `mobile/package.json` ve `android.versionCode` güncellenir; sürüm notu `docs/RELEASE_NOTES/vX.Y.Z.md` olarak eklenir.
+2. `git tag vX.Y.Z && git push origin vX.Y.Z` (yalnızca `main` üzerinden).
+3. Workflow tag ile `app.json` sürümünü ve sürüm notunu doğrular, `release:preflight` çalıştırır, EAS build alır, APK'yı indirip SHA-256 üretir ve Release'i açar.
+4. Gereken secret'lar: `EXPO_TOKEN` ve `GITHUB_TOKEN` (workflow izni `contents: write`). Ayrıntılar: [`docs/OPERATIONS.md`](docs/OPERATIONS.md#10-sürüm-yayınlama-github-releases).
 
 Yerel geliştirme:
 
@@ -125,6 +143,7 @@ Yerel APK derlemesi (`npx expo run:android`) için JDK 17 + Android SDK gerekir;
 - `MAX_REASONABLE_PRICE_CHANGE` (opsiyonel, benzin/motorin)
 - `MAX_REASONABLE_LPG_CHANGE` (opsiyonel, varsayılan 12.0)
 - `NOTIFICATION_MIN_CHANGE` (opsiyonel)
+- `NOTIFICATION_DEBUG` (opsiyonel; `true` iken eşleşmeyen cihazların il/yakıt listelerini loglar)
 - `EXPO_TOKEN` (EAS build)
 - AdMob: `EXPO_PUBLIC_ADMOB_*` (EAS — bkz. `mobile/docs/ads-eas-env.md`)
 
@@ -150,8 +169,11 @@ Supabase SQL dosyaları (`backend/supabase_*.sql`) operatör tarafından SQL Edi
 | Backend (tümü) | `cd backend && pytest` |
 | Fiyat guard | `pytest tests/test_price_scrape_guard.py` |
 | Bildirim hattı | `pytest tests/test_notification_pipeline.py` |
+| Zam/indirim bildirimi | `pytest tests/test_price_change_notifications.py` |
 | Veri sağlığı çıktıları | `pytest tests/test_data_health_outputs.py` |
 | Mobil (tümü) | `cd mobile && npm test` |
+| Mobil zam/indirim tercihi | `cd mobile && npm run test:price-change-alerts` |
+| Release yapılandırması | `cd mobile && node scripts/release-config.test.mjs` |
 | Mobil tazelik | `cd mobile && npm run test:fuel-data-freshness` |
 | Mobil offline fuel | `cd mobile && npm run test:fuel-data-offline` |
 | İller filtre çipleri | `cd mobile && npm run test:iller-filter-chip` |

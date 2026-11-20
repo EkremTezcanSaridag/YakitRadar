@@ -6,6 +6,7 @@ create table if not exists public.push_tokens (
   enabled boolean not null default true,
   daily_alerts boolean not null default true,
   city_alerts boolean not null default true,
+  price_change_alerts boolean not null default true,
   weekly_summary boolean not null default false,
   quiet_hours boolean not null default true,
   tracked_cities jsonb not null default '[]'::jsonb,

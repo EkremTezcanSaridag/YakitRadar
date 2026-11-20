@@ -13,6 +13,7 @@ const NOTIFICATION_CHANNEL_ID = 'fuel-alerts'
 export const defaultNotificationSettings = {
   cityAlerts: true,
   dailyAlerts: true,
+  priceChangeAlerts: true,
   quietHours: true,
   trackedCities: [],
   trackedFuels: ['Benzin', 'Motorin', 'LPG'],
@@ -145,11 +146,17 @@ export async function syncPushRegistration(expoPushToken, settings = defaultNoti
         app_version: Constants.expoConfig?.version ?? null,
         city_alerts: Boolean(settings.cityAlerts),
         daily_alerts: Boolean(settings.dailyAlerts),
-        enabled: Boolean(settings.dailyAlerts || settings.cityAlerts || settings.weeklySummary),
+        enabled: Boolean(
+          settings.dailyAlerts
+            || settings.cityAlerts
+            || settings.priceChangeAlerts
+            || settings.weeklySummary,
+        ),
         expo_push_token: expoPushToken,
         installation_id: installationId,
         last_seen_at: now,
         platform: Platform.OS,
+        price_change_alerts: settings.priceChangeAlerts !== false,
         quiet_hours: Boolean(settings.quietHours),
         tracked_cities: resolveTrackedCities(settings, metadata),
         tracked_fuels: resolveTrackedFuels(settings, metadata),

@@ -207,6 +207,77 @@ def is_pending_price_change_stale(
     return reference - parsed > max_age
 
 
+MAX_PRICE_CHANGES_PER_NOTIFICATION = 3
+
+
+def parse_string_list(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return []
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            return [text]
+
+        if isinstance(parsed, list):
+            return [str(item).strip() for item in parsed if str(item).strip()]
+
+    return []
+
+
+def normalize_city_name(value: Any) -> str:
+    """Case-insensitive city key with Turkish dotted/dotless i handled explicitly."""
+    text = str(value or "").strip()
+    return text.replace("İ", "i").replace("I", "ı").lower()
+
+
+def price_change_alerts_enabled(token_record: dict[str, Any]) -> bool:
+    """Users may opt out of "zam/indirim gerçekleşti" pushes independently.
+
+    Missing column (older schema) or NULL means enabled so existing installs keep
+    receiving notifications without waiting for a database migration.
+    """
+    return token_record.get("price_change_alerts") is not False
+
+
+def select_price_changes_for_token(
+    token_record: dict[str, Any],
+    changes: list[dict[str, Any]],
+    limit: int = MAX_PRICE_CHANGES_PER_NOTIFICATION,
+) -> list[dict[str, Any]]:
+    """Pick every real price change this device should hear about, biggest move first."""
+    if not price_change_alerts_enabled(token_record):
+        return []
+
+    tracked_cities = {normalize_city_name(city) for city in parse_string_list(token_record.get("tracked_cities"))}
+    tracked_fuels = {normalize_fuel_key(fuel) for fuel in parse_string_list(token_record.get("tracked_fuels"))}
+
+    selected: list[dict[str, Any]] = []
+    for change in changes:
+        if not change or change.get("source") == "expected_change":
+            continue
+
+        # Günlük pompa hafızası sinyali ulusal bir hatırlatma; şehir filtresine takılmasın.
+        if change.get("source") != "price_memory":
+            if tracked_cities and normalize_city_name(change.get("city")) not in tracked_cities:
+                continue
+
+            change_fuel = normalize_fuel_key(change.get("fuel"))
+            if tracked_fuels and change_fuel not in tracked_fuels:
+                continue
+
+        selected.append(change)
+
+        if len(selected) >= max(1, limit):
+            break
+
+    return selected
+
+
 def dedupe_price_changes(changes: list[dict[str, Any]], signal_date: str) -> list[dict[str, Any]]:
     merged: dict[str, dict[str, Any]] = {}
 

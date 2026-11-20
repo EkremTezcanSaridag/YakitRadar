@@ -113,10 +113,11 @@ SQL dosyaları **otomatik çalışmaz**; Supabase SQL Editor'de sırayla uygulan
 | 2 | `backend/supabase_market_signals.sql` | Piyasa sinyali tablosu |
 | 3 | `backend/supabase_market_signals_expected_amounts.sql` | Opsiyonel; beklenen tutar kolonları |
 | 4 | `backend/supabase_notifications.sql` | `push_tokens` + `register_push_token` RPC |
-| 5 | `backend/supabase_push_token_hygiene.sql` | Opsiyonel; receipt/temizlik kolonları |
-| 6 | `backend/supabase_pending_notifications.sql` | Sessiz saat kuyruğu |
-| 7 | `backend/supabase_price_change_events.sql` | Opsiyonel; mobil şu an `gecmis` kullanıyor |
-| 8 | `backend/supabase_gecmis_unique_tarih.sql` | **En son.** Önce `tarih` bazında mükerrer kayıtları temizleyin, yoksa unique index oluşmaz |
+| 5 | `backend/supabase_price_change_alerts.sql` | **Zam/indirim bildirimi tercihi** (kolon + güncel RPC) |
+| 6 | `backend/supabase_push_token_hygiene.sql` | Opsiyonel; receipt/temizlik kolonları |
+| 7 | `backend/supabase_pending_notifications.sql` | Sessiz saat kuyruğu |
+| 8 | `backend/supabase_price_change_events.sql` | Opsiyonel; mobil şu an `gecmis` kullanıyor |
+| 9 | `backend/supabase_gecmis_unique_tarih.sql` | **En son.** Önce `tarih` bazında mükerrer kayıtları temizleyin, yoksa unique index oluşmaz |
 
 Doğrulama:
 
@@ -168,3 +169,36 @@ select relname, relrowsecurity from pg_class where relname in ('fiyatlar','gecmi
 - Fiyat verisi 24 saatten eskiyse uygulama bayat veri banner'ı gösterir ve tasarruf tahminini gizler.
 - Bu davranış bilinçlidir; veri hattı düzeldiğinde banner kendiliğinden kaybolur.
 - APK/build sorunları için [`PLAY_STORE_HAZIRLIK.md`](../PLAY_STORE_HAZIRLIK.md) ve [`mobile/docs/ads-eas-env.md`](../mobile/docs/ads-eas-env.md).
+
+---
+
+## 10. Sürüm yayınlama (GitHub Releases)
+
+`v*` tag'i push edildiğinde `.github/workflows/release.yml` otomatik çalışır. Sürüm başına tek PR akışı korunur; tag yalnızca PR `main`'e merge edildikten sonra atılır.
+
+**Yayın öncesi kontrol listesi**
+
+1. `mobile/app.json` → `expo.version` ve `android.versionCode`; `mobile/package.json` → `version` eşit olmalı (`npm run release:preflight --prefix mobile`).
+2. Sürüm notu: `docs/RELEASE_NOTES/v<version>.md` (workflow bu dosyayı `body_path` olarak kullanır; yoksa durur).
+3. Bu sürüme ait SQL migration'ları Supabase SQL Editor'da uygulanmış olmalı (bkz. bölüm 6).
+4. EAS `production` ortamında `EXPO_PUBLIC_*` ve AdMob değişkenleri tanımlı olmalı.
+
+**Tag ve yayın**
+
+```bash
+git checkout main && git pull --ff-only
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+Workflow sırası: tag/sürüm/not doğrulaması → `release:preflight` → EAS `release` profiliyle APK (production env, `--wait --json`) → APK indirme + `sha256sum` → `softprops/action-gh-release@v2` ile Release. Çıktı: `yakitradar-vX.Y.Z.apk` ve `SHA256SUMS.txt`.
+
+**Doğrulama**
+
+```bash
+sha256sum -c SHA256SUMS.txt
+```
+
+Hata durumunda: tag'i silip düzeltmeyin (`git push origin :refs/tags/vX.Y.Z`), düzeltme commit'ini `main`'e alıp **yeni bir sürüm tag'i** atın. Böylece yayın geçmişi değişmez.
+
+> `production` profili Play Store için `app-bundle` üretmeye devam eder; GitHub Release için eklenen `release` profili yalnızca APK çıktısı verir (aynı production ortam değişkenleriyle).

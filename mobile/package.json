@@ -1,6 +1,6 @@
 {
   "name": "mobile",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "license": "UNLICENSED",
   "main": "index.js",
   "scripts": {
@@ -20,6 +20,7 @@
     "test:fuel-data-freshness": "node scripts/fuel-data-freshness.test.mjs",
     "test:privacy-links": "node scripts/privacy-links.test.mjs",
     "test:notification-permission-prompt": "node scripts/notification-permission-prompt.test.mjs",
+    "test:price-change-alerts": "node scripts/price-change-alerts.test.mjs",
     "test:expense-record-dedupe": "node scripts/expense-record-dedupe.test.mjs",
     "release:preflight": "node scripts/release-preflight.mjs",
     "test:iller-filter-chip": "node scripts/iller-filter-chip.test.mjs",
