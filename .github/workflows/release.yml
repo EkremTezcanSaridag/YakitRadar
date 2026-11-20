@@ -51,7 +51,7 @@ jobs:
             echo "HATA: tag=$TAG_VERSION, app.json=$APP_VERSION — sürümleri eşitleyin."
             exit 1
           fi
-          NOTES="../../docs/RELEASE_NOTES/${GITHUB_REF_NAME}.md"
+          NOTES="../docs/RELEASE_NOTES/${GITHUB_REF_NAME}.md"
           if [ ! -f "$NOTES" ]; then
             echo "HATA: sürüm notu eksik: $NOTES"
             exit 1

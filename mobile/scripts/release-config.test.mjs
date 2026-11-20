@@ -32,6 +32,13 @@ assert.match(workflow, /^\s*-\s*'v\*'\s*$/m, 'release workflow must trigger on v
 assert.match(workflow, /contents:\s*write/, 'release workflow needs contents: write permission')
 assert.match(workflow, /softprops\/action-gh-release@v2/, 'release workflow must publish a GitHub Release')
 assert.match(workflow, /body_path:\s*docs\/RELEASE_NOTES\//, 'release notes must come from docs/RELEASE_NOTES')
+// workflow adımları mobile/ klasöründe çalışır; doğrulama yolu ../docs olmalı.
+assert.match(
+  workflow,
+  /NOTES="\.\.\/docs\/RELEASE_NOTES\//,
+  'verify step must resolve release notes relative to the mobile working directory',
+)
+assert.doesNotMatch(workflow, /\.\.\/\.\.\/docs\/RELEASE_NOTES/, 'verify step must not use ../../docs')
 assert.match(workflow, /SHA256SUMS\.txt/, 'release must include a checksum file')
 assert.match(workflow, /--profile\s+release/, 'release workflow must use the release EAS profile')
 

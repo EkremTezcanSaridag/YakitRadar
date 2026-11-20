@@ -199,6 +199,8 @@ Workflow sırası: tag/sürüm/not doğrulaması → `release:preflight` → EAS
 sha256sum -c SHA256SUMS.txt
 ```
 
-Hata durumunda: tag'i silip düzeltmeyin (`git push origin :refs/tags/vX.Y.Z`), düzeltme commit'ini `main`'e alıp **yeni bir sürüm tag'i** atın. Böylece yayın geçmişi değişmez.
+Hata durumunda:
+- **Release henüz oluşmadıysa** (workflow doğrulama/build aşamasında durduysa): düzeltmeyi `main`'e alıp tag'i bu commit'e taşımak güvenlidir — `git push origin :refs/tags/vX.Y.Z` ardından `git tag vX.Y.Z && git push origin vX.Y.Z`. Workflow dosyası tag'in commit'inden okunduğu için tag'i yeniden oluşturmak gerekir; eski run'u yeniden çalıştırmak düzeltmeyi görmez.
+- **Release oluştuysa** artefaktlar yayında demektir; tag'i değiştirmeyin, düzeltmeyi **yeni bir sürüm tag'i** ile yayınlayın.
 
 > `production` profili Play Store için `app-bundle` üretmeye devam eder; GitHub Release için eklenen `release` profili yalnızca APK çıktısı verir (aynı production ortam değişkenleriyle).
