@@ -108,6 +108,10 @@ export const radii = {
   pill: 999,
 }
 
+export const layout = {
+  contentMaxWidth: 560,
+}
+
 export const iconSize = {
   tab: 22,
   tabTouch: 48,

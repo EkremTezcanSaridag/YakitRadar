@@ -18,7 +18,7 @@ import {
   SkeletonRows,
 } from '../components/SkeletonLoader'
 import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
-import { colors, radii, spacing, typography } from '../theme'
+import { colors, layout, radii, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { computeNationalAverages, getRealPriceRows } from '../services/fuelData'
 import { useNetworkStatus } from '../context/NetworkContext'
@@ -324,6 +324,7 @@ export default function AnaSayfa() {
                       {!isPrimary ? (
                         <Pressable
                           accessibilityLabel={`${row.city} kaldır`}
+                          accessibilityRole="button"
                           hitSlop={8}
                           onPress={() => handleRemoveComparisonCity(row.city)}
                           style={({ pressed }) => [styles.editIconBtn, pressed && styles.pressed]}
@@ -336,6 +337,8 @@ export default function AnaSayfa() {
                       <View style={styles.reorderCol}>
                         <Pressable
                           accessibilityLabel={`${row.city} yukarı`}
+                          accessibilityRole="button"
+                          accessibilityState={{ disabled: !canMoveUp }}
                           disabled={!canMoveUp}
                           hitSlop={6}
                           onPress={() => handleMoveComparisonCity(row.city, 'up')}
@@ -349,6 +352,8 @@ export default function AnaSayfa() {
                         </Pressable>
                         <Pressable
                           accessibilityLabel={`${row.city} aşağı`}
+                          accessibilityRole="button"
+                          accessibilityState={{ disabled: !canMoveDown }}
                           disabled={!canMoveDown}
                           hitSlop={6}
                           onPress={() => handleMoveComparisonCity(row.city, 'down')}
@@ -416,9 +421,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   content: {
+    alignSelf: 'center',
+    maxWidth: layout.contentMaxWidth,
     paddingHorizontal: spacing.screen,
     paddingTop: spacing.sm,
     paddingBottom: 96,
+    width: '100%',
   },
   emptyDataBlock: {
     alignItems: 'flex-start',

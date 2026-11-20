@@ -5,11 +5,13 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { getPrivacyPolicyUrl } from '../config/publicLinks'
+import EmptyState from '../components/EmptyState'
 import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
 import NotificationSettingsRow from '../components/NotificationSettingsRow'
 import ScreenHeader from '../components/ScreenHeader'
+import { useToast } from '../components/ToastProvider'
 import { fuelSelectorChipStyles } from '../styles/fuelSelectorChipStyles'
-import { colors, fuelAlertIconStyle, shadows, switchThumbColor, switchTrackColors } from '../theme'
+import { colors, fuelAlertIconStyle, layout, shadows, switchThumbColor, switchTrackColors } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { fuelTabs } from '../services/fuelData'
 import {
@@ -31,6 +33,7 @@ import {
   loadCustomAlerts,
   toggleCustomAlert,
 } from '../services/customAlerts'
+import { loadFavoriteCities } from '../services/favoriteCities'
 import { loadShowMarketNote, saveShowMarketNote } from '../services/uiPreferences'
 import { logError } from '../utils/logger'
 
@@ -96,6 +99,7 @@ function formatToken(token) {
 
 export default function Bildirimler() {
   const navigation = useNavigation()
+  const toast = useToast()
   const { data } = useFuelData()
   const [settings, setSettings] = useState(defaultNotificationSettings)
   const [customAlerts, setCustomAlerts] = useState(defaultAlerts)
@@ -114,6 +118,7 @@ export default function Bildirimler() {
     status: 'undetermined',
     tokenError: null,
   })
+  const [favoriteCities, setFavoriteCities] = useState([])
   const [loading, setLoading] = useState(true)
   const [permissionBusy, setPermissionBusy] = useState(false)
   const [testBusy, setTestBusy] = useState(false)
@@ -122,10 +127,10 @@ export default function Bildirimler() {
   const cityChips = data.cities.slice(0, 3).map((city) => city.name)
   const registrationMeta = useMemo(
     () => ({
-      trackedCities: cityChips,
+      trackedCities: favoriteCities.length ? favoriteCities : cityChips,
       trackedFuels: fuelChips,
     }),
-    [cityChips.join('|')],
+    [cityChips.join('|'), favoriteCities.join('|')],
   )
   const permissionCopy = getPermissionCopy(permission)
 
@@ -153,6 +158,12 @@ export default function Bildirimler() {
     loadShowMarketNote().then((enabled) => {
       if (isMounted) {
         setShowMarketNote(enabled)
+      }
+    })
+
+    loadFavoriteCities().then((cities) => {
+      if (isMounted) {
+        setFavoriteCities(cities)
       }
     })
 
@@ -230,7 +241,18 @@ export default function Bildirimler() {
     setPermissionBusy(false)
 
     if (!nextPermission.granted) {
-      Alert.alert('Bildirim izni kapalı', 'Telefon ayarlarından Yakıt Radar bildirimlerine izin vermen gerekiyor.')
+      if (nextPermission.canAskAgain === false) {
+        Alert.alert(
+          'Bildirim izni kapalı',
+          'Telefon ayarlarından Yakıt Radar bildirimlerine izin vermen gerekiyor.',
+          [
+            { text: 'Vazgeç', style: 'cancel' },
+            { text: 'Ayarları aç', onPress: () => Linking.openSettings().catch(() => {}) },
+          ],
+        )
+      } else {
+        Alert.alert('Bildirim izni kapalı', 'İzin verilmedi. Dilersen Bildirimler ekranından tekrar deneyebilirsin.')
+      }
       return false
     }
 
@@ -281,11 +303,11 @@ export default function Bildirimler() {
 
     try {
       await requestRemoteTestNotification()
-      Alert.alert('Backend testi sırada', 'GitHub Action tamamlandığında gerçek push bildirimi bu cihaza gönderilecek.')
+      toast.info('Backend testi sırada. GitHub Action tamamlanınca push bildirimi gelecek.')
     } catch (error) {
       try {
         await sendTestNotification()
-        Alert.alert('Test Bildirimi Gönderildi', 'Yerel bildirim kanalı test edildi. Bildirim çubuğunuzu kontrol edin.')
+        toast.info('Test bildirimi gönderildi. Bildirim çubuğunu kontrol et.')
       } catch (localError) {
         Alert.alert('Bildirim gönderilemedi', localError?.message ?? error?.message ?? 'Beklenmeyen bir sorun oluştu.')
       }
@@ -307,7 +329,7 @@ export default function Bildirimler() {
 
     setCustomAlerts(updatedAlerts)
     setNewAlertModalOpen(false)
-    Alert.alert('Fiyat Alarmı Eklendi', `${alertCity} ${selectedFuelMeta.title} için özel alarmınız aktif tutuldu.`)
+    toast.success(`${alertCity} ${selectedFuelMeta.title} alarmı eklendi.`)
   }
 
   async function handleToggleAlert(id) {
@@ -324,6 +346,7 @@ export default function Bildirimler() {
         onPress: async () => {
           const updated = await deleteCustomAlert(id)
           setCustomAlerts(updated)
+          toast.success('Alarm silindi.')
         },
       },
     ])
@@ -387,6 +410,16 @@ export default function Bildirimler() {
         <View style={styles.panel}>
           <Text style={styles.panelIntro}>Hedef eşiklere ulaşıldığında anında bildirim alırsınız.</Text>
 
+          {customAlerts.length === 0 ? (
+            <EmptyState
+              compact
+              icon="bell-plus-outline"
+              message="Şehir ve yakıt seçerek hedef fiyat alarmı oluştur."
+              title="Henüz fiyat alarmın yok"
+              variant="empty"
+            />
+          ) : null}
+
           {customAlerts.map((alertItem) => {
             const condMeta = alertConditions.find((c) => c.id === alertItem.condition) ?? alertConditions[0]
             const isMotorin = alertItem.fuelKey === 'motorin'
@@ -420,7 +453,13 @@ export default function Bildirimler() {
                     trackColor={switchTrackColors}
                     value={alertItem.isEnabled}
                   />
-                  <Pressable onPress={() => handleDeleteAlert(alertItem.id)} style={styles.deleteAlertBtn}>
+                  <Pressable
+                    accessibilityLabel={`${alertItem.city} ${alertItem.fuelTitle} alarmını sil`}
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={() => handleDeleteAlert(alertItem.id)}
+                    style={styles.deleteAlertBtn}
+                  >
                     <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.danger} />
                   </Pressable>
                 </View>
@@ -619,10 +658,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   content: {
+    alignSelf: 'center',
     backgroundColor: colors.bg,
+    maxWidth: layout.contentMaxWidth,
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 96,
+    width: '100%',
   },
   header: {
     alignItems: 'center',
@@ -1098,7 +1140,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.bgSoft,
     alignItems: 'center',
-    justify: 'center',
+    justifyContent: 'center',
     marginRight: 10,
   },
   customAlertInfo: {

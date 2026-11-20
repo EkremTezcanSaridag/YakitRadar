@@ -3,17 +3,19 @@ import { Ionicons } from '@expo/vector-icons'
 import Constants from 'expo-constants'
 import { CommonActions } from '@react-navigation/native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { getPrivacyPolicyUrl } from '../config/publicLinks'
 import {
   ABOUT_DATA_NOTE,
   ABOUT_DISCLAIMER_BODY,
   FUEL_PRICE_LEGAL_SHORT,
   FUEL_PRICE_SOURCE_LINE,
 } from '../constants/legalCopy'
-import { colors, spacing, typography } from '../theme'
+import { colors, layout, spacing, typography } from '../theme'
 
 export default function Hakkinda({ navigation }) {
   const version = Constants.expoConfig?.version ?? '—'
+  const privacyPolicyUrl = getPrivacyPolicyUrl()
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -22,6 +24,7 @@ export default function Hakkinda({ navigation }) {
         <View style={styles.topRow}>
           <Pressable
             accessibilityLabel="Geri"
+            accessibilityRole="button"
             onPress={() => {
               if (navigation.canGoBack()) {
                 navigation.goBack()
@@ -52,11 +55,18 @@ export default function Hakkinda({ navigation }) {
 
         <Text style={styles.sectionTitle}>Veri ve gizlilik</Text>
         <Text style={styles.body}>{ABOUT_DATA_NOTE}</Text>
-        <Text style={styles.body}>
-          Tam metin depo kökündeki gizlilik politikası dosyasında yer alır; mağaza Data safety formu
-          doldurulurken bildirim tokeni, anonim kurulum kimliği, platform ve bildirim tercihleri
-          alanlarını bu metinle hizalayın.
-        </Text>
+
+        {privacyPolicyUrl ? (
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => Linking.openURL(privacyPolicyUrl).catch(() => {})}
+            style={({ pressed }) => [styles.privacyLink, pressed && styles.pressed]}
+          >
+            <Ionicons color={colors.accent} name="document-text-outline" size={18} />
+            <Text style={styles.privacyLinkText}>Gizlilik Politikasını aç</Text>
+            <Ionicons color={colors.muted} name="chevron-forward" size={18} />
+          </Pressable>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   )
@@ -68,9 +78,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
+    alignSelf: 'center',
+    maxWidth: layout.contentMaxWidth,
     paddingBottom: spacing.xl,
     paddingHorizontal: spacing.screen,
     paddingTop: spacing.sm,
+    width: '100%',
   },
   topRow: {
     alignItems: 'center',
@@ -108,6 +121,24 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 20,
     marginBottom: spacing.sm,
+  },
+  privacyLink: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+  },
+  privacyLinkText: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
   },
   pressed: {
     opacity: 0.8,

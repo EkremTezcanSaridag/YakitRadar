@@ -10,30 +10,20 @@ import ScreenHeader from '../components/ScreenHeader'
 import { SkeletonGroup, SkeletonRows } from '../components/SkeletonLoader'
 import { useToast } from '../components/ToastProvider'
 import { illerFilterChipStyles } from '../styles/illerFilterChipStyles'
-import { colors, shadows, spacing, typography } from '../theme'
+import { colors, layout, shadows, spacing, typography } from '../theme'
 import { useFuelData } from '../hooks/useFuelData'
 import { computeNationalAverages, fuelTabs, getRealPriceRows } from '../services/fuelData'
 import { useNetworkStatus } from '../context/NetworkContext'
 import { useDeferredSkeleton } from '../hooks/useDeferredSkeleton'
 import { resolveFuelEmptyState, shouldShowFuelDataSkeleton } from '../services/fuelDataViewState'
 import { formatCurrencyTr, formatSignedCurrencyTr } from '../utils/priceFormat'
+import { matchesSearch } from '../utils/turkishSearch'
 import { defaultFavoriteCities, loadFavoriteCities, setPrimaryCityManual, toggleFavoriteCity } from '../services/favoriteCities'
 
 const fuelIonicon = {
   'gas-station': 'car-sport-outline',
   'truck-outline': 'bus-outline',
   fire: 'flame-outline',
-}
-
-function normalizeSearch(value) {
-  return value
-    .toLocaleLowerCase('tr-TR')
-    .replace(/[çÇ]/g, 'c')
-    .replace(/[ğĞ]/g, 'g')
-    .replace(/[ıIİi]/g, 'i')
-    .replace(/[öÖ]/g, 'o')
-    .replace(/[şŞ]/g, 's')
-    .replace(/[üÜ]/g, 'u')
 }
 
 export default function Iller() {
@@ -78,7 +68,6 @@ export default function Iller() {
   }
 
   const cities = useMemo(() => {
-    const normalizedQuery = normalizeSearch(searchQuery.trim())
     const realPrices = getRealPriceRows(data.prices)
     const averages = computeNationalAverages(realPrices)
     const nationalAvg = averages[selectedFuelKey]
@@ -86,8 +75,7 @@ export default function Iller() {
     return realPrices
       .filter((city) => {
         if (showOnlyFavorites && !favoriteCities.includes(city.city)) return false
-        if (normalizedQuery && !normalizeSearch(city.city).includes(normalizedQuery)) return false
-        return true
+        return matchesSearch(searchQuery, city.city)
       })
       .sort((first, second) => first[selectedFuelKey] - second[selectedFuelKey])
       .map((city) => {
@@ -157,6 +145,8 @@ export default function Iller() {
           {hasSearchQuery && (
             <Pressable
               accessibilityLabel="Aramayı temizle"
+              accessibilityRole="button"
+              hitSlop={8}
               onPress={() => setSearchQuery('')}
               style={({ pressed }) => [styles.clearSearchButton, pressed && styles.pressed]}
             >
@@ -178,6 +168,9 @@ export default function Iller() {
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={illerFilterChipStyles.row}>
           <Pressable
+            accessibilityLabel={`Favoriler (${favoriteCities.length})`}
+            accessibilityRole="button"
+            accessibilityState={{ selected: showOnlyFavorites }}
             onPress={() => setShowOnlyFavorites((prev) => !prev)}
             style={({ pressed }) => [
               illerFilterChipStyles.chip,
@@ -291,6 +284,7 @@ export default function Iller() {
 
           return (
             <Pressable
+              accessibilityHint="Uzun basarak bu ili ana şehir yap"
               key={city.name}
               onLongPress={() => handleMakePrimaryCity(city.name)}
               style={({ pressed }) => [styles.flatRow, pressed && styles.pressed]}
@@ -300,7 +294,18 @@ export default function Iller() {
               <View style={styles.cityInfo}>
                 <View style={styles.cityNameRow}>
                   <Text style={styles.cityName}>{city.name}</Text>
-                  <Pressable onPress={() => handleToggleFavorite(city.name)} style={styles.heartButton}>
+                  <Pressable
+                    accessibilityLabel={
+                      city.isFavorite
+                        ? `${city.name} favorilerden çıkar`
+                        : `${city.name} favorilere ekle`
+                    }
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: city.isFavorite }}
+                    hitSlop={8}
+                    onPress={() => handleToggleFavorite(city.name)}
+                    style={styles.heartButton}
+                  >
                     <Ionicons
                       name={city.isFavorite ? 'heart' : 'heart-outline'}
                       size={18}
@@ -347,10 +352,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   content: {
+    alignSelf: 'center',
     backgroundColor: colors.bg,
+    maxWidth: layout.contentMaxWidth,
     paddingHorizontal: spacing.screen,
     paddingTop: spacing.sm,
     paddingBottom: 96,
+    width: '100%',
   },
   leadText: {
     color: colors.mutedSoft,

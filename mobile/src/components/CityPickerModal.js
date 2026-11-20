@@ -11,17 +11,7 @@ import {
 } from 'react-native'
 import { getRealPriceRows } from '../services/fuelData'
 import { colors, radii, spacing, typography } from '../theme'
-
-function normalizeSearch(value) {
-  return value
-    .toLocaleLowerCase('tr-TR')
-    .replace(/[çÇ]/g, 'c')
-    .replace(/[ğĞ]/g, 'g')
-    .replace(/[ıIİi]/g, 'i')
-    .replace(/[öÖ]/g, 'o')
-    .replace(/[şŞ]/g, 's')
-    .replace(/[üÜ]/g, 'u')
-}
+import { matchesSearch } from '../utils/turkishSearch'
 
 export default function CityPickerModal({
   excludeCities = [],
@@ -35,13 +25,11 @@ export default function CityPickerModal({
 
   const cities = useMemo(() => {
     const realRows = getRealPriceRows(prices)
-    const normalizedQuery = normalizeSearch(query.trim())
-
     const excluded = new Set(excludeCities)
 
     return realRows
       .filter((row) => !excluded.has(row.city))
-      .filter((row) => !normalizedQuery || normalizeSearch(row.city).includes(normalizedQuery))
+      .filter((row) => matchesSearch(query, row.city))
       .sort((a, b) => a.city.localeCompare(b.city, 'tr'))
   }, [excludeCities, prices, query])
 

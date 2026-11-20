@@ -16,11 +16,13 @@ import {
 import FuelDataStatusBanner from '../components/FuelDataStatusBanner'
 import ScreenHeader from '../components/ScreenHeader'
 import { SkeletonBlock, SkeletonCard, SkeletonGroup } from '../components/SkeletonLoader'
+import { useToast } from '../components/ToastProvider'
 import { useDeferredSkeleton } from '../hooks/useDeferredSkeleton'
 import { useFuelData } from '../hooks/useFuelData'
 import { shouldShowFuelDataSkeleton } from '../services/fuelDataViewState'
-import { colors, shadows, spacing, typography } from '../theme'
+import { colors, layout, shadows, spacing, typography } from '../theme'
 import { formatCurrencyTr, formatDecimalTr } from '../utils/priceFormat'
+import { normalizeSearch } from '../utils/turkishSearch'
 
 const fuelIonicon = {
   'gas-station': 'car-sport-outline',
@@ -77,6 +79,7 @@ function ResultRow({ icon, label, value }) {
 
 export default function Aracim() {
   const { data, loading } = useFuelData()
+  const toast = useToast()
   const [profile, setProfile] = useState(defaultVehicleProfile)
   const [cityPickerOpen, setCityPickerOpen] = useState(false)
   const [resultOpen, setResultOpen] = useState(false)
@@ -126,9 +129,9 @@ export default function Aracim() {
     }
   }, [distanceKm, price, spentAmount])
   const filteredCities = useMemo(() => {
-    const query = cityQuery.trim().toLocaleLowerCase('tr-TR')
+    const query = normalizeSearch(cityQuery)
     return query
-      ? realPrices.filter((item) => item.city.toLocaleLowerCase('tr-TR').includes(query))
+      ? realPrices.filter((item) => normalizeSearch(item.city).includes(query))
       : realPrices
   }, [cityQuery, realPrices])
   const monthlyExpenses = useMemo(() => buildMonthlyExpenses(expenseHistory), [expenseHistory])
@@ -175,8 +178,13 @@ export default function Aracim() {
   }
 
   async function handleSave() {
+    if (spentAmount <= 0 || distanceKm <= 0) {
+      Alert.alert('Eksik Bilgi', 'Hesaplama için harcanan tutarı ve gidilen mesafeyi giriniz.')
+      return
+    }
+
     await saveVehicleProfile(profile)
-    if (spentAmount > 0 && distanceKm > 0 && price > 0) {
+    if (price > 0) {
       const nextHistory = await addVehicleExpenseRecord({
         city: selectedCity?.city ?? profile.city,
         costPerKm: calculations.costPerKm,
@@ -221,7 +229,7 @@ export default function Aracim() {
     setReceiptAmount('')
     setReceiptLiters('')
     setReceiptNotes('')
-    Alert.alert('Fiş Kaydedildi', `${receiptStation} yakıt alımı gider geçmişinize eklendi.`)
+    toast.success(`${receiptStation} · ${formatCurrencyTr(amt)} gider geçmişine eklendi.`)
   }
 
   async function handleDeleteRecord(id) {
@@ -233,6 +241,7 @@ export default function Aracim() {
         onPress: async () => {
           const nextHistory = await deleteVehicleExpenseRecord(id)
           setExpenseHistory(nextHistory)
+          toast.success('Gider kaydı silindi.')
         },
       },
     ])
@@ -567,7 +576,7 @@ export default function Aracim() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 96 },
+  content: { alignSelf: 'center', maxWidth: layout.contentMaxWidth, width: '100%', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 96 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerMark: { width: 38, height: 38, borderRadius: 8, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   headerText: { flex: 1, marginLeft: 10 }, brand: { color: colors.text, fontSize: 20, fontWeight: '800' }, subtitle: { color: colors.muted, fontSize: 12, marginTop: 2 },

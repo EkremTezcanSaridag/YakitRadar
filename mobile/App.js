@@ -17,14 +17,22 @@ import {
   configureNotificationHandler,
   setupNotificationChannels,
   loadNotificationSettings,
+  requestNotificationAccess,
   scheduleWeeklySummaryNotification,
   subscribeToNotificationEvents,
   syncExistingNotificationPermission,
+  getNotificationPermissionSnapshot,
 } from './src/services/notifications'
 import { initAds, trackAdInteraction } from './src/services/adManager'
 import SakinSolmaTabBar from './src/components/SakinSolmaTabBar'
+import NotificationPermissionPrompt from './src/components/NotificationPermissionPrompt'
 import LocationOnboarding from './src/screens/LocationOnboarding'
-import { hasUserConfiguredPrimaryCity } from './src/services/favoriteCities'
+import { hasUserConfiguredPrimaryCity, loadFavoriteCities } from './src/services/favoriteCities'
+import { shouldShowNotificationPermissionPrompt } from './src/services/notificationPermissionPrompt'
+import {
+  loadNotificationPermissionPromptSeen,
+  saveNotificationPermissionPromptSeen,
+} from './src/services/uiPreferences'
 import { colors } from './src/theme'
 import { logError } from './src/utils/logger'
 
@@ -191,6 +199,7 @@ function MainTabs() {
 function AppRoot() {
   const [bootState, setBootState] = useState('loading')
   const [showBootSpinner, setShowBootSpinner] = useState(false)
+  const [permissionPrompt, setPermissionPrompt] = useState({ busy: false, visible: false })
 
   useEffect(() => {
     hasUserConfiguredPrimaryCity()
@@ -200,6 +209,69 @@ function AppRoot() {
         setBootState('app')
       })
   }, [])
+
+  useEffect(() => {
+    if (bootState !== 'app') {
+      return undefined
+    }
+
+    let active = true
+
+    Promise.all([loadNotificationPermissionPromptSeen(), getNotificationPermissionSnapshot()])
+      .then(([seen, permission]) => {
+        if (!active) {
+          return
+        }
+
+        if (seen) {
+          return
+        }
+
+        const shouldShow = shouldShowNotificationPermissionPrompt({
+          canAskAgain: permission.canAskAgain,
+          granted: permission.granted,
+          platform: Platform.OS,
+          seen,
+        })
+
+        if (shouldShow) {
+          setPermissionPrompt({ busy: false, visible: true })
+          return
+        }
+
+        saveNotificationPermissionPromptSeen()
+      })
+      .catch((error) => logError('boot.notificationPermissionPrompt', error))
+
+    return () => {
+      active = false
+    }
+  }, [bootState])
+
+  async function dismissPermissionPrompt() {
+    setPermissionPrompt({ busy: false, visible: false })
+    await saveNotificationPermissionPromptSeen()
+  }
+
+  async function enableNotifications() {
+    setPermissionPrompt({ busy: true, visible: true })
+    await saveNotificationPermissionPromptSeen()
+
+    try {
+      const [settings, trackedCities] = await Promise.all([
+        loadNotificationSettings(),
+        loadFavoriteCities(),
+      ])
+      await requestNotificationAccess(settings, {
+        ...startupNotificationMeta,
+        trackedCities,
+      })
+    } catch (error) {
+      logError('boot.notificationPermission', error)
+    } finally {
+      setPermissionPrompt({ busy: false, visible: false })
+    }
+  }
 
   useEffect(() => {
     if (bootState !== 'loading') {
@@ -224,9 +296,17 @@ function AppRoot() {
   }
 
   return (
-    <NavigationContainer>
-      <MainTabs />
-    </NavigationContainer>
+    <>
+      <NavigationContainer>
+        <MainTabs />
+      </NavigationContainer>
+      <NotificationPermissionPrompt
+        busy={permissionPrompt.busy}
+        onAccept={enableNotifications}
+        onDecline={dismissPermissionPrompt}
+        visible={permissionPrompt.visible}
+      />
+    </>
   )
 }
 
@@ -237,8 +317,12 @@ export default function App() {
     const unsubscribe = subscribeToNotificationEvents()
 
     loadNotificationSettings()
-      .then((settings) => {
-        syncExistingNotificationPermission(settings, startupNotificationMeta)
+      .then(async (settings) => {
+        const trackedCities = await loadFavoriteCities()
+        syncExistingNotificationPermission(settings, {
+          ...startupNotificationMeta,
+          trackedCities,
+        })
         if (settings.weeklySummary) {
           scheduleWeeklySummaryNotification().catch((error) => logError('startup.weeklySummary', error))
         }
