@@ -106,6 +106,13 @@ Görseller ayrı PR ile eklenecek:
 3. Gerekli secret: `EXPO_TOKEN` (Expo → Access tokens). EAS proje kimliği `app.json` içinde tanımlı.
 4. Build bitince EAS artifact bağlantısı workflow özetinde görünür.
 
+**GitHub Release (APK dağıtımı):** `v*` tag'i push edildiğinde `.github/workflows/release.yml` production ortamıyla imzalı APK üretir ve Release'e `yakitradar-vX.Y.Z.apk` + `SHA256SUMS.txt` ekler.
+
+1. `mobile/app.json`, `mobile/package.json` ve `android.versionCode` güncellenir; sürüm notu `docs/RELEASE_NOTES/vX.Y.Z.md` olarak eklenir.
+2. `git tag vX.Y.Z && git push origin vX.Y.Z` (yalnızca `main` üzerinden).
+3. Workflow tag ile `app.json` sürümünü ve sürüm notunu doğrular, `release:preflight` çalıştırır, EAS build alır, APK'yı indirip SHA-256 üretir ve Release'i açar.
+4. Gereken secret'lar: `EXPO_TOKEN` ve `GITHUB_TOKEN` (workflow izni `contents: write`). Ayrıntılar: [`docs/OPERATIONS.md`](docs/OPERATIONS.md#10-sürüm-yayınlama-github-releases).
+
 Yerel geliştirme:
 
 ```bash
@@ -166,6 +173,7 @@ Supabase SQL dosyaları (`backend/supabase_*.sql`) operatör tarafından SQL Edi
 | Veri sağlığı çıktıları | `pytest tests/test_data_health_outputs.py` |
 | Mobil (tümü) | `cd mobile && npm test` |
 | Mobil zam/indirim tercihi | `cd mobile && npm run test:price-change-alerts` |
+| Release yapılandırması | `cd mobile && node scripts/release-config.test.mjs` |
 | Mobil tazelik | `cd mobile && npm run test:fuel-data-freshness` |
 | Mobil offline fuel | `cd mobile && npm run test:fuel-data-offline` |
 | İller filtre çipleri | `cd mobile && npm run test:iller-filter-chip` |
