@@ -19,7 +19,9 @@ from notification_rules import (
     fuel_matches_tracked,
     istanbul_quiet_hours_active,
     is_pending_price_change_stale,
+    price_change_alerts_enabled,
     price_change_dedupe_key,
+    select_price_changes_for_token,
 )
 from push_token_maintenance import apply_delivery_errors, disable_stale_tokens
 from price_memory_validation import sanitize_price_memory_items
@@ -654,20 +656,81 @@ def bildirim_mesaji_olustur(token_kayit, degisim):
             },
         }
 
+    eski_fiyat = fiyat_parse(degisim.get("old_price"))
+    yeni_fiyat = fiyat_parse(degisim.get("new_price"))
+    yuzde = None
+    if eski_fiyat and yeni_fiyat is not None:
+        yuzde = (yeni_fiyat - eski_fiyat) / eski_fiyat * 100
+
+    fiyat_metni = (
+        f"{eski_fiyat:.2f} → {yeni_fiyat:.2f} TL"
+        if eski_fiyat is not None and yeni_fiyat is not None
+        else f"Yeni fiyat: {fiyat_format(yeni_fiyat)}"
+    )
+    yuzde_metni = f", %{yuzde:+.1f}" if yuzde is not None else ""
+
     return {
         "to": token_kayit["expo_push_token"],
         "sound": "default",
-        "title": f"{degisim['fuel']} fiyatinda {hareket}",
-        "body": (
-            f"{degisim['city']} {degisim['fuel']} {abs(degisim['diff']):.2f} TL {yon}. "
-            f"Yeni fiyat: {fiyat_format(yeni_fiyat)}"
-        ),
+        "title": f"{degisim['city']} · {degisim['fuel']} {'zammı' if degisim['diff'] > 0 else 'indirimi'}",
+        "body": f"{fiyat_metni} ({degisim['diff']:+.2f} TL{yuzde_metni})",
         "data": {
             "city": degisim["city"],
             "fuel": degisim["fuel"],
             "newPrice": degisim["new_price"],
             "oldPrice": degisim["old_price"],
             "type": "fuel_change",
+            "count": 1,
+        },
+    }
+
+
+def fiyat_degisim_mesaji_olustur(token_kayit, degisimler):
+    """Tek değişimde sade mesaj, aynı cihaza birden fazla değişimde tek özet bildirim."""
+    if len(degisimler) == 1:
+        return bildirim_mesaji_olustur(token_kayit, degisimler[0])
+
+    satirlar = []
+    for degisim in degisimler:
+        eski_fiyat = fiyat_parse(degisim.get("old_price"))
+        yeni_fiyat = fiyat_parse(degisim.get("new_price"))
+
+        if eski_fiyat is not None and yeni_fiyat is not None:
+            satirlar.append(
+                f"{degisim['city']} {degisim['fuel']}: "
+                f"{eski_fiyat:.2f} → {yeni_fiyat:.2f} TL ({degisim['diff']:+.2f})"
+            )
+        else:
+            satirlar.append(
+                f"{degisim['city']} {degisim['fuel']}: {degisim['diff']:+.2f} TL"
+            )
+
+    zam_sayisi = sum(1 for degisim in degisimler if degisim["diff"] > 0)
+    indirim_sayisi = len(degisimler) - zam_sayisi
+    baslik_parcalari = []
+    if zam_sayisi:
+        baslik_parcalari.append(f"{zam_sayisi} zam")
+    if indirim_sayisi:
+        baslik_parcalari.append(f"{indirim_sayisi} indirim")
+
+    return {
+        "to": token_kayit["expo_push_token"],
+        "sound": "default",
+        "title": f"{len(degisimler)} fiyat değişikliği · {', '.join(baslik_parcalari)}",
+        "body": "\n".join(satirlar),
+        "data": {
+            "type": "fuel_change",
+            "count": len(degisimler),
+            "changes": [
+                {
+                    "city": degisim["city"],
+                    "fuel": degisim["fuel"],
+                    "oldPrice": degisim.get("old_price"),
+                    "newPrice": degisim.get("new_price"),
+                    "diff": degisim["diff"],
+                }
+                for degisim in degisimler
+            ],
         },
     }
 
@@ -1178,13 +1241,20 @@ def fiyat_bildirimleri_gonder(degisimler, price_memory=None):
             skipped_empty_token_count += 1
             continue
 
-        degisim = token_icin_degisim_sec(token_kayit, degisimler)
+        secilenler = select_price_changes_for_token(token_kayit, degisimler)
 
-        if not degisim:
+        if not secilenler:
             skipped_no_match_count += 1
+            if os.getenv("NOTIFICATION_DEBUG", "").lower() == "true":
+                print(
+                    "  [debug] eslesme yok: "
+                    f"tracked_cities={liste_degeri(token_kayit.get('tracked_cities'))} "
+                    f"tracked_fuels={liste_degeri(token_kayit.get('tracked_fuels'))} "
+                    f"price_change_alerts={price_change_alerts_enabled(token_kayit)}"
+                )
             continue
 
-        mesajlar.append(bildirim_mesaji_olustur(token_kayit, degisim))
+        mesajlar.append(fiyat_degisim_mesaji_olustur(token_kayit, secilenler))
 
     if not mesajlar:
         print("Bildirim kosullarina uyan cihaz yok")

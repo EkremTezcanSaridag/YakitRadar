@@ -175,6 +175,13 @@ export default function Bildirimler() {
   const notificationRows = useMemo(
     () => [
       {
+        desc: 'Zam veya indirim gerçekleştiğinde anında haber verir.',
+        icon: 'swap-vertical',
+        key: 'priceChangeAlerts',
+        title: 'Zam / indirim bildirimleri',
+        value: settings.priceChangeAlerts !== false,
+      },
+      {
         desc: 'Önemli fiyat hareketlerinde anlık uyarı.',
         icon: 'bell-ring-outline',
         key: 'dailyAlerts',

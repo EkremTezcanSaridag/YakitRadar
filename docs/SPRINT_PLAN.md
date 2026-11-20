@@ -127,6 +127,23 @@
 
 ---
 
+## Sprint 8 — P1: Zam / indirim gerçekleşti bildirimi (1.0.18)
+
+**Amaç:** Beklenen değişim bildirimi çalışıyor ama fiyat gerçekten değiştiğinde kullanıcıya haber gitmiyordu. Gerçek değişimleri tek, okunur bir push'a dönüştürmek.
+
+- [x] Takip edilen il ve yakıtlarla eşleşen **tüm** gerçek fiyat değişimleri cihaz başına tek push'ta toplanır (en fazla 3 satır).
+- [x] Başlık `İstanbul · Benzin indirimi` / `3 fiyat değişikliği · 2 zam, 1 indirim`; gövdede eski → yeni, TL farkı ve yüzde.
+- [x] `price_change_alerts` tercihi (varsayılan açık) `register_push_token` ile kaydedilir; Bildirimler ekranında "Zam / indirim bildirimleri" anahtarı.
+- [x] Eski şemada kolon yoksa bildirim yine gider; kapatınca yalnızca bu haber susar (günlük/il uyarıları etkilenmez).
+- [x] İl eşleşmesi büyük/küçük harf ve Türkçe İ/ı farkına duyarsız.
+- [x] Günlük pompa hafızası sinyali şehir filtresine takılmaz (ulusal hatırlatma).
+- [x] `NOTIFICATION_DEBUG=true` ile eşleşmeyen cihazların takip listeleri loglanır.
+- [x] Testler: `tests/test_price_change_notifications.py`, `mobile/scripts/price-change-alerts.test.mjs`.
+
+**Kabul kriteri:** Bir ilde fiyat değiştiğinde o ili takip eden cihaza tek push gider; aynı çalıştırmada 3 değişim varsa tek özet bildirim gelir; tercihi kapatan cihaza gitmez.
+
+---
+
 ## Çalışma kuralları
 
 - Her sprint kendi branch'inde: `fix/sprint-N-...`

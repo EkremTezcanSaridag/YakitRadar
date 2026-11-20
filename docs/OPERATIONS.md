@@ -113,10 +113,11 @@ SQL dosyaları **otomatik çalışmaz**; Supabase SQL Editor'de sırayla uygulan
 | 2 | `backend/supabase_market_signals.sql` | Piyasa sinyali tablosu |
 | 3 | `backend/supabase_market_signals_expected_amounts.sql` | Opsiyonel; beklenen tutar kolonları |
 | 4 | `backend/supabase_notifications.sql` | `push_tokens` + `register_push_token` RPC |
-| 5 | `backend/supabase_push_token_hygiene.sql` | Opsiyonel; receipt/temizlik kolonları |
-| 6 | `backend/supabase_pending_notifications.sql` | Sessiz saat kuyruğu |
-| 7 | `backend/supabase_price_change_events.sql` | Opsiyonel; mobil şu an `gecmis` kullanıyor |
-| 8 | `backend/supabase_gecmis_unique_tarih.sql` | **En son.** Önce `tarih` bazında mükerrer kayıtları temizleyin, yoksa unique index oluşmaz |
+| 5 | `backend/supabase_price_change_alerts.sql` | **Zam/indirim bildirimi tercihi** (kolon + güncel RPC) |
+| 6 | `backend/supabase_push_token_hygiene.sql` | Opsiyonel; receipt/temizlik kolonları |
+| 7 | `backend/supabase_pending_notifications.sql` | Sessiz saat kuyruğu |
+| 8 | `backend/supabase_price_change_events.sql` | Opsiyonel; mobil şu an `gecmis` kullanıyor |
+| 9 | `backend/supabase_gecmis_unique_tarih.sql` | **En son.** Önce `tarih` bazında mükerrer kayıtları temizleyin, yoksa unique index oluşmaz |
 
 Doğrulama:
 
