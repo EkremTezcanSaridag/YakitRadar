@@ -1,18 +1,17 @@
 export const PILL_WIDTH = 52
 export const PILL_HEIGHT = 30
 export const PILL_RADIUS = 15
-export const NARROW_TAB_WIDTH_THRESHOLD = 56
+export const PILL_MIN_WIDTH = 40
+export const PILL_MAX_WIDTH = 72
+export const PILL_HORIZONTAL_INSET = 4
 
 export function resolvePillWidth(itemWidth) {
   if (!Number.isFinite(itemWidth) || itemWidth <= 0) {
     return PILL_WIDTH
   }
 
-  if (itemWidth < NARROW_TAB_WIDTH_THRESHOLD) {
-    return itemWidth - 4
-  }
-
-  return PILL_WIDTH
+  const available = itemWidth - PILL_HORIZONTAL_INSET * 2
+  return Math.min(Math.max(available, PILL_MIN_WIDTH), PILL_MAX_WIDTH)
 }
 
 /** Horizontal translateX: absolute pill uses left:0; translateX centers on tab item (padding-box coords). */

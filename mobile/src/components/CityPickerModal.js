@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import {
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,6 +25,19 @@ export default function CityPickerModal({
   visible,
 }) {
   const [query, setQuery] = useState('')
+  const [keyboardInset, setKeyboardInset] = useState(0)
+
+  useEffect(() => {
+    const showListener = Keyboard.addListener('keyboardDidShow', (event) => {
+      setKeyboardInset(event.endCoordinates.height)
+    })
+    const hideListener = Keyboard.addListener('keyboardDidHide', () => setKeyboardInset(0))
+
+    return () => {
+      showListener.remove()
+      hideListener.remove()
+    }
+  }, [])
 
   const cities = useMemo(() => {
     const realRows = getRealPriceRows(prices)
@@ -46,71 +62,84 @@ export default function CityPickerModal({
 
   return (
     <Modal animationType="slide" onRequestClose={handleClose} transparent visible={visible}>
-      <Pressable style={styles.backdrop} onPress={handleClose} />
-      <View style={styles.sheet}>
-        <View style={styles.sheetHeader}>
-          <Text style={styles.sheetTitle}>Şehir seç</Text>
-          <Pressable accessibilityLabel="Kapat" hitSlop={12} onPress={handleClose}>
-            <Ionicons color={colors.muted} name="close" size={24} />
-          </Pressable>
-        </View>
-
-        <View style={styles.searchRow}>
-          <Ionicons color={colors.mutedSoft} name="search" size={18} />
-          <TextInput
-            autoCapitalize="words"
-            autoCorrect={false}
-            onChangeText={setQuery}
-            placeholder="İl ara…"
-            placeholderTextColor={colors.mutedSoft}
-            selectionColor={colors.accent}
-            style={styles.searchInput}
-            value={query}
-          />
-          {query ? (
-            <Pressable onPress={() => setQuery('')} hitSlop={8}>
-              <Ionicons color={colors.mutedSoft} name="close-circle" size={18} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.root}
+      >
+        <Pressable style={styles.backdrop} onPress={handleClose} />
+        <View style={styles.sheet}>
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>Şehir seç</Text>
+            <Pressable accessibilityLabel="Kapat" hitSlop={12} onPress={handleClose}>
+              <Ionicons color={colors.muted} name="close" size={24} />
             </Pressable>
-          ) : null}
-        </View>
+          </View>
 
-        <ScrollView keyboardShouldPersistTaps="handled" style={styles.list}>
-          {cities.length === 0 ? (
-            <Text style={styles.emptyText}>Gerçek fiyat verisi olan il bulunamadı.</Text>
-          ) : (
-            cities.map((row) => {
-              const selected = row.city === selectedCity
-              return (
-                <Pressable
-                  key={row.city}
-                  onPress={() => handleSelect(row.city)}
-                  style={({ pressed }) => [
-                    styles.row,
-                    selected && styles.rowSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={styles.rowCity}>{row.city}</Text>
-                  {selected ? (
-                    <Ionicons color={colors.accent} name="checkmark" size={20} />
-                  ) : null}
-                </Pressable>
-              )
-            })
-          )}
-        </ScrollView>
-      </View>
+          <View style={styles.searchRow}>
+            <Ionicons color={colors.mutedSoft} name="search" size={18} />
+            <TextInput
+              autoCapitalize="words"
+              autoCorrect={false}
+              onChangeText={setQuery}
+              placeholder="İl ara…"
+              placeholderTextColor={colors.mutedSoft}
+              selectionColor={colors.accent}
+              style={styles.searchInput}
+              value={query}
+            />
+            {query ? (
+              <Pressable onPress={() => setQuery('')} hitSlop={8}>
+                <Ionicons color={colors.mutedSoft} name="close-circle" size={18} />
+              </Pressable>
+            ) : null}
+          </View>
+
+          <ScrollView
+            contentContainerStyle={[styles.listContent, { paddingBottom: keyboardInset + spacing.md }]}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+            style={styles.list}
+          >
+            {cities.length === 0 ? (
+              <Text style={styles.emptyText}>Gerçek fiyat verisi olan il bulunamadı.</Text>
+            ) : (
+              cities.map((row) => {
+                const selected = row.city === selectedCity
+                return (
+                  <Pressable
+                    key={row.city}
+                    onPress={() => handleSelect(row.city)}
+                    style={({ pressed }) => [
+                      styles.row,
+                      selected && styles.rowSelected,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.rowCity}>{row.city}</Text>
+                    {selected ? (
+                      <Ionicons color={colors.accent} name="checkmark" size={20} />
+                    ) : null}
+                  </Pressable>
+                )
+              })
+            )}
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   )
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   backdrop: {
     flex: 1,
     backgroundColor: colors.overlay,
   },
   sheet: {
-    maxHeight: '72%',
+    maxHeight: '68%',
     backgroundColor: colors.surface,
     borderTopLeftRadius: radii.card,
     borderTopRightRadius: radii.card,
@@ -153,6 +182,9 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: spacing.screen,
+  },
+  listContent: {
+    paddingBottom: spacing.md,
   },
   row: {
     flexDirection: 'row',

@@ -16,7 +16,7 @@ export function formatTimeHmTurkey(isoValue) {
   })
 }
 
-export function resolveStatusBanner({ isOffline, fuelData }) {
+export function resolveStatusBanner({ isOffline, fuelData, refreshing = false }) {
   if (!fuelData?.hasRealPrices) {
     return null
   }
@@ -33,6 +33,14 @@ export function resolveStatusBanner({ isOffline, fuelData }) {
   }
 
   if (fuelData.dataCheckStale) {
+    if (refreshing) {
+      return {
+        variant: 'stale',
+        text: 'Fiyatlar kontrol ediliyor…',
+        actionLabel: null,
+      }
+    }
+
     return {
       variant: 'stale',
       text: 'Fiyatlar 6 saatten uzun süredir kontrol edilmedi',
@@ -41,6 +49,14 @@ export function resolveStatusBanner({ isOffline, fuelData }) {
   }
 
   if (fuelData.sourceStale) {
+    if (refreshing) {
+      return {
+        variant: 'stale',
+        text: 'Kaynak verisi kontrol ediliyor…',
+        actionLabel: null,
+      }
+    }
+
     const sourceLabel = fuelData.sourceUpdatedLabel
       ? `Kaynak: ${fuelData.sourceUpdatedLabel}`
       : 'Kaynak tarihi bilinmiyor'

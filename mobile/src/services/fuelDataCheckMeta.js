@@ -1,7 +1,20 @@
 export const DATA_CHECK_STALE_MS = 6 * 60 * 60 * 1000
 export const SOURCE_STALE_MS = 24 * 60 * 60 * 1000
+export const FOREGROUND_CHECK_MIN_INTERVAL_MS = 60 * 1000
 
 const SOURCE_TIMESTAMP_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/
+
+export function shouldRunForegroundCheck(
+  lastCheckedAtMs,
+  nowMs,
+  minIntervalMs = FOREGROUND_CHECK_MIN_INTERVAL_MS,
+) {
+  if (!Number.isFinite(lastCheckedAtMs) || lastCheckedAtMs <= 0) {
+    return true
+  }
+
+  return nowMs - lastCheckedAtMs >= minIntervalMs
+}
 
 export function formatHmEuropeIstanbul(date) {
   return new Intl.DateTimeFormat('en-GB', {
