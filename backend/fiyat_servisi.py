@@ -12,13 +12,21 @@ from supabase import create_client
 from http_client import SCRAPER_REQUEST_TIMEOUT, make_request_with_retry
 from market_signals import build_market_signal
 from expo_push_client import fetch_push_receipts, parse_receipt_outcomes, send_expo_messages
+from expected_change_realized import (
+    DEFAULT_EXPECTATION_LOOKBACK_DAYS,
+    find_realized_expectations,
+    realized_by_fuel,
+)
 from notification_rules import (
+    confidence_meets_minimum,
     dedupe_price_changes,
     expected_change_dedupe_key,
     filter_expected_change_signals,
     fuel_matches_tracked,
     istanbul_quiet_hours_active,
     is_pending_price_change_stale,
+    normalize_fuel_key,
+    parse_signals_field,
     price_change_alerts_enabled,
     price_change_dedupe_key,
     select_price_changes_for_token,
@@ -617,10 +625,44 @@ def token_icin_degisim_sec(token_kayit, degisimler):
     return None
 
 
-def bildirim_mesaji_olustur(token_kayit, degisim):
+def _realized_hareket(realizasyon):
+    return "zammı" if realizasyon.get("direction") == "increase" else "indirimi"
+
+
+def _realized_fiyat_metni(degisim):
+    eski_fiyat = fiyat_parse(degisim.get("old_price"))
+    yeni_fiyat = fiyat_parse(degisim.get("new_price"))
+
+    if eski_fiyat is not None and yeni_fiyat is not None:
+        return f"{eski_fiyat:.2f} → {yeni_fiyat:.2f} TL"
+
+    return f"Yeni fiyat: {fiyat_format(yeni_fiyat)}"
+
+
+def bildirim_mesaji_olustur(token_kayit, degisim, realizasyon=None):
     yon = "artti" if degisim["diff"] > 0 else "dustu"
     hareket = "artis" if degisim["diff"] > 0 else "indirim"
     yeni_fiyat = degisim.get("new_price")
+
+    if realizasyon and normalize_fuel_key(degisim.get("fuel")) == realizasyon.get("fuel_key"):
+        expected = realizasyon.get("expected_amount")
+        beklenti_metni = f" · Beklenen {expected:.2f} TL" if expected is not None else ""
+
+        return {
+            "to": token_kayit["expo_push_token"],
+            "sound": "default",
+            "title": f"Beklenen {degisim['fuel']} {_realized_hareket(realizasyon)} gerçekleşti",
+            "body": f"{_realized_fiyat_metni(degisim)}{beklenti_metni}",
+            "data": {
+                "city": degisim["city"],
+                "fuel": degisim["fuel"],
+                "newPrice": degisim.get("new_price"),
+                "oldPrice": degisim.get("old_price"),
+                "type": "expected_change_realized",
+                "expectedAmount": expected,
+                "signalDate": realizasyon.get("signal_date"),
+            },
+        }
 
     if degisim.get("source") == "expected_change":
         amount = abs(float(degisim.get("diff") or 0))
@@ -685,10 +727,17 @@ def bildirim_mesaji_olustur(token_kayit, degisim):
     }
 
 
-def fiyat_degisim_mesaji_olustur(token_kayit, degisimler):
+def fiyat_degisim_mesaji_olustur(token_kayit, degisimler, realizasyonlar=None):
     """Tek değişimde sade mesaj, aynı cihaza birden fazla değişimde tek özet bildirim."""
+    realizasyonlar = realizasyonlar or {}
+
     if len(degisimler) == 1:
-        return bildirim_mesaji_olustur(token_kayit, degisimler[0])
+        degisim = degisimler[0]
+        return bildirim_mesaji_olustur(
+            token_kayit,
+            degisim,
+            realizasyonlar.get(normalize_fuel_key(degisim.get("fuel"))),
+        )
 
     satirlar = []
     for degisim in degisimler:
@@ -705,6 +754,21 @@ def fiyat_degisim_mesaji_olustur(token_kayit, degisimler):
                 f"{degisim['city']} {degisim['fuel']}: {degisim['diff']:+.2f} TL"
             )
 
+    notlar = []
+    gorulen_yakitlar = set()
+
+    for degisim in degisimler:
+        realizasyon = realizasyonlar.get(normalize_fuel_key(degisim.get("fuel")))
+
+        if not realizasyon or realizasyon["fuel_key"] in gorulen_yakitlar:
+            continue
+
+        gorulen_yakitlar.add(realizasyon["fuel_key"])
+        notlar.append(
+            f"✓ Beklenen {degisim['fuel']} {_realized_hareket(realizasyon)} gerçekleşti "
+            f"({realizasyon['expected_amount']:.2f} TL)"
+        )
+
     zam_sayisi = sum(1 for degisim in degisimler if degisim["diff"] > 0)
     indirim_sayisi = len(degisimler) - zam_sayisi
     baslik_parcalari = []
@@ -717,7 +781,7 @@ def fiyat_degisim_mesaji_olustur(token_kayit, degisimler):
         "to": token_kayit["expo_push_token"],
         "sound": "default",
         "title": f"{len(degisimler)} fiyat değişikliği · {', '.join(baslik_parcalari)}",
-        "body": "\n".join(satirlar),
+        "body": "\n".join(satirlar + notlar),
         "data": {
             "type": "fuel_change",
             "count": len(degisimler),
@@ -730,6 +794,16 @@ def fiyat_degisim_mesaji_olustur(token_kayit, degisimler):
                     "diff": degisim["diff"],
                 }
                 for degisim in degisimler
+            ],
+            "realized": [
+                {
+                    "fuel": realizasyon["fuel_key"],
+                    "expectedAmount": realizasyon["expected_amount"],
+                    "actualAmount": realizasyon["actual_amount"],
+                    "signalDate": realizasyon.get("signal_date"),
+                }
+                for realizasyon in realizasyonlar.values()
+                if realizasyon["fuel_key"] in gorulen_yakitlar
             ],
         },
     }
@@ -1005,6 +1079,57 @@ def beklenen_degisim_bugun_gonderildi_mi(signal_date, fuel):
     return bool(sonuc.data)
 
 
+def son_beklenen_sinyalleri_oku(gun=DEFAULT_EXPECTATION_LOOKBACK_DAYS):
+    """Son N günün market_signals satırlarındaki beklenti sinyallerini düz liste yapar."""
+    baslangic = (
+        datetime.now(ISTANBUL_TZ) - timedelta(days=max(1, int(gun)))
+    ).strftime("%Y-%m-%d")
+
+    try:
+        sonuc = (
+            supabase.table("market_signals")
+            .select("signal_date, signals, confidence")
+            .gte("signal_date", baslangic)
+            .order("signal_date", desc=True)
+            .limit(10)
+            .execute()
+        )
+    except Exception as hata:
+        print(f"Beklenen degisim sinyalleri okunamadi: {hata}")
+        return []
+
+    entries = []
+
+    for row in sonuc.data or []:
+        if not confidence_meets_minimum(row.get("confidence"), "medium"):
+            continue
+
+        for signal_entry in parse_signals_field(row.get("signals")):
+            if not confidence_meets_minimum(
+                signal_entry.get("confidence") or row.get("confidence"),
+                "medium",
+            ):
+                continue
+
+            entries.append(
+                {
+                    **signal_entry,
+                    "signal_date": row.get("signal_date"),
+                    "confidence": signal_entry.get("confidence") or row.get("confidence"),
+                }
+            )
+
+    return entries
+
+
+def beklenen_degisim_gerceklesti_mi(degisimler):
+    """Gerçekleşen fiyat değişimlerini son günlerin beklentileriyle eşleştirir."""
+    if not degisimler:
+        return []
+
+    return find_realized_expectations(degisimler, son_beklenen_sinyalleri_oku())
+
+
 def beklenen_degisim_degisimi_olustur(signal_entry, signal_date):
     amount = float(signal_entry.get("expected_amount_tl") or signal_entry.get("expected_amount") or 0)
 
@@ -1022,8 +1147,14 @@ def beklenen_degisim_degisimi_olustur(signal_entry, signal_date):
     }
 
 
-def beklenen_degisim_bildirimleri_gonder(market_row):
+def beklenen_degisim_bildirimleri_gonder(market_row, gerceklesen_yakitlar=None):
     disable_stale_tokens(supabase)
+    atlanan_yakitlar = {
+        normalize_fuel_key(yakit)
+        for yakit in (gerceklesen_yakitlar or [])
+        if str(yakit or "").strip()
+    }
+
     if istanbul_quiet_hours_active(datetime.now(ISTANBUL_TZ)):
         bildirim_log_kaydet(
             0,
@@ -1056,6 +1187,10 @@ def beklenen_degisim_bildirimleri_gonder(market_row):
 
     for signal_entry in uygun_sinyaller:
         fuel = signal_entry.get("fuel", "Yakıt")
+
+        if normalize_fuel_key(fuel) in atlanan_yakitlar:
+            print(f"Beklenen degisim zaten gerceklesti, beklenti bildirimi atlandi: {fuel}")
+            continue
 
         if beklenen_degisim_bugun_gonderildi_mi(signal_date, fuel):
             continue
@@ -1148,10 +1283,21 @@ def beklenen_degisim_bildirimleri_gonder(market_row):
         print(f"Toplam {toplam_gonderilen} beklenen degisim push bildirimi gonderildi")
 
 
-def fiyat_bildirimleri_gonder(degisimler, price_memory=None):
+def fiyat_bildirimleri_gonder(degisimler, price_memory=None, gerceklesenler=None):
     disable_stale_tokens(supabase)
     notification_reason = None
     signal_date = bugun_signal_tarihi()
+    realizasyonlar = realized_by_fuel(gerceklesenler)
+    realizasyon_ozeti = [
+        {
+            "fuel": realizasyon["fuel_key"],
+            "expected_amount": realizasyon["expected_amount"],
+            "actual_amount": realizasyon["actual_amount"],
+            "signal_date": realizasyon.get("signal_date"),
+            "city_count": realizasyon.get("city_count"),
+        }
+        for realizasyon in realizasyonlar.values()
+    ]
     bekleyen_kayitlar = []
     bekleyen_dedupe_keys = []
 
@@ -1254,7 +1400,7 @@ def fiyat_bildirimleri_gonder(degisimler, price_memory=None):
                 )
             continue
 
-        mesajlar.append(fiyat_degisim_mesaji_olustur(token_kayit, secilenler))
+        mesajlar.append(fiyat_degisim_mesaji_olustur(token_kayit, secilenler, realizasyonlar))
 
     if not mesajlar:
         print("Bildirim kosullarina uyan cihaz yok")
@@ -1321,6 +1467,7 @@ def fiyat_bildirimleri_gonder(degisimler, price_memory=None):
             "price_memory": price_memory or {},
             "trigger": notification_reason or "price_change",
             "flushed_pending_keys": bekleyen_dedupe_keys,
+            "realized_expectations": realizasyon_ozeti,
             **delivery,
         },
     )
@@ -1399,6 +1546,21 @@ if __name__ == "__main__":
         print(f"Detay: {hata}")
         raise SystemExit(1) from hata
 
+    gerceklesen_beklentiler = []
+
+    try:
+        gerceklesen_beklentiler = beklenen_degisim_gerceklesti_mi(degisimler)
+    except Exception as hata:
+        print(f"Beklenen degisim eslestirmesi yapilamadi: {hata}")
+
+    for eslesme in gerceklesen_beklentiler:
+        print(
+            "Beklenen degisim gerceklesti: "
+            f"{eslesme['fuel']} {eslesme['actual_amount']:.2f} TL "
+            f"(beklenen {eslesme['expected_amount']:.2f} TL, "
+            f"{eslesme.get('city_count') or 0} il)"
+        )
+
     price_memory = (sinyal or {}).get("analysis", {})
     fiyat_bildirimleri_gonder(
         degisimler,
@@ -1409,9 +1571,15 @@ if __name__ == "__main__":
             "items": price_memory.get("price_items", []),
             "remembered_at": price_memory.get("price_memory", {}).get("remembered_at"),
         },
+        gerceklesenler=gerceklesen_beklentiler,
     )
 
-    beklenen_degisim_bildirimleri_gonder(sinyal or {})
+    beklenen_degisim_bildirimleri_gonder(
+        sinyal or {},
+        gerceklesen_yakitlar=[
+            eslesme["fuel_key"] for eslesme in gerceklesen_beklentiler
+        ],
+    )
 
     if os.getenv("SEND_TEST_NOTIFICATION", "").lower() == "true":
         test_bildirimi_gonder(os.getenv("TEST_NOTIFICATION_INSTALLATION_ID", ""))

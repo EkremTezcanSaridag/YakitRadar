@@ -4,9 +4,10 @@ import { resolveStatusBanner } from '../services/fuelDataViewState'
 import StatusBanner from './StatusBanner'
 
 export default function FuelDataStatusBanner() {
-  const { data, refresh, refreshing } = useFuelData()
+  const { data, refresh, refreshing, autoRefreshing } = useFuelData()
   const { isOffline } = useNetworkStatus()
-  const banner = resolveStatusBanner({ isOffline, fuelData: data })
+  const busy = Boolean(refreshing || autoRefreshing)
+  const banner = resolveStatusBanner({ isOffline, fuelData: data, refreshing: busy })
 
   if (!banner) {
     return null
@@ -15,7 +16,7 @@ export default function FuelDataStatusBanner() {
   return (
     <StatusBanner
       actionLabel={banner.actionLabel}
-      busy={refreshing}
+      busy={busy}
       onAction={refresh}
       text={banner.text}
       variant={banner.variant}

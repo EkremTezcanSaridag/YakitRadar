@@ -1,15 +1,22 @@
 import assert from 'node:assert/strict'
 import {
+  FOREGROUND_CHECK_MIN_INTERVAL_MS,
   SOURCE_STALE_MS,
   buildSourceFreshness,
   formatSourceUpdatedLabel,
   parseSourceUpdatedAt,
+  shouldRunForegroundCheck,
 } from '../src/services/fuelDataCheckMeta.js'
 import { resolveStatusBanner } from '../src/services/fuelDataViewState.js'
 
 const now = new Date('2026-11-12T12:00:00+03:00').getTime()
 
 assert.equal(SOURCE_STALE_MS, 24 * 60 * 60 * 1000)
+assert.equal(FOREGROUND_CHECK_MIN_INTERVAL_MS, 60 * 1000)
+assert.equal(shouldRunForegroundCheck(0, now), true)
+assert.equal(shouldRunForegroundCheck(now - 59 * 1000, now), false)
+assert.equal(shouldRunForegroundCheck(now - 60 * 1000, now), true)
+assert.equal(shouldRunForegroundCheck(Number.NaN, now), true)
 
 const parsed = parseSourceUpdatedAt('2026-11-12 08:05')
 assert.equal(parsed.toISOString(), '2026-11-12T05:05:00.000Z')
@@ -73,5 +80,26 @@ assert.equal(
   })?.text,
   'Fiyatlar 6 saatten uzun süredir kontrol edilmedi',
 )
+
+const autoCheckBanner = resolveStatusBanner({
+  isOffline: false,
+  refreshing: true,
+  fuelData: { hasRealPrices: true, dataCheckStale: true, sourceStale: true },
+})
+assert.equal(autoCheckBanner?.text, 'Fiyatlar kontrol ediliyor…')
+assert.equal(autoCheckBanner?.actionLabel, null)
+
+const sourceCheckBanner = resolveStatusBanner({
+  isOffline: false,
+  refreshing: true,
+  fuelData: {
+    hasRealPrices: true,
+    dataCheckStale: false,
+    sourceStale: true,
+    sourceUpdatedLabel: stale.sourceUpdatedLabel,
+  },
+})
+assert.equal(sourceCheckBanner?.text, 'Kaynak verisi kontrol ediliyor…')
+assert.equal(sourceCheckBanner?.actionLabel, null)
 
 console.log('fuel-data-freshness tests passed')

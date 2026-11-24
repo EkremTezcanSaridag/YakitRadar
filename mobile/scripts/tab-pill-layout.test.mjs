@@ -3,6 +3,7 @@ import {
   buildTabBarFixture,
   computeTabPillTop,
   computeTabPillTranslateX,
+  PILL_MAX_WIDTH,
   PILL_WIDTH,
   resolvePillWidth,
   tabPillAlignmentDelta,
@@ -29,12 +30,27 @@ for (const screenWidth of [320, 360, 390, 412]) {
   })
 }
 
-assert.equal(resolvePillWidth(55), 51)
-assert.equal(resolvePillWidth(56), PILL_WIDTH)
+assert.equal(resolvePillWidth(55), 47)
+assert.equal(resolvePillWidth(56), 48)
+assert.equal(resolvePillWidth(64), 56)
+assert.equal(resolvePillWidth(200), PILL_MAX_WIDTH)
+assert.equal(resolvePillWidth(0), PILL_WIDTH)
+
+for (const screenWidth of [320, 360, 390, 412]) {
+  const fixture = buildTabBarFixture(screenWidth)
+  const itemWidth = fixture.items[0].width
+  const pillWidth = resolvePillWidth(itemWidth)
+
+  assert.ok(
+    pillWidth >= itemWidth * 0.8,
+    `width ${screenWidth}: pill ${pillWidth} does not cover 80% of tab ${itemWidth}`,
+  )
+  assert.ok(pillWidth <= itemWidth - 6, `width ${screenWidth}: pill overflows tab`)
+}
 
 const sampleItem = { x: 0, y: 1, width: 64, height: 48 }
 const sampleIcon = { x: 21, y: 5, height: 22, width: 22 }
-assert.equal(computeTabPillTranslateX(sampleItem), 6)
+assert.equal(computeTabPillTranslateX(sampleItem), 4)
 assert.equal(computeTabPillTop(sampleItem, sampleIcon), 2)
 
 const icon = { x: 21, y: 5, height: 22, width: 22 }

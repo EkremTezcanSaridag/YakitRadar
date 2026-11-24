@@ -99,6 +99,8 @@ export default function Iller() {
       <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={styles.content}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             colors={[colors.accent]}

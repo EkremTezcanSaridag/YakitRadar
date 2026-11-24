@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { AccessibilityInfo } from 'react-native'
+import { AccessibilityInfo, AppState } from 'react-native'
 import { useReconnectEffect } from '../context/NetworkContext'
 import { pushToast } from '../components/toastController'
 import { checkAndTriggerCustomAlerts } from '../services/customAlerts'
@@ -10,6 +10,7 @@ import {
   refreshMarketSignalFromRemote,
   snapshotFuelPricesForCompare,
 } from '../services/fuelData'
+import { shouldRunForegroundCheck } from '../services/fuelDataCheckMeta'
 import { scheduleWeeklySummaryNotification } from '../services/notifications'
 import { logError } from '../utils/logger'
 
@@ -26,10 +27,12 @@ function useFuelDataState() {
   const followUpTimerRef = useRef(null)
   const mountedRef = useRef(true)
   const hadRealDataRef = useRef(false)
+  const lastAutoCheckAtRef = useRef(0)
   const [state, setState] = useState({
     data: emptyFuelData,
     loading: true,
     refreshing: false,
+    autoRefreshing: false,
     marketSignalRefreshing: false,
   })
 
@@ -144,6 +147,12 @@ function useFuelDataState() {
         }))
       }
 
+      setState((current) => ({
+        ...current,
+        autoRefreshing: true,
+      }))
+
+      lastAutoCheckAtRef.current = Date.now()
       const data = await loadFuelData({ refresh: true, triggerBackend: true })
 
       if (!isMounted) {
@@ -156,6 +165,7 @@ function useFuelDataState() {
         data,
         loading: false,
         refreshing: false,
+        autoRefreshing: false,
       }))
 
       if (data.hasRealPrices) {
@@ -175,6 +185,48 @@ function useFuelDataState() {
         clearTimeout(followUpTimerRef.current)
       }
     }
+  }, [])
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active') {
+        return
+      }
+
+      if (!shouldRunForegroundCheck(lastAutoCheckAtRef.current, Date.now())) {
+        return
+      }
+
+      lastAutoCheckAtRef.current = Date.now()
+      setState((current) => ({ ...current, autoRefreshing: true }))
+
+      loadFuelData({ refresh: true, triggerBackend: true })
+        .then((data) => {
+          if (!mountedRef.current) {
+            return
+          }
+
+          hadRealDataRef.current = Boolean(data?.hasRealPrices)
+          setState((current) => ({
+            ...current,
+            data,
+            loading: false,
+            autoRefreshing: false,
+          }))
+          triggerAlertsAndSchedule(data)
+        })
+        .catch((error) => {
+          logError('fuel.foregroundRefresh', error)
+
+          if (!mountedRef.current) {
+            return
+          }
+
+          setState((current) => ({ ...current, autoRefreshing: false }))
+        })
+    })
+
+    return () => subscription.remove()
   }, [])
 
   const reconnectRefresh = useCallback(() => {
