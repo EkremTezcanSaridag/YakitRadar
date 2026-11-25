@@ -98,7 +98,7 @@ RE_NUMERIC_TL = re.compile(
 )
 RE_LIRA_KURUS_WRITTEN = re.compile(
     r"(?P<lira_word>bir|iki|uc|dort|bes|alti|yedi|sekiz|dokuz|on|\d{1,2})\s+lira\s+"
-    r"(?P<kurus_word>elli|on|yirmi|otuz|kirk|bes|alti|yedi|sekiz|dokuz|\d{1,2})\s+kurus(?:luk|lugü|lüğü)?",
+    r"(?P<kurus_word>elli|on|yirmi|otuz|kirk|altmis|yetmis|seksen|doksan|bes|alti|yedi|sekiz|dokuz|\d{1,2})\s+kurus(?:luk|lugü|lüğü)?",
     re.IGNORECASE,
 )
 RE_LIRA_KURUS = re.compile(
@@ -116,7 +116,7 @@ RE_WRITTEN_LIRA = re.compile(
 )
 RE_WRITTEN_LIRA_KURUS = re.compile(
     r"\b(?P<lira_word>bir|iki|uc|dort|bes|alti|yedi|sekiz|dokuz|on)\s+lira\s+"
-    r"(?P<kurus_word>elli|on|yirmi|otuz|kirk|bes|alti|yedi|sekiz|dokuz|\d{1,2})\s+kurus\b",
+    r"(?P<kurus_word>elli|on|yirmi|otuz|kirk|altmis|yetmis|seksen|doksan|bes|alti|yedi|sekiz|dokuz|\d{1,2})\s+kurus\b",
     re.IGNORECASE,
 )
 
@@ -809,7 +809,7 @@ def compute_bu_gece_effective_at(
     local = reference.astimezone(reference.tzinfo)
     target_date = local.date()
 
-    if local.hour >= 18:
+    if local.hour >= 4:
         target_date = local.date() + timedelta(days=1)
 
     return datetime(target_date.year, target_date.month, target_date.day, tzinfo=local.tzinfo)
@@ -1272,9 +1272,6 @@ def derive_overall_direction(signals: list[dict[str, Any]]) -> str:
     }
 
     if not active_directions:
-        return "neutral"
-
-    if "increase" in active_directions and "decrease" in active_directions:
         return "neutral"
 
     scored = [

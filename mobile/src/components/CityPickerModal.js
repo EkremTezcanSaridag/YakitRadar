@@ -12,7 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { getRealPriceRows } from '../services/fuelData'
+import { getRealPriceRows, provinceNames } from '../services/fuelData'
 import { colors, radii, spacing, typography } from '../theme'
 import { matchesSearch } from '../utils/turkishSearch'
 
@@ -41,9 +41,10 @@ export default function CityPickerModal({
 
   const cities = useMemo(() => {
     const realRows = getRealPriceRows(prices)
+    const sourceRows = realRows.length > 0 ? realRows : provinceNames.map((city) => ({ city }))
     const excluded = new Set(excludeCities)
 
-    return realRows
+    return sourceRows
       .filter((row) => !excluded.has(row.city))
       .filter((row) => matchesSearch(query, row.city))
       .sort((a, b) => a.city.localeCompare(b.city, 'tr'))

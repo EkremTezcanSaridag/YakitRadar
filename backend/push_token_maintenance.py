@@ -7,7 +7,12 @@ from typing import Any
 
 from expo_push_client import is_device_not_registered_error
 
-STALE_TOKEN_MAX_AGE_DAYS = 30
+STALE_TOKEN_MAX_AGE_DAYS = 180
+
+
+def _is_missing_disabled_reason_error(error: BaseException) -> bool:
+    message = str(error).lower()
+    return "disabled_reason" in message or "pgrst204" in message
 
 
 def disable_tokens(supabase, installation_ids: list[str], reason: str) -> int:
@@ -54,6 +59,18 @@ def disable_tokens_by_expo_push_tokens(supabase, expo_push_tokens: list[str], re
             .execute()
         )
     except Exception as error:
+        if _is_missing_disabled_reason_error(error):
+            try:
+                result = (
+                    supabase.table("push_tokens")
+                    .update({"enabled": False, "updated_at": now_iso})
+                    .in_("expo_push_token", tokens)
+                    .execute()
+                )
+                return len(result.data or [])
+            except Exception as fallback_error:
+                print(f"Expo push tokenlari pasiflestirilemedi (fallback): {fallback_error}")
+                return 0
         print(f"Expo push tokenlari pasiflestirilemedi: {error}")
         return 0
 
@@ -101,8 +118,21 @@ def disable_stale_tokens(supabase, now: datetime | None = None, max_age_days: in
             .execute()
         )
     except Exception as error:
-        print(f"Eski push tokenlar pasiflestirilemedi: {error}")
-        return 0
+        if _is_missing_disabled_reason_error(error):
+            try:
+                result = (
+                    supabase.table("push_tokens")
+                    .update({"enabled": False, "updated_at": reference.isoformat()})
+                    .eq("enabled", True)
+                    .lt("last_seen_at", cutoff_iso)
+                    .execute()
+                )
+            except Exception as fallback_error:
+                print(f"Eski push tokenlar pasiflestirilemedi (fallback): {fallback_error}")
+                return 0
+        else:
+            print(f"Eski push tokenlar pasiflestirilemedi: {error}")
+            return 0
 
     count = len(result.data or [])
     if count:

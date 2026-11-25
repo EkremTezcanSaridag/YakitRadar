@@ -15,25 +15,29 @@ function resolveAdMobAppIdsFromEnv(env = process.env) {
   }
 }
 
-function resolveAdMobAppIdConfig({ androidAppId, iosAppId, isProductionBuild }) {
-  if (androidAppId && iosAppId) {
-    return {
-      androidAppId,
-      iosAppId,
-      usedSampleFallback: false,
+function resolveAdMobAppIdConfig({ androidAppId, iosAppId, isProductionBuild, platform } = {}) {
+  const requireAndroid = !platform || platform === 'android'
+  const requireIos = !platform || platform === 'ios'
+
+  if (isProductionBuild) {
+    if (requireAndroid && !androidAppId) {
+      throw new Error(
+        'Production builds require ADMOB_ANDROID_APP_ID and ADMOB_IOS_APP_ID environment variables.',
+      )
+    }
+    if (requireIos && !iosAppId) {
+      throw new Error(
+        'Production builds require ADMOB_ANDROID_APP_ID and ADMOB_IOS_APP_ID environment variables.',
+      )
     }
   }
 
-  if (isProductionBuild) {
-    throw new Error(
-      'Production builds require ADMOB_ANDROID_APP_ID and ADMOB_IOS_APP_ID environment variables.',
-    )
-  }
+  const usedSampleFallback = !androidAppId || !iosAppId
 
   return {
-    androidAppId: GOOGLE_SAMPLE_ANDROID_APP_ID,
-    iosAppId: GOOGLE_SAMPLE_IOS_APP_ID,
-    usedSampleFallback: true,
+    androidAppId: androidAppId || GOOGLE_SAMPLE_ANDROID_APP_ID,
+    iosAppId: iosAppId || GOOGLE_SAMPLE_IOS_APP_ID,
+    usedSampleFallback,
   }
 }
 
@@ -48,12 +52,16 @@ function findAdMobPluginEntry(plugins) {
   return plugins.find((entry) => Array.isArray(entry) && entry[0] === ADMOB_PLUGIN_NAME)
 }
 
-function buildPluginsWithAds(basePlugins, { env = process.env, isProductionBuild = false, warn = console.warn } = {}) {
+function buildPluginsWithAds(
+  basePlugins,
+  { env = process.env, isProductionBuild = false, platform = undefined, warn = console.warn } = {},
+) {
   const envIds = resolveAdMobAppIdsFromEnv(env)
   const resolved = resolveAdMobAppIdConfig({
     androidAppId: envIds.androidAppId,
     iosAppId: envIds.iosAppId,
     isProductionBuild,
+    platform,
   })
 
   const plugins = withoutAdMobPlugin(basePlugins)

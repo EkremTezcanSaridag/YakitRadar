@@ -319,13 +319,10 @@ export default function App() {
     loadNotificationSettings()
       .then(async (settings) => {
         const trackedCities = await loadFavoriteCities()
-        syncExistingNotificationPermission(settings, {
+        await syncExistingNotificationPermission(settings, {
           ...startupNotificationMeta,
           trackedCities,
         })
-        if (settings.weeklySummary) {
-          scheduleWeeklySummaryNotification().catch((error) => logError('startup.weeklySummary', error))
-        }
       })
       .catch((error) => logError('startup.notificationSettings', error))
 

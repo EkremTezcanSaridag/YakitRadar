@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AccessibilityInfo, AppState } from 'react-native'
-import { useReconnectEffect } from '../context/NetworkContext'
+import { useNetworkStatus, useReconnectEffect } from '../context/NetworkContext'
 import { pushToast } from '../components/toastController'
 import { checkAndTriggerCustomAlerts } from '../services/customAlerts'
 import {
@@ -113,22 +113,33 @@ function useFuelDataState() {
       marketSignalRefreshing: true,
     }))
 
-    const signal = await refreshMarketSignalFromRemote()
+    try {
+      const signal = await refreshMarketSignalFromRemote()
 
-    if (!mountedRef.current) {
+      if (!mountedRef.current) {
+        return signal
+      }
+
+      setState((current) => ({
+        ...current,
+        data: {
+          ...current.data,
+          marketSignal: signal,
+        },
+        marketSignalRefreshing: false,
+      }))
+
       return signal
+    } catch (error) {
+      logError('fuel.refreshMarketSignal', error)
+      if (mountedRef.current) {
+        setState((current) => ({
+          ...current,
+          marketSignalRefreshing: false,
+        }))
+      }
+      return null
     }
-
-    setState((current) => ({
-      ...current,
-      data: {
-        ...current.data,
-        marketSignal: signal,
-      },
-      marketSignalRefreshing: false,
-    }))
-
-    return signal
   }, [])
 
   useEffect(() => {
@@ -153,7 +164,7 @@ function useFuelDataState() {
       }))
 
       lastAutoCheckAtRef.current = Date.now()
-      const data = await loadFuelData({ refresh: true, triggerBackend: true })
+      const data = await loadFuelData({ refresh: true, triggerBackend: false })
 
       if (!isMounted) {
         return
@@ -200,7 +211,7 @@ function useFuelDataState() {
       lastAutoCheckAtRef.current = Date.now()
       setState((current) => ({ ...current, autoRefreshing: true }))
 
-      loadFuelData({ refresh: true, triggerBackend: true })
+      loadFuelData({ refresh: true, triggerBackend: false })
         .then((data) => {
           if (!mountedRef.current) {
             return
@@ -242,11 +253,16 @@ function useFuelDataState() {
 
   useReconnectEffect(reconnectRefresh)
 
-  return {
-    ...state,
-    refresh: () => refresh({ userInitiated: true }),
-    refreshMarketSignal,
-  }
+  const userRefresh = useCallback(() => refresh({ userInitiated: true }), [refresh])
+
+  return useMemo(
+    () => ({
+      ...state,
+      refresh: userRefresh,
+      refreshMarketSignal,
+    }),
+    [state, userRefresh, refreshMarketSignal],
+  )
 }
 
 export function FuelDataProvider({ children }) {

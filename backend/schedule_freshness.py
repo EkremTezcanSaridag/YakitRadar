@@ -58,7 +58,7 @@ def resolve_supabase_key() -> str:
 
 def fetch_latest_guncelleme(supabase_url: str, supabase_key: str) -> str | None:
     base = supabase_url.rstrip("/")
-    query = "/rest/v1/fiyatlar?select=guncelleme&order=guncelleme.desc&limit=1"
+    query = "/rest/v1/fiyatlar?select=guncelleme&guncelleme=not.is.null&order=guncelleme.desc.nullslast&limit=1"
     request = urllib.request.Request(
         f"{base}{query}",
         headers={

@@ -74,43 +74,52 @@ def collect_immediate_push_errors(send_responses: list[Any]) -> list[dict[str, s
     return errors
 
 
+EXPO_RECEIPT_CHUNK_SIZE = 1000
+
+
 def fetch_push_receipts(ticket_ids: list[str]) -> dict[str, Any]:
     if not ticket_ids:
         return {}
 
-    last_payload: dict[str, Any] = {}
+    merged_data: dict[str, Any] = {}
     remaining = list(dict.fromkeys(ticket_ids))
 
-    for _ in range(EXPO_RECEIPT_MAX_POLLS):
+    for attempt in range(EXPO_RECEIPT_MAX_POLLS):
         if not remaining:
             break
 
-        response = requests.post(
-            EXPO_RECEIPTS_URL,
-            headers=EXPO_HEADERS,
-            json={"ids": remaining},
-            timeout=SCRAPER_REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-        last_payload = response.json()
-        data = last_payload.get("data") or {}
+        next_remaining: list[str] = []
 
-        if not isinstance(data, dict):
+        for start in range(0, len(remaining), EXPO_RECEIPT_CHUNK_SIZE):
+            batch = remaining[start : start + EXPO_RECEIPT_CHUNK_SIZE]
+            response = requests.post(
+                EXPO_RECEIPTS_URL,
+                headers=EXPO_HEADERS,
+                json={"ids": batch},
+                timeout=SCRAPER_REQUEST_TIMEOUT,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            data = payload.get("data") or {}
+
+            if not isinstance(data, dict):
+                continue
+
+            for ticket_id in batch:
+                entry = data.get(ticket_id)
+                if isinstance(entry, dict) and entry.get("status") != "pending":
+                    merged_data[ticket_id] = entry
+                else:
+                    next_remaining.append(ticket_id)
+
+        if not next_remaining:
             break
 
-        still_pending = [
-            ticket_id
-            for ticket_id in remaining
-            if isinstance(data.get(ticket_id), dict) and data[ticket_id].get("status") == "pending"
-        ]
+        remaining = next_remaining
+        if attempt + 1 < EXPO_RECEIPT_MAX_POLLS:
+            time.sleep(EXPO_RECEIPT_POLL_DELAY_SECONDS)
 
-        if not still_pending:
-            break
-
-        remaining = still_pending
-        time.sleep(EXPO_RECEIPT_POLL_DELAY_SECONDS)
-
-    return last_payload
+    return {"data": merged_data}
 
 
 def parse_receipt_outcomes(
@@ -170,21 +179,47 @@ def parse_receipt_outcomes(
     }
 
 
+def _send_chunk_with_isolation(chunk: list[dict[str, Any]]) -> tuple[int, list[Any]]:
+    response = requests.post(
+        EXPO_PUSH_URL,
+        headers=EXPO_HEADERS,
+        json=chunk,
+        timeout=SCRAPER_REQUEST_TIMEOUT,
+    )
+
+    if response.status_code == 400:
+        if len(chunk) > 1:
+            mid = len(chunk) // 2
+            left_sent, left_res = _send_chunk_with_isolation(chunk[:mid])
+            right_sent, right_res = _send_chunk_with_isolation(chunk[mid:])
+            return left_sent + right_sent, left_res + right_res
+
+        token = str(chunk[0].get("to") or "")
+        return 0, [
+            {
+                "data": [
+                    {
+                        "status": "error",
+                        "message": f"HTTP 400: {getattr(response, 'text', '')[:200]}",
+                        "details": {"error": "DeviceNotRegistered", "expoPushToken": token},
+                    }
+                ]
+            }
+        ]
+
+    response.raise_for_status()
+    return len(chunk), [response.json()]
+
+
 def send_expo_messages(messages: list[dict[str, Any]], chunk_size: int = 100) -> tuple[int, list[Any]]:
     sent = 0
     responses: list[Any] = []
 
     for start in range(0, len(messages), chunk_size):
         chunk = messages[start : start + chunk_size]
-        response = requests.post(
-            EXPO_PUSH_URL,
-            headers=EXPO_HEADERS,
-            json=chunk,
-            timeout=SCRAPER_REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-        responses.append(response.json())
-        sent += len(chunk)
+        chunk_sent, chunk_responses = _send_chunk_with_isolation(chunk)
+        responses.extend(chunk_responses)
+        sent += chunk_sent
 
     return sent, responses
 

@@ -25,6 +25,7 @@ from notification_rules import (
     fuel_matches_tracked,
     istanbul_quiet_hours_active,
     is_pending_price_change_stale,
+    normalize_city_name,
     normalize_fuel_key,
     parse_signals_field,
     price_change_alerts_enabled,
@@ -98,9 +99,10 @@ def github_output(name, value):
     if not path:
         return
 
+    safe_value = str(value).replace("\r", " ").replace("\n", " ")
     try:
         with open(path, "a", encoding="utf-8") as handle:
-            handle.write(f"{name}={value}\n")
+            handle.write(f"{name}={safe_value}\n")
     except OSError as hata:
         print(f"GitHub output yazilamadi: {hata}")
 
@@ -171,7 +173,7 @@ def akaryakit_fiyatlarini_cek():
     duz_metin = soup.get_text(separator=" ")
     desen = (
         r"([A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?:\s?/\s?[A-ZÇĞİÖŞÜ][a-zçğıöşü]+)?)"
-        r"\s*(\d{2},\d{2})\s*(\d{2},\d{2})\s*(\d{2},\d{2})\s*(\d{2},\d{2})\s*(\d{2},\d{2})"
+        r"\s*(\d{2,3}[.,]\d{2})\s*(\d{2,3}[.,]\d{2})\s*(\d{2,3}[.,]\d{2})\s*(\d{2,3}[.,]\d{2})\s*(\d{2,3}[.,]\d{2})"
     )
     guncelleme = datetime.now(ISTANBUL_TZ).strftime("%Y-%m-%d %H:%M")
     il_verileri = {}
@@ -415,8 +417,9 @@ def fiyat_degisim_gecmisi_kaydet(degisimler):
 
 
 def supabase_yaz(veri):
-    for kayit in veri.values():
-        supabase.table("fiyatlar").upsert(kayit).execute()
+    kayitlar = list(veri.values())
+    if kayitlar:
+        supabase.table("fiyatlar").upsert(kayitlar).execute()
 
     supabase.table("fiyatlar").delete().in_("il", ["İstanbul / Anadolu", "İstanbul / Avrupa"]).execute()
 
@@ -464,9 +467,15 @@ def gecmis_kaydet(veri):
 
     if onceki.data:
         onceki_kayit = onceki.data[0]
-        benzin_degisim = str(round(ort_benzin - float(onceki_kayit["benzin_95"]), 2))
-        motorin_degisim = str(round(ort_motorin - float(onceki_kayit["motorin"]), 2))
-        lpg_degisim = str(round(ort_lpg - float(onceki_kayit["lpg"]), 2))
+        onceki_benzin = fiyat_parse(onceki_kayit.get("benzin_95"))
+        onceki_motorin = fiyat_parse(onceki_kayit.get("motorin"))
+        onceki_lpg = fiyat_parse(onceki_kayit.get("lpg"))
+        if onceki_benzin is not None:
+            benzin_degisim = str(round(ort_benzin - onceki_benzin, 2))
+        if onceki_motorin is not None:
+            motorin_degisim = str(round(ort_motorin - onceki_motorin, 2))
+        if onceki_lpg is not None:
+            lpg_degisim = str(round(ort_lpg - onceki_lpg, 2))
 
         validate_gecmis_daily_deltas(
             float(benzin_degisim),
@@ -503,14 +512,30 @@ def gecmis_kaydet(veri):
 
 
 def push_tokenlarini_oku():
+    sayfa_boyutu = 1000
+    tum_tokenlar = []
+    offset = 0
+
     try:
-        sonuc = supabase.table("push_tokens").select("*").eq("enabled", True).execute()
+        while True:
+            query = supabase.table("push_tokens").select("*").eq("enabled", True)
+            if hasattr(query, "order") and hasattr(query, "range"):
+                sonuc = query.order("installation_id").range(offset, offset + sayfa_boyutu - 1).execute()
+                sayfa = sonuc.data or []
+                tum_tokenlar.extend(sayfa)
+                if len(sayfa) < sayfa_boyutu:
+                    break
+                offset += sayfa_boyutu
+            else:
+                sonuc = query.execute()
+                tum_tokenlar = sonuc.data or []
+                break
     except Exception as hata:
         print("Push token tablosu okunamadi. backend/supabase_notifications.sql dosyasini Supabase'de calistirin.")
         print(f"Detay: {hata}")
         return []
 
-    return sonuc.data or []
+    return tum_tokenlar
 
 
 def sessiz_saatte_mi(token_kayit):
@@ -603,8 +628,8 @@ def bekleyen_fiyat_degisimlerini_gonderildi_isaretle(dedupe_keys):
 
 
 def token_icin_degisim_sec(token_kayit, degisimler):
-    takip_iller = {item.lower() for item in liste_degeri(token_kayit.get("tracked_cities"))}
-    takip_yakitlar = {item.lower() for item in liste_degeri(token_kayit.get("tracked_fuels"))}
+    takip_iller = {normalize_city_name(item) for item in liste_degeri(token_kayit.get("tracked_cities"))}
+    takip_yakitlar = {normalize_fuel_key(item) for item in liste_degeri(token_kayit.get("tracked_fuels"))}
     city_alerts = token_kayit.get("city_alerts", True)
     daily_alerts = token_kayit.get("daily_alerts", True)
 
@@ -612,8 +637,8 @@ def token_icin_degisim_sec(token_kayit, degisimler):
         adaylar = [
             degisim
             for degisim in degisimler
-            if (not takip_iller or degisim["city"].lower() in takip_iller)
-            and (not takip_yakitlar or degisim["fuel"].lower() in takip_yakitlar)
+            if (not takip_iller or normalize_city_name(degisim["city"]) in takip_iller)
+            and (not takip_yakitlar or normalize_fuel_key(degisim["fuel"]) in takip_yakitlar)
         ]
 
         if adaylar:
@@ -925,17 +950,21 @@ def gunluk_hafiza_bildirimi_gonderildi_mi():
     try:
         sonuc = (
             supabase.table("notification_logs")
-            .select("id")
-            .eq("reason", "price_memory")
+            .select("id, reason")
+            .eq("status", "sent")
             .gte("created_at", bugun)
-            .limit(1)
+            .limit(20)
             .execute()
         )
     except Exception as hata:
-        print(f"Gunluk hafiza bildirim logu okunamadi: {hata}")
-        return False
+        print(f"Gunluk hafiza bildirim logu okunamadi (fail-closed): {hata}")
+        return True
 
-    return bool(sonuc.data)
+    for row in sonuc.data or []:
+        if row.get("reason") in (None, "", "price_memory", "pending_quiet_hours_flush"):
+            return True
+
+    return False
 
 
 def hafiza_degisimi_olustur(price_memory):
@@ -1007,7 +1036,8 @@ def piyasa_sinyali_kaydet(degisimler=None, onceki_pompa_hafizasi=None):
     row = prepare_market_signal_row(sinyal)
 
     try:
-        with open("market_signals.json", "w", encoding="utf-8") as file:
+        hedef_dosya = os.path.join(os.path.dirname(os.path.abspath(__file__)), "market_signals.json")
+        with open(hedef_dosya, "w", encoding="utf-8") as file:
             json.dump(row, file, ensure_ascii=False, indent=2)
     except Exception as io_err:
         print(f"Yerel market_signals.json yazılamadı: {io_err}")
@@ -1073,8 +1103,8 @@ def beklenen_degisim_bugun_gonderildi_mi(signal_date, fuel):
             .execute()
         )
     except Exception as hata:
-        print(f"Beklenen degisim bildirim logu okunamadi: {hata}")
-        return False
+        print(f"Beklenen degisim bildirim logu okunamadi (fail-closed): {hata}")
+        return True
 
     return bool(sonuc.data)
 
@@ -1285,8 +1315,41 @@ def beklenen_degisim_bildirimleri_gonder(market_row, gerceklesen_yakitlar=None):
 
 def fiyat_bildirimleri_gonder(degisimler, price_memory=None, gerceklesenler=None):
     disable_stale_tokens(supabase)
+    now = datetime.now(ISTANBUL_TZ)
     notification_reason = None
     signal_date = bugun_signal_tarihi()
+    bekleyen_kayitlar = []
+    bekleyen_dedupe_keys = []
+
+    degisimler = list(degisimler or [])
+
+    if istanbul_quiet_hours_active(now):
+        if degisimler:
+            pending_fiyat_degisimleri_kaydet(degisimler)
+            bildirim_log_kaydet(
+                0,
+                len(degisimler),
+                status="skipped",
+                reason="quiet_hours_queued",
+                details={"changes": degisim_ozeti(degisimler)},
+            )
+        return []
+
+    bekleyen_kayitlar = bekleyen_fiyat_degisimlerini_oku()
+    bekleyen_dedupe_keys = [kayit["dedupe_key"] for kayit in bekleyen_kayitlar]
+    bekleyen_degisimler = [kayit["change_payload"] for kayit in bekleyen_kayitlar]
+    degisimler = dedupe_price_changes(bekleyen_degisimler + degisimler, signal_date)
+
+    if bekleyen_degisimler:
+        print(f"Sessiz saat kuyrugundan {len(bekleyen_degisimler)} bekleyen fiyat degisimi eklendi")
+
+    if gerceklesenler is None or (not gerceklesenler and bekleyen_degisimler):
+        try:
+            gerceklesenler = beklenen_degisim_gerceklesti_mi(degisimler)
+        except Exception as hata:
+            print(f"Beklenen degisim eslestirmesi yapilamadi: {hata}")
+            gerceklesenler = []
+
     realizasyonlar = realized_by_fuel(gerceklesenler)
     realizasyon_ozeti = [
         {
@@ -1298,23 +1361,6 @@ def fiyat_bildirimleri_gonder(degisimler, price_memory=None, gerceklesenler=None
         }
         for realizasyon in realizasyonlar.values()
     ]
-    bekleyen_kayitlar = []
-    bekleyen_dedupe_keys = []
-
-    degisimler = list(degisimler or [])
-
-    if istanbul_quiet_hours_active(datetime.now(ISTANBUL_TZ)):
-        if degisimler:
-            pending_fiyat_degisimleri_kaydet(degisimler)
-        degisimler = []
-    else:
-        bekleyen_kayitlar = bekleyen_fiyat_degisimlerini_oku()
-        bekleyen_dedupe_keys = [kayit["dedupe_key"] for kayit in bekleyen_kayitlar]
-        bekleyen_degisimler = [kayit["change_payload"] for kayit in bekleyen_kayitlar]
-        degisimler = dedupe_price_changes(bekleyen_degisimler + degisimler, signal_date)
-
-        if bekleyen_degisimler:
-            print(f"Sessiz saat kuyrugundan {len(bekleyen_degisimler)} bekleyen fiyat degisimi eklendi")
 
     if not degisimler:
         hafiza_degisimi = hafiza_degisimi_olustur(price_memory)
@@ -1472,6 +1518,7 @@ def fiyat_bildirimleri_gonder(degisimler, price_memory=None, gerceklesenler=None
         },
     )
     print(f"{gonderilen} push bildirimi Expo Push API'ye gonderildi")
+    return list(realizasyonlar.keys())
 
 
 if __name__ == "__main__":
@@ -1532,9 +1579,9 @@ if __name__ == "__main__":
         for il in sorted(veri.keys()):
             print(f"  {il}: {veri[il]['benzin_95']}")
 
-        fiyat_degisim_gecmisi_kaydet(degisimler)
-        supabase_yaz(veri)
         gecmis_kaydet(veri)
+        supabase_yaz(veri)
+        fiyat_degisim_gecmisi_kaydet(degisimler)
     else:
         print("UYARI: Scraper basarisiz; gecmis tablosuna yedek veri yazilmadi.")
     onceki_pompa_hafizasi = gunluk_pompa_hafizasi_oku()
@@ -1562,7 +1609,7 @@ if __name__ == "__main__":
         )
 
     price_memory = (sinyal or {}).get("analysis", {})
-    fiyat_bildirimleri_gonder(
+    gerceklesen_yakit_anahtarlari = fiyat_bildirimleri_gonder(
         degisimler,
         {
             "score": price_memory.get("price_score", 0),
@@ -1572,13 +1619,18 @@ if __name__ == "__main__":
             "remembered_at": price_memory.get("price_memory", {}).get("remembered_at"),
         },
         gerceklesenler=gerceklesen_beklentiler,
+    ) or []
+
+    atlanan_yakitlar = list(
+        {
+            *[eslesme["fuel_key"] for eslesme in gerceklesen_beklentiler],
+            *gerceklesen_yakit_anahtarlari,
+        }
     )
 
     beklenen_degisim_bildirimleri_gonder(
         sinyal or {},
-        gerceklesen_yakitlar=[
-            eslesme["fuel_key"] for eslesme in gerceklesen_beklentiler
-        ],
+        gerceklesen_yakitlar=atlanan_yakitlar,
     )
 
     if os.getenv("SEND_TEST_NOTIFICATION", "").lower() == "true":

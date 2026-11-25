@@ -129,12 +129,12 @@ export function buildSourceFreshness(prices, now = Date.now()) {
 }
 
 export function snapshotFuelPricesForCompare(prices) {
-  const rows = Array.isArray(prices) ? prices.filter((row) => row?.il) : []
+  const rows = Array.isArray(prices) ? prices.filter((row) => row?.city ?? row?.il) : []
 
   return rows
     .map(
       (row) =>
-        `${row.il}|${row.benzin_95 ?? ''}|${row.motorin ?? ''}|${row.lpg ?? ''}|${row.guncelleme ?? row.dataUpdatedAt ?? ''}`,
+        `${row.city ?? row.il}|${row.benzin95 ?? row.benzin_95 ?? ''}|${row.motorin ?? ''}|${row.lpg ?? ''}|${row.dataUpdatedAt ?? row.guncelleme ?? ''}`,
     )
     .sort()
     .join(';')
