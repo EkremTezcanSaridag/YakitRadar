@@ -150,8 +150,8 @@ def filter_expected_change_signals(market_row: dict[str, Any]) -> list[dict[str,
 
 
 def price_change_dedupe_key(change: dict[str, Any], signal_date: str) -> str:
-    city = str(change.get("city") or "").strip().lower()
-    fuel = str(change.get("fuel") or "").strip().lower()
+    city = normalize_city_name(change.get("city"))
+    fuel = normalize_fuel_key(change.get("fuel"))
     new_price = change.get("new_price")
     old_price = change.get("old_price")
     return f"price:{signal_date}:{city}:{fuel}:{old_price}:{new_price}"
@@ -266,9 +266,9 @@ def select_price_changes_for_token(
             if tracked_cities and normalize_city_name(change.get("city")) not in tracked_cities:
                 continue
 
-            change_fuel = normalize_fuel_key(change.get("fuel"))
-            if tracked_fuels and change_fuel not in tracked_fuels:
-                continue
+        change_fuel = normalize_fuel_key(change.get("fuel"))
+        if tracked_fuels and change_fuel not in tracked_fuels:
+            continue
 
         selected.append(change)
 
@@ -288,4 +288,8 @@ def dedupe_price_changes(changes: list[dict[str, Any]], signal_date: str) -> lis
         key = price_change_dedupe_key(change, signal_date)
         merged[key] = change
 
-    return list(merged.values())
+    return sorted(
+        merged.values(),
+        key=lambda item: abs(float(item.get("diff") or 0)),
+        reverse=True,
+    )

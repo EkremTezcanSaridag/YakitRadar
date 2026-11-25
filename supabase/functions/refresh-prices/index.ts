@@ -37,6 +37,16 @@ Deno.serve(async (request) => {
   const testNotification = requestBody.testNotification === true
   const installationId = requestBody.installationId?.trim()
 
+  if (testNotification && (!installationId || installationId.length < 8 || installationId.length > 128)) {
+    return jsonResponse(
+      {
+        message: 'Valid installationId is required for test notifications.',
+        status: 'error',
+      },
+      400,
+    )
+  }
+
   if (!token) {
     return jsonResponse(
       {
@@ -92,10 +102,10 @@ Deno.serve(async (request) => {
 
     if (!response.ok) {
       const details = await response.text()
+      console.error('GitHub workflow dispatch failed:', response.status, details)
 
       return jsonResponse(
         {
-          details,
           message: `GitHub workflow dispatch failed with ${response.status}.`,
           status: 'error',
         },
@@ -110,9 +120,10 @@ Deno.serve(async (request) => {
       testNotification,
     })
   } catch (error) {
+    console.error('Refresh trigger error:', error)
     return jsonResponse(
       {
-        message: error instanceof Error ? error.message : 'Unknown refresh trigger error.',
+        message: 'Refresh trigger failed.',
         status: 'error',
       },
       500,

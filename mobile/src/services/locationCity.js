@@ -109,10 +109,8 @@ async function reverseGeocodeProvince(latitude, longitude) {
   }
 }
 
-/** Koordinatlar sunucuya gönderilmez; yalnızca il adı döner. */
+/** Koordinatlar sunucuya gönderilmez; yalnızca cihaz içi Haversine ile il adı döner. */
 export async function resolveHomeCityFromDeviceLocation() {
   const { latitude, longitude } = await getCurrentCoordinates()
-  const fromGeocode = await reverseGeocodeProvince(latitude, longitude)
-  if (fromGeocode) return fromGeocode
   return nearestProvinceByCoordinates(latitude, longitude)
 }

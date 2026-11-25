@@ -140,9 +140,24 @@ def extract_paragraph_text_from_html(html: str) -> str:
     return re.sub(r"\s+", " ", fallback).strip()[:4000]
 
 
+ALLOWED_ARTICLE_HOST_SUFFIXES = ("ekonomim.com", "haberturk.com")
+MAX_ARTICLE_RESPONSE_BYTES = 512 * 1024
+
+
+def _is_allowed_article_url(url: str) -> bool:
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        return False
+    host = (parsed.hostname or "").lower()
+    return any(host == suffix or host.endswith(f".{suffix}") for suffix in ALLOWED_ARTICLE_HOST_SUFFIXES)
+
+
 def fetch_article_body_with_status(url: str, budget: ArticleFetchBudget | None = None) -> tuple[str | None, int | None, str | None]:
     if not url or is_google_news_url(url):
         return None, None, "google_news_url"
+
+    if not _is_allowed_article_url(url):
+        return None, None, "disallowed_article_host"
 
     if budget is not None and not budget.can_fetch():
         return None, None, "budget_exhausted"
@@ -166,10 +181,14 @@ def fetch_article_body_with_status(url: str, budget: ArticleFetchBudget | None =
     if is_google_news_url(final_url):
         return None, status, "redirected_to_google_news"
 
+    if not _is_allowed_article_url(final_url):
+        return None, status, "redirected_to_disallowed_host"
+
     if status >= 400:
         return None, status, "http_error"
 
-    body = extract_paragraph_text_from_html(response.text)
+    raw_text = (response.text or "")[:MAX_ARTICLE_RESPONSE_BYTES]
+    body = extract_paragraph_text_from_html(raw_text)
 
     if not body:
         return None, status, "empty_body"

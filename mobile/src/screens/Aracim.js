@@ -31,12 +31,22 @@ const fuelIonicon = {
 }
 
 function toNumber(value) {
-  const parsed = Number.parseFloat(String(value).replace(',', '.'))
+  const raw = String(value ?? '').trim()
+  if (!raw) return 0
+  let normalized = raw.replace(/\s+/g, '')
+  if (normalized.includes(',') && normalized.includes('.')) {
+    normalized = normalized.replace(/\./g, '').replace(',', '.')
+  } else if (normalized.includes(',')) {
+    normalized = normalized.replace(',', '.')
+  } else if (/^\d{1,3}(?:\.\d{3})+$/.test(normalized)) {
+    normalized = normalized.replace(/\./g, '')
+  }
+  const parsed = Number.parseFloat(normalized)
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
 }
 
 function formatNumber(value) {
-  return value.toLocaleString('tr-TR', { maximumFractionDigits: 0 })
+  return value.toLocaleString('tr-TR', { maximumFractionDigits: 1 })
 }
 
 function formatHistoryDate(value) {
@@ -91,6 +101,7 @@ export default function Aracim() {
   const [receiptStation, setReceiptStation] = useState('Shell')
   const [receiptFuelKey, setReceiptFuelKey] = useState('benzin95')
   const [receiptAmount, setReceiptAmount] = useState('')
+  const [receiptAmountAutoFilled, setReceiptAmountAutoFilled] = useState(false)
   const [receiptLiters, setReceiptLiters] = useState('')
   const [receiptNotes, setReceiptNotes] = useState('')
   const [receiptPayment, setReceiptPayment] = useState('Kredi Kartı')
@@ -146,6 +157,7 @@ export default function Aracim() {
 
   function handleReceiptAmountChange(val) {
     setReceiptAmount(val)
+    setReceiptAmountAutoFilled(false)
     const numAmt = toNumber(val)
     const activeFuelPrice = Number(selectedCity?.[receiptFuelKey]) || price
     if (numAmt > 0 && activeFuelPrice > 0) {
@@ -159,8 +171,12 @@ export default function Aracim() {
     setReceiptLiters(val)
     const numLtr = toNumber(val)
     const activeFuelPrice = Number(selectedCity?.[receiptFuelKey]) || price
-    if (numLtr > 0 && activeFuelPrice > 0 && !receiptAmount) {
+    if (numLtr > 0 && activeFuelPrice > 0 && (!receiptAmount || receiptAmountAutoFilled)) {
       setReceiptAmount((numLtr * activeFuelPrice).toFixed(2))
+      setReceiptAmountAutoFilled(true)
+    } else if (!val && receiptAmountAutoFilled) {
+      setReceiptAmount('')
+      setReceiptAmountAutoFilled(false)
     }
   }
 

@@ -20,7 +20,7 @@ export const defaultAlerts = [
     fuelTitle: 'Benzin 95',
     condition: 'below_price',
     targetValue: '70',
-    isEnabled: true,
+    isEnabled: false,
     createdAt: new Date().toISOString(),
   },
   {
@@ -30,7 +30,7 @@ export const defaultAlerts = [
     fuelTitle: 'Motorin',
     condition: 'news_hike',
     targetValue: '2',
-    isEnabled: true,
+    isEnabled: false,
     createdAt: new Date().toISOString(),
   },
 ]
@@ -89,11 +89,20 @@ export function evaluateCustomAlerts(alerts, prices, marketSignal) {
   const triggered = []
 
   for (const alert of activeAlerts) {
+    const targetPrice = Number.parseFloat(String(alert.targetValue ?? '').trim().replace(',', '.')) || 0
+
     if (alert.condition === 'news_hike') {
-      if (marketSignal?.direction === 'increase') {
+      const expectedSignals = marketSignal?.expectedFuelSignals ?? []
+      const matchingSignal = expectedSignals.find(
+        (sig) =>
+          sig.fuelKey === alert.fuelKey &&
+          sig.direction === 'increase' &&
+          (targetPrice <= 0 || Number(sig.amountTl || 0) >= targetPrice),
+      )
+      if (matchingSignal) {
         triggered.push({
           alert,
-          message: `${marketSignal.summary ?? 'Zam beklentisi öne çıkıyor'}`,
+          message: `${alert.fuelTitle} için +${Number(matchingSignal.amountTl).toFixed(2)} TL zam beklentisi`,
         })
       }
     } else {
@@ -108,8 +117,7 @@ export function evaluateCustomAlerts(alerts, prices, marketSignal) {
         }
       }
 
-      if (currentPrice > 0) {
-        const targetPrice = Number.parseFloat(alert.targetValue) || 0
+      if (currentPrice > 0 && targetPrice > 0) {
         if (alert.condition === 'below_price' && currentPrice <= targetPrice) {
           triggered.push({
             alert,

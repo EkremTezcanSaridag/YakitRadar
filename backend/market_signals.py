@@ -407,7 +407,7 @@ def serialize_news_for_groq(news_items):
 
 
 def fetch_usd_try_history(limit=12):
-    records = []
+    records_by_date = {}
     today = datetime.now(ISTANBUL_TZ).date()
 
     for offset in range(0, 32):
@@ -418,24 +418,17 @@ def fetch_usd_try_history(limit=12):
         except Exception:
             continue
 
-        if record:
-            records.append(record)
+        if record and record.get("date") not in records_by_date:
+            records_by_date[record["date"]] = record
 
-        if len(records) >= limit:
+        if len(records_by_date) >= limit:
             break
 
-    if not records:
-        print("UYARI: TCMB USD/TRY verisi alinamadi, varsayilan referans kur kaydi olusturuldu.")
-        records = [
-            {
-                "date": today,
-                "rate": 34.50,
-                "source": "TCMB Fallback",
-                "source_url": "https://www.tcmb.gov.tr/kurlar/today.xml",
-            }
-        ]
+    if not records_by_date:
+        print("UYARI: TCMB USD/TRY verisi alinamadi; kur degisimi bos birakildi.")
+        return []
 
-    return sorted(records, key=lambda item: item["date"])
+    return sorted(records_by_date.values(), key=lambda item: item["date"])
 
 
 def normalize_text(value):
@@ -549,7 +542,20 @@ def extract_news_price_mentions(*values):
     return mentions
 
 
-def fetch_news_items(limit=8):
+PUBLISHER_FUEL_KEYWORDS = (
+    "akaryakit",
+    "benzin",
+    "motorin",
+    "mazot",
+    "lpg",
+    "otogaz",
+    "pompa",
+    "brent",
+    "petrol",
+)
+
+
+def fetch_news_items(limit=20):
     items = []
     seen_titles = set()
 
@@ -623,8 +629,13 @@ def fetch_news_items(limit=8):
         if is_blocked_news_source(clean_source) or not is_recent_news_item(published_at):
             continue
 
-        seen_titles.add(normalized_title)
         clean_description = clean_news_text(publisher_item.get("description") or "")
+        normalized_combined = f"{normalized_title} {normalize_text(clean_description)}"
+
+        if not any(keyword in normalized_combined for keyword in PUBLISHER_FUEL_KEYWORDS):
+            continue
+
+        seen_titles.add(normalized_title)
 
         items.append(
             {

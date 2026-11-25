@@ -209,9 +209,6 @@ export default function SakinSolmaTabBar({
     })
   }, [descriptors, reduceMotion, state.index, state.routes])
 
-  const tabBarItemStyle = descriptors[focusedRouteKey]?.options?.tabBarItemStyle ?? {}
-  const tabBarLabelStyle = descriptors[focusedRouteKey]?.options?.tabBarLabelStyle ?? {}
-
   return (
     <View accessibilityRole="tablist" style={[styles.bar, tabBarStyle]}>
       {pillReady ? (
@@ -240,6 +237,8 @@ export default function SakinSolmaTabBar({
         }
 
         const focused = index === state.index
+        const tabBarItemStyle = options.tabBarItemStyle ?? {}
+        const tabBarLabelStyle = options.tabBarLabelStyle ?? {}
         const label = options.title ?? route.name
         const iconMeta = tabIcons[route.name] ?? { active: 'circle', inactive: 'circle-outline' }
         const anims = ensureTabAnims(tabAnimsRef.current, route.key, focused)

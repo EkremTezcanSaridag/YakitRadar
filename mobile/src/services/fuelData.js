@@ -1372,8 +1372,9 @@ async function fetchRemoteFuelData({ triggerBackend = false } = {}) {
     return null
   }
 
-  const refreshRequest = triggerBackend ? await triggerBackendRefresh() : null
-  const [pricesResult, historyResult, marketSignalsResult] = await Promise.all([
+  const refreshPromise = triggerBackend ? triggerBackendRefresh() : Promise.resolve(null)
+  const [refreshRequest, pricesResult, historyResult, marketSignalsResult] = await Promise.all([
+    refreshPromise,
     supabase.from('fiyatlar').select('il, benzin_95, motorin, lpg, guncelleme'),
     supabase
       .from('gecmis')
@@ -1454,7 +1455,12 @@ export async function refreshMarketSignalFromRemote() {
     return null
   }
 
-  const signal = normalizeMarketSignalRecord(data[0])
+  const latestRecord = data[0]
+  const isSignalStale = latestRecord?.calculated_at
+    ? Date.now() - new Date(latestRecord.calculated_at).getTime() > 24 * 3600 * 1000
+    : true
+
+  const signal = isSignalStale ? null : normalizeMarketSignalRecord(latestRecord)
 
   if (fuelDataCache) {
     fuelDataCache = {

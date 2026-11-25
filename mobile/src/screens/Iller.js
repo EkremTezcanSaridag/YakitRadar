@@ -61,7 +61,11 @@ export default function Iller() {
       {
         text: 'Benim şehrim yap',
         onPress: async () => {
-          await setPrimaryCityManual(cityName)
+          const updated = await setPrimaryCityManual(cityName)
+          if (Array.isArray(updated)) {
+            setFavoriteCities(updated)
+          }
+          toast.success(`${cityName} ana şehriniz yapıldı`)
         },
       },
     ])
@@ -74,6 +78,7 @@ export default function Iller() {
 
     return realPrices
       .filter((city) => {
+        if (!(Number(city[selectedFuelKey]) > 0)) return false
         if (showOnlyFavorites && !favoriteCities.includes(city.city)) return false
         return matchesSearch(searchQuery, city.city)
       })
@@ -543,7 +548,7 @@ const styles = StyleSheet.create({
   cityNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justify: 'space-between',
+    justifyContent: 'space-between',
     gap: 6,
   },
   heartButton: {
