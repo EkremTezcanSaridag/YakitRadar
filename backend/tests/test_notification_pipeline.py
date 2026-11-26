@@ -132,7 +132,7 @@ class TestQuietHoursQueue:
         assert len(pipeline.saved) == 1
         assert pipeline.sent == []
         assert pipeline.marked == []
-        assert pipeline.logs[-1]["reason"] == "no_changes"
+        assert pipeline.logs[-1]["reason"] == "quiet_hours_queued"
 
     def test_morning_flush_sends_pending_once_and_marks_it(self, monkeypatch):
         pipeline = _Pipeline(monkeypatch)

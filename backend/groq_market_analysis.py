@@ -809,7 +809,7 @@ def compute_bu_gece_effective_at(
     local = reference.astimezone(reference.tzinfo)
     target_date = local.date()
 
-    if local.hour >= 4:
+    if local.hour >= 18:
         target_date = local.date() + timedelta(days=1)
 
     return datetime(target_date.year, target_date.month, target_date.day, tzinfo=local.tzinfo)

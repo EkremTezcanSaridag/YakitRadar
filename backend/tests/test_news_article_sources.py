@@ -129,7 +129,7 @@ class TestArticleFetchBudget:
         def fake_get(*_args, **_kwargs):
             class Resp:
                 status_code = 200
-                url = "https://example.test/a"
+                url = "https://www.ekonomim.com/haber/a"
                 text = "<p>motorine 1 TL zam yapildi uzun paragraf metni burada.</p>"
 
             return Resp()
@@ -137,10 +137,21 @@ class TestArticleFetchBudget:
         monkeypatch.setattr("news_article_sources.requests.get", fake_get)
 
         for _ in range(2):
-            body, status, _err = fetch_article_body_with_status("https://example.test/a", budget=budget)
+            body, status, _err = fetch_article_body_with_status("https://www.ekonomim.com/haber/a", budget=budget)
             assert body
             assert status == 200
 
-        body, status, err = fetch_article_body_with_status("https://example.test/a", budget=budget)
+        body, status, err = fetch_article_body_with_status("https://www.ekonomim.com/haber/a", budget=budget)
         assert body is None
         assert err == "budget_exhausted"
+
+    def test_rejects_disallowed_or_insecure_urls(self):
+        body, status, err = fetch_article_body_with_status("http://www.ekonomim.com/haber/a")
+        assert body is None
+        assert status is None
+        assert err == "disallowed_article_host"
+
+        body, status, err = fetch_article_body_with_status("https://169.254.169.254/latest/meta-data")
+        assert body is None
+        assert status is None
+        assert err == "disallowed_article_host"

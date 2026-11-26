@@ -53,4 +53,25 @@ const fromHelper = resolveAdMobAppIdConfig({
 })
 assert.equal(fromHelper.usedSampleFallback, false)
 
+const releaseWithoutAds = buildPluginsWithAds([], {
+  env: {},
+  isProductionBuild: false,
+  isReleaseBuild: true,
+  platform: 'android',
+  warn: () => {},
+})
+assert.equal(findAdMobPluginEntry(releaseWithoutAds)[1].androidAppId, GOOGLE_SAMPLE_ANDROID_APP_ID)
+
+assert.throws(
+  () =>
+    buildPluginsWithAds([], {
+      env: { EXPO_PUBLIC_ADMOB_INTERSTITIAL_ID_ANDROID: 'ca-app-pub-123/456' },
+      isProductionBuild: false,
+      isReleaseBuild: true,
+      platform: 'android',
+      warn: () => {},
+    }),
+  /Release builds with EXPO_PUBLIC_ADMOB_INTERSTITIAL_ID_ANDROID require ADMOB_ANDROID_APP_ID/,
+)
+
 console.log('admob-app-config tests passed')

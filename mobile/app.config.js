@@ -1,7 +1,8 @@
 const appJson = require('./app.json')
 const { buildPluginsWithAds } = require('./adMobAppConfig.cjs')
 
-const isProductionBuild = ['production', 'release'].includes(process.env.EAS_BUILD_PROFILE)
+const isProductionBuild = process.env.EAS_BUILD_PROFILE === 'production'
+const isReleaseBuild = process.env.EAS_BUILD_PROFILE === 'release'
 
 module.exports = () => {
   const android = {
@@ -17,6 +18,7 @@ module.exports = () => {
     plugins: buildPluginsWithAds(appJson.expo.plugins ?? [], {
       env: process.env,
       isProductionBuild,
+      isReleaseBuild,
       platform: process.env.EAS_BUILD_PLATFORM,
     }),
   }

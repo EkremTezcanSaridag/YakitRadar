@@ -15,7 +15,15 @@ function resolveAdMobAppIdsFromEnv(env = process.env) {
   }
 }
 
-function resolveAdMobAppIdConfig({ androidAppId, iosAppId, isProductionBuild, platform } = {}) {
+function resolveAdMobAppIdConfig({
+  androidAppId,
+  iosAppId,
+  isProductionBuild,
+  isReleaseBuild = false,
+  hasAndroidInterstitial = false,
+  hasIosInterstitial = false,
+  platform,
+} = {}) {
   const requireAndroid = !platform || platform === 'android'
   const requireIos = !platform || platform === 'ios'
 
@@ -28,6 +36,19 @@ function resolveAdMobAppIdConfig({ androidAppId, iosAppId, isProductionBuild, pl
     if (requireIos && !iosAppId) {
       throw new Error(
         'Production builds require ADMOB_ANDROID_APP_ID and ADMOB_IOS_APP_ID environment variables.',
+      )
+    }
+  }
+
+  if (isReleaseBuild) {
+    if (requireAndroid && hasAndroidInterstitial && !androidAppId) {
+      throw new Error(
+        'Release builds with EXPO_PUBLIC_ADMOB_INTERSTITIAL_ID_ANDROID require ADMOB_ANDROID_APP_ID.',
+      )
+    }
+    if (requireIos && hasIosInterstitial && !iosAppId) {
+      throw new Error(
+        'Release builds with EXPO_PUBLIC_ADMOB_INTERSTITIAL_ID_IOS require ADMOB_IOS_APP_ID.',
       )
     }
   }
@@ -54,13 +75,22 @@ function findAdMobPluginEntry(plugins) {
 
 function buildPluginsWithAds(
   basePlugins,
-  { env = process.env, isProductionBuild = false, platform = undefined, warn = console.warn } = {},
+  {
+    env = process.env,
+    isProductionBuild = false,
+    isReleaseBuild = false,
+    platform = undefined,
+    warn = console.warn,
+  } = {},
 ) {
   const envIds = resolveAdMobAppIdsFromEnv(env)
   const resolved = resolveAdMobAppIdConfig({
     androidAppId: envIds.androidAppId,
     iosAppId: envIds.iosAppId,
     isProductionBuild,
+    isReleaseBuild,
+    hasAndroidInterstitial: Boolean(env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_ID_ANDROID?.trim()),
+    hasIosInterstitial: Boolean(env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_ID_IOS?.trim()),
     platform,
   })
 

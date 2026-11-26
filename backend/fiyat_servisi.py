@@ -1343,7 +1343,7 @@ def fiyat_bildirimleri_gonder(degisimler, price_memory=None, gerceklesenler=None
     if bekleyen_degisimler:
         print(f"Sessiz saat kuyrugundan {len(bekleyen_degisimler)} bekleyen fiyat degisimi eklendi")
 
-    if gerceklesenler is None or (not gerceklesenler and bekleyen_degisimler):
+    if bekleyen_degisimler and not gerceklesenler:
         try:
             gerceklesenler = beklenen_degisim_gerceklesti_mi(degisimler)
         except Exception as hata:
